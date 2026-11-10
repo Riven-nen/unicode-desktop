@@ -27,19 +27,17 @@
   --radius: 8px;
   --title-bar-height: 36px;
   --status-bar-height: 24px;
+  /* Typography — FontProvider overwrites these at runtime. */
+  --ui-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --code-font: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --code-font-size: 14px;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--ui-font);
 }
 
 body {
@@ -47,6 +45,8 @@ body {
   color: var(--text-main);
   height: 100vh;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -308,41 +308,88 @@ input:focus-visible,
   color: white;
 }
 
-/* --- Theme Picker --- */
-.theme-picker {
+/* --- Appearance Studio (theme / font / size / ligatures) --- */
+.appearance-picker {
   position: relative;
   -webkit-app-region: no-drag;
 }
-.theme-popover {
+.appearance-popover {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 130;
-  min-width: 188px;
-  padding: 5px;
-  gap: 2px;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  width: 296px;
+  padding: 6px;
+  gap: 4px;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  animation: popover-in 0.16s ease;
 }
-.theme-option {
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.appearance-section {
+  padding: 8px 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.appearance-section + .appearance-section {
+  border-top: 1px solid var(--border);
+}
+.appearance-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.appearance-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.appearance-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+/* Theme cards */
+.theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.theme-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: 7px;
+  padding: 7px 9px;
   border-radius: 6px;
+  border: 1px solid transparent;
   color: var(--text-main);
   font-size: 12px;
-  width: 100%;
   text-align: left;
-  transition: background 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
-.theme-option:hover {
+.theme-card:hover {
   background: var(--hover);
 }
-.theme-option.active {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+.theme-card.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.theme-swatch {
+.theme-card-swatch {
   display: flex;
   gap: 3px;
 }
@@ -352,11 +399,126 @@ input:focus-visible,
   border-radius: 3px;
   border: 1px solid var(--border);
 }
-.theme-option-label {
+.theme-card-label {
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .theme-check {
   color: var(--accent);
+  flex-shrink: 0;
+}
+/* Font list with live previews */
+.font-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 172px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.font-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.font-option:hover {
+  background: var(--hover);
+}
+.font-option.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.font-name {
+  width: 96px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.font-preview {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.font-option.active .font-preview {
+  color: var(--accent);
+}
+/* Font size stepper */
+.size-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  transition: border-color 0.15s ease;
+}
+.stepper-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.size-value {
+  min-width: 26px;
+  text-align: center;
+  font-family: var(--code-font);
+  font-size: 12px;
+  color: var(--text-main);
+}
+/* Ligature toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  border-radius: 10px;
+  background: var(--hover);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+.toggle-switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle-switch.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text-main);
+  transition: transform 0.18s ease;
+}
+.toggle-switch.on .toggle-knob {
+  transform: translateX(15px);
+  background: white;
 }
 
 /* --- Activity Bar (Far Left) --- */
@@ -519,8 +681,8 @@ input:focus-visible,
 }
 .terminal-content {
   padding: 10px 12px;
-  font-family: 'Fira Code', monospace;
-  font-size: 12.5px;
+  font-family: var(--code-font);
+  font-size: calc(var(--code-font-size) - 1px);
   color: var(--text-main);
 }
 .term-user {
@@ -561,7 +723,7 @@ input:focus-visible,
   white-space: nowrap;
 }
 .status-file {
-  font-family: 'Fira Code', monospace;
+  font-family: var(--code-font);
   color: var(--text-main);
 }
 .status-sep {
@@ -626,7 +788,7 @@ input:focus-visible,
 }
 .timeline-file {
   color: var(--text-main);
-  font-family: 'Fira Code', monospace;
+  font-family: var(--code-font);
   white-space: nowrap;
 }
 .timeline-meta {
@@ -751,7 +913,7 @@ input:focus-visible,
   flex-shrink: 0;
 }
 .chip-time {
-  font-family: 'Fira Code', monospace;
+  font-family: var(--code-font);
 }
 .chip-delta {
   font-size: 10px;
@@ -831,7 +993,7 @@ input:focus-visible,
 }
 .diff-time {
   color: var(--text-muted);
-  font-family: 'Fira Code', monospace;
+  font-family: var(--code-font);
   font-size: 11px;
 }
 .diff-nav {
@@ -930,7 +1092,7 @@ input:focus-visible,
   margin: 0;
   max-height: 84px;
   overflow: auto;
-  font-family: 'Fira Code', monospace;
+  font-family: var(--code-font);
   font-size: 11px;
   color: var(--text-main);
   white-space: pre-wrap;

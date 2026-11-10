@@ -4,6 +4,7 @@ import type { DiffBeforeMount } from '@monaco-editor/react'
 import { ChevronLeft, ChevronRight, ClipboardPaste, RotateCcw, X } from 'lucide-react'
 import { formatClockTime } from '../lib/time'
 import { useTheme } from '../themes/useTheme'
+import { useFont } from '../fonts/useFont'
 import { defineMonacoThemes } from '../themes/themes'
 import type { CodeSnapshot, PasteEventRecord } from '../types/tracker'
 
@@ -36,6 +37,7 @@ export default function DiffViewer({
 }: DiffViewerProps): React.ReactElement | null {
   const [compareMode, setCompareMode] = useState<CompareMode>('previous')
   const { monacoTheme } = useTheme()
+  const { font, fontSize, ligatures } = useFont()
   // Side-by-side diffs need horizontal room; narrow windows get inline diffs.
   const [sideBySide, setSideBySide] = useState(() => window.innerWidth > 720)
 
@@ -149,8 +151,9 @@ export default function DiffViewer({
               readOnly: true,
               originalEditable: false,
               minimap: { enabled: false },
-              fontSize: 13,
-              fontFamily: "'Fira Code', monospace",
+              fontSize: fontSize - 1,
+              fontFamily: font.family,
+              fontLigatures: ligatures,
               scrollBeyondLastLine: false
             }}
           />

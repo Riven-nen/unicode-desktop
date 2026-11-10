@@ -140,6 +140,130 @@ export const THEMES: ThemeDefinition[] = [
       string: '#5eeadf',
       number: '#ffd166'
     }
+  },
+  {
+    id: 'dracula',
+    label: 'Dracula',
+    description: 'Purple horror classic',
+    colors: {
+      'bg-base': '#282a36',
+      'bg-panel': 'rgba(40, 42, 54, 0.6)',
+      'bg-header': '#21222c',
+      'bg-terminal': '#191a21',
+      'search-bg': '#1f2029',
+      border: 'rgba(248, 248, 242, 0.08)',
+      hover: 'rgba(248, 248, 242, 0.05)',
+      'text-main': '#f8f8f2',
+      'text-muted': '#6272a4',
+      accent: '#bd93f9',
+      paste: '#f1fa8c',
+      restore: '#50fa7b',
+      success: '#50fa7b',
+      error: '#ff5555',
+      'terminal-green': '#50fa7b',
+      'terminal-blue': '#8be9fd'
+    },
+    swatch: { bg: '#282a36', accent: '#bd93f9', text: '#f8f8f2' },
+    monacoBase: 'vs-dark',
+    monacoTokens: {
+      comment: '#6272a4',
+      keyword: '#ff79c6',
+      string: '#f1fa8c',
+      number: '#bd93f9'
+    }
+  },
+  {
+    id: 'mocha',
+    label: 'Mocha',
+    description: 'Catppuccin soft pastels',
+    colors: {
+      'bg-base': '#1e1e2e',
+      'bg-panel': 'rgba(30, 30, 46, 0.6)',
+      'bg-header': '#181825',
+      'bg-terminal': '#11111b',
+      'search-bg': '#15151e',
+      border: 'rgba(205, 214, 244, 0.1)',
+      hover: 'rgba(205, 214, 244, 0.06)',
+      'text-main': '#cdd6f4',
+      'text-muted': '#7f849c',
+      accent: '#b4befe',
+      paste: '#f9e2af',
+      restore: '#a6e3a1',
+      success: '#a6e3a1',
+      error: '#f38ba8',
+      'terminal-green': '#a6e3a1',
+      'terminal-blue': '#89b4fa'
+    },
+    swatch: { bg: '#1e1e2e', accent: '#b4befe', text: '#cdd6f4' },
+    monacoBase: 'vs-dark',
+    monacoTokens: {
+      comment: '#6c7086',
+      keyword: '#cba6f7',
+      string: '#a6e3a1',
+      number: '#fab387'
+    }
+  },
+  {
+    id: 'tokyo-night',
+    label: 'Tokyo Night',
+    description: 'Neon skyline at 2am',
+    colors: {
+      'bg-base': '#1a1b26',
+      'bg-panel': 'rgba(26, 27, 38, 0.6)',
+      'bg-header': '#16161e',
+      'bg-terminal': '#101014',
+      'search-bg': '#13131a',
+      border: 'rgba(192, 202, 245, 0.1)',
+      hover: 'rgba(192, 202, 245, 0.06)',
+      'text-main': '#c0caf5',
+      'text-muted': '#565f89',
+      accent: '#7aa2f7',
+      paste: '#e0af68',
+      restore: '#9ece6a',
+      success: '#9ece6a',
+      error: '#f7768e',
+      'terminal-green': '#9ece6a',
+      'terminal-blue': '#7dcfff'
+    },
+    swatch: { bg: '#1a1b26', accent: '#7aa2f7', text: '#c0caf5' },
+    monacoBase: 'vs-dark',
+    monacoTokens: {
+      comment: '#565f89',
+      keyword: '#bb9af7',
+      string: '#9ece6a',
+      number: '#ff9e64'
+    }
+  },
+  {
+    id: 'gruvbox',
+    label: 'Gruvbox',
+    description: 'Retro groove, warm and earthy',
+    colors: {
+      'bg-base': '#282828',
+      'bg-panel': 'rgba(40, 40, 40, 0.6)',
+      'bg-header': '#3c3836',
+      'bg-terminal': '#1d2021',
+      'search-bg': '#232323',
+      border: 'rgba(235, 219, 178, 0.1)',
+      hover: 'rgba(235, 219, 178, 0.06)',
+      'text-main': '#ebdbb2',
+      'text-muted': '#928374',
+      accent: '#83a598',
+      paste: '#fabd2f',
+      restore: '#b8bb26',
+      success: '#b8bb26',
+      error: '#fb4934',
+      'terminal-green': '#b8bb26',
+      'terminal-blue': '#83a598'
+    },
+    swatch: { bg: '#282828', accent: '#fabd2f', text: '#ebdbb2' },
+    monacoBase: 'vs-dark',
+    monacoTokens: {
+      comment: '#928374',
+      keyword: '#fb4934',
+      string: '#b8bb26',
+      number: '#d3869b'
+    }
   }
 ]
 

@@ -1,6 +1,8 @@
 // Side-effect import: registers local Monaco workers and switches
 // @monaco-editor/react's loader from its CDN default to the bundled build.
 import './lib/monaco'
+// Bundled @font-face rules for the UI and code fonts (see fonts/fonts.ts).
+import './fonts/fonts.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'

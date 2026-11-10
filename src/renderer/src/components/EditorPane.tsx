@@ -4,6 +4,7 @@ import type { BeforeMount, OnMount } from '@monaco-editor/react'
 import type * as monacoTypes from 'monaco-editor'
 import { useTheme } from '../themes/useTheme'
 import { defineMonacoThemes } from '../themes/themes'
+import { useFont } from '../fonts/useFont'
 import type { CodeTrackerApi } from '../hooks/useCodeTracker'
 import type { LabFile } from '../types/tracker'
 
@@ -23,6 +24,7 @@ export default function EditorPane({
   tracker
 }: EditorPaneProps): React.ReactElement {
   const { monacoTheme } = useTheme()
+  const { font, fontSize, ligatures } = useFont()
   const editorRef = useRef<monacoTypes.editor.IStandaloneCodeEditor | null>(null)
   const modelsRef = useRef(new Map<string, monacoTypes.editor.ITextModel>())
   const activeFileRef = useRef(activeFile)
@@ -32,6 +34,15 @@ export default function EditorPane({
   useEffect(() => {
     onCursorChangeRef.current = onCursorChange
   })
+
+  // Apply appearance changes (font, size, ligatures) to the live editor.
+  useEffect(() => {
+    editorRef.current?.updateOptions({
+      fontFamily: font.family,
+      fontSize,
+      fontLigatures: ligatures
+    })
+  }, [font, fontSize, ligatures])
 
   // Swap models on tab switch; each file keeps its own versionId, undo
   // stack, and therefore its own time-travel history.
@@ -99,8 +110,9 @@ export default function EditorPane({
           options={{
             minimap: { enabled: false },
             padding: { top: 16 },
-            fontSize: 14,
-            fontFamily: "'Fira Code', monospace"
+            fontSize,
+            fontFamily: font.family,
+            fontLigatures: ligatures
           }}
         />
       </div>
