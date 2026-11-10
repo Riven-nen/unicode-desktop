@@ -4,12 +4,17 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 function createWindow(): void {
-  // Create the browser window.
+  // Create the browser window. The native title bar is hidden — the renderer
+  // draws its own themed controls (see TitleBarControls.tsx) and the nav bar
+  // is a drag region. macOS keeps its native traffic lights with this style.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1180,
+    height: 760,
+    minWidth: 720,
+    minHeight: 480,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -20,6 +25,15 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  // Keep the renderer's maximize/restore button in sync with the window state.
+  const broadcastMaximizeState = (): void => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:maximize-changed', mainWindow.isMaximized())
+    }
+  }
+  mainWindow.on('maximize', broadcastMaximizeState)
+  mainWindow.on('unmaximize', broadcastMaximizeState)
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -51,6 +65,23 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  // Custom title-bar window controls.
+  ipcMain.on('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.on('window:toggle-maximize', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return
+    if (window.isMaximized()) window.unmaximize()
+    else window.maximize()
+  })
+  ipcMain.on('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+  ipcMain.handle('window:is-maximized', (event) => {
+    return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false
+  })
 
   createWindow()
 
