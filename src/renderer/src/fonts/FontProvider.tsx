@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { DEFAULT_FONT_ID, DEFAULT_FONT_SIZE, FONT_SIZE_MAX, FONT_SIZE_MIN, FONTS } from './fonts'
+import { preloadCodeFonts } from './fontLoading'
 import { FontContext } from './font-context'
 
 const STORAGE_KEYS = {
@@ -69,6 +70,12 @@ export function FontProvider({ children }: { children: ReactNode }): React.React
     root.style.setProperty('--code-font', font.family)
     root.style.setProperty('--code-font-size', `${fontSize}px`)
   }, [font, fontSize])
+
+  // Fetch every bundled code font up front (they would otherwise download
+  // lazily on first use, racing Monaco's font measurement; see fontLoading.ts).
+  useEffect(() => {
+    preloadCodeFonts()
+  }, [])
 
   const setFont = useCallback((id: string): void => {
     setFontId(id)

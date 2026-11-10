@@ -5,6 +5,7 @@ import type * as monacoTypes from 'monaco-editor'
 import { useTheme } from '../themes/useTheme'
 import { defineMonacoThemes } from '../themes/themes'
 import { useFont } from '../fonts/useFont'
+import { ensureFontLoaded } from '../fonts/fontLoading'
 import type { CodeTrackerApi } from '../hooks/useCodeTracker'
 import type { LabFile } from '../types/tracker'
 
@@ -26,6 +27,7 @@ export default function EditorPane({
   const { monacoTheme } = useTheme()
   const { font, fontSize, ligatures } = useFont()
   const editorRef = useRef<monacoTypes.editor.IStandaloneCodeEditor | null>(null)
+  const monacoRef = useRef<typeof monacoTypes | null>(null)
   const modelsRef = useRef(new Map<string, monacoTypes.editor.ITextModel>())
   const activeFileRef = useRef(activeFile)
   const onCursorChangeRef = useRef(onCursorChange)
@@ -36,12 +38,24 @@ export default function EditorPane({
   })
 
   // Apply appearance changes (font, size, ligatures) to the live editor.
+  // The font's file must be resident before Monaco measures it — measuring
+  // an unloaded family caches the fallback's metrics, so the editor ends up
+  // laid out (and kept) with the wrong widths. After the files arrive we
+  // apply the option and force Monaco to re-measure and repaint.
   useEffect(() => {
-    editorRef.current?.updateOptions({
-      fontFamily: font.family,
-      fontSize,
-      fontLigatures: ligatures
+    let cancelled = false
+    void ensureFontLoaded(font.family).then(() => {
+      if (cancelled) return
+      editorRef.current?.updateOptions({
+        fontFamily: font.family,
+        fontSize,
+        fontLigatures: ligatures
+      })
+      monacoRef.current?.editor.remeasureFonts()
     })
+    return () => {
+      cancelled = true
+    }
   }, [font, fontSize, ligatures])
 
   // Swap models on tab switch; each file keeps its own versionId, undo
@@ -59,6 +73,7 @@ export default function EditorPane({
 
   const handleMount: OnMount = (editor, monacoInstance) => {
     editorRef.current = editor
+    monacoRef.current = monacoInstance
 
     for (const file of files) {
       // One model per file, addressed by a stable URI. The getModel guard
