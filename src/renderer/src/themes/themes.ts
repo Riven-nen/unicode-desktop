@@ -147,9 +147,48 @@ function stripHash(color: string): string {
   return color.startsWith('#') ? color.slice(1) : color
 }
 
-/** '#rrggbb' + alpha pair -> '#rrggbbaa' (Monaco supports 8-digit hex). */
-function withAlpha(color: string, alpha: string): string {
-  return `${color}${alpha}`
+function hexByte(value: number): string {
+  const clamped = Math.max(0, Math.min(255, Math.round(value)))
+  return clamped.toString(16).padStart(2, '0')
+}
+
+/**
+ * Normalizes a palette color into the only format Monaco can parse: hex
+ * (#RGB, #RGBA, #RRGGBB or #RRGGBBAA). Monaco's Color.fromHex silently
+ * falls back to pure red (`Color.red`) for anything else — rgba() values
+ * used to turn the editor's line highlight and scrollbar bright red.
+ * Accepts CSS hex, `rgb()` and `rgba()` strings. `alphaHex` only applies to
+ * colors that don't already carry their own alpha.
+ */
+function monacoColor(color: string, alphaHex = 'ff'): string {
+  const rgba = color.match(
+    /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.%]+))?\s*\)$/i
+  )
+  if (rgba) {
+    const a =
+      rgba[4] === undefined
+        ? 1
+        : rgba[4].endsWith('%')
+          ? parseFloat(rgba[4]) / 100
+          : parseFloat(rgba[4])
+    return (
+      '#' +
+      hexByte(parseFloat(rgba[1])) +
+      hexByte(parseFloat(rgba[2])) +
+      hexByte(parseFloat(rgba[3])) +
+      hexByte(a * 255)
+    )
+  }
+  if (/^#[0-9a-f]{3}$/i.test(color)) {
+    return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}${alphaHex}`
+  }
+  if (/^#[0-9a-f]{4}$/i.test(color)) {
+    return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}${color[4]}${color[4]}`
+  }
+  if (/^#[0-9a-f]{6}$/i.test(color)) {
+    return alphaHex === 'ff' ? color : `${color}${alphaHex}`
+  }
+  return color
 }
 
 /**
@@ -173,23 +212,23 @@ export function defineMonacoThemes(monaco: typeof import('monaco-editor')): void
         { token: 'number', foreground: stripHash(theme.monacoTokens.number) }
       ],
       colors: {
-        'editor.background': c['bg-base'],
-        'editor.foreground': c['text-main'],
-        'editorGutter.background': c['bg-base'],
-        'editorLineNumber.foreground': c['text-muted'],
-        'editorLineNumber.activeForeground': c['accent'],
-        'editorCursor.foreground': c['accent'],
-        'editor.selectionBackground': withAlpha(c['accent'], '4d'),
-        'editor.lineHighlightBackground': c['hover'],
-        'editorBracketMatch.background': withAlpha(c['accent'], '33'),
-        'editorBracketMatch.border': c['accent'],
-        'editorWidget.background': c['bg-header'],
-        'editorWidget.border': c['border'],
-        'editorSuggestWidget.selectedBackground': withAlpha(c['accent'], '33'),
-        'diffEditor.insertedTextBackground': withAlpha(c['restore'], '26'),
-        'diffEditor.removedTextBackground': withAlpha(c['error'], '26'),
-        'scrollbarSlider.background': c['hover'],
-        'scrollbarSlider.hoverBackground': c['border']
+        'editor.background': monacoColor(c['bg-base']),
+        'editor.foreground': monacoColor(c['text-main']),
+        'editorGutter.background': monacoColor(c['bg-base']),
+        'editorLineNumber.foreground': monacoColor(c['text-muted']),
+        'editorLineNumber.activeForeground': monacoColor(c['accent']),
+        'editorCursor.foreground': monacoColor(c['accent']),
+        'editor.selectionBackground': monacoColor(c['accent'], '4d'),
+        'editor.lineHighlightBackground': monacoColor(c['hover']),
+        'editorBracketMatch.background': monacoColor(c['accent'], '33'),
+        'editorBracketMatch.border': monacoColor(c['accent']),
+        'editorWidget.background': monacoColor(c['bg-header']),
+        'editorWidget.border': monacoColor(c['border']),
+        'editorSuggestWidget.selectedBackground': monacoColor(c['accent'], '33'),
+        'diffEditor.insertedTextBackground': monacoColor(c['restore'], '26'),
+        'diffEditor.removedTextBackground': monacoColor(c['error'], '26'),
+        'scrollbarSlider.background': monacoColor(c['hover']),
+        'scrollbarSlider.hoverBackground': monacoColor(c['border'])
       }
     })
   }
