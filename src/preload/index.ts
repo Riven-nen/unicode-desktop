@@ -1,10 +1,25 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { clipboard, contextBridge, ipcRenderer, shell } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const api = {
   platform: process.platform,
+  // System clipboard access for the Edit menu. Menu commands need to read
+  // and write the clipboard while focus sits on the menu, not the editor —
+  // a state where the async web Clipboard API is unavailable.
+  clipboard: {
+    readText(): Promise<string> {
+      return clipboard.readText()
+    },
+    writeText(text: string): Promise<void> {
+      return clipboard.writeText(text)
+    }
+  },
+  // Opens a URL with the OS default browser (Help > Report an Issue…).
+  openExternal(url: string): Promise<void> {
+    return shell.openExternal(url)
+  },
   // Custom title-bar controls for the frameless window.
   window: {
     minimize(): void {

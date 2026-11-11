@@ -1,9 +1,28 @@
-import { useMemo, useState } from 'react'
-import { LogIn, LogOut } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Camera,
+  Command,
+  Download,
+  FilePlus2,
+  History,
+  Info,
+  Keyboard,
+  List,
+  LogIn,
+  LogOut,
+  Map as MapIcon,
+  RefreshCw,
+  WrapText
+} from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
 import AuthPanel from './components/AuthPanel'
 import DiffViewer from './components/DiffViewer'
 import EditorPane from './components/EditorPane'
+import MenuBar from './components/MenuBar'
+import HelpModal from './components/HelpModal'
+import NewFileModal from './components/NewFileModal'
+import SearchBar from './components/SearchBar'
+import type { QuickOpenCommand } from './components/SearchBar'
 import StatusBar from './components/StatusBar'
 import TimelineRail from './components/TimelineRail'
 import TitleBarControls from './components/TitleBarControls'
@@ -12,10 +31,11 @@ import { FontProvider } from './fonts/FontProvider'
 import { useCodeTracker } from './hooks/useCodeTracker'
 import { useSupabaseSession } from './hooks/useSupabaseSession'
 import { supabase } from './lib/supabase'
+import type { EditorCommands, EditorViewOptions } from './components/EditorPane'
 import type { LabFile } from './types/tracker'
 import './index.css'
 
-const LAB_FILES: LabFile[] = [
+const INITIAL_FILES: LabFile[] = [
   {
     name: 'welcome.md',
     language: 'markdown',
@@ -49,20 +69,49 @@ const LAB_FILES: LabFile[] = [
   }
 ]
 
+// Sidebar Quick Start shortcuts; each opens one of the starter files above.
+const QUICK_START: Array<{ label: string; target: string }> = [
+  { label: 'Python Starter', target: 'main.py' },
+  { label: 'Java Starter', target: 'solution.java' },
+  { label: 'C++ Starter', target: 'hello.cpp' }
+]
+
 export default function App(): React.ReactElement {
   const session = useSupabaseSession()
-  const fileNames = useMemo(() => LAB_FILES.map((file) => file.name), [])
+
+  // The lab workspace is mutable state so File > New File… can grow it.
+  const [files, setFiles] = useState<LabFile[]>(INITIAL_FILES)
+  const fileNames = useMemo(() => files.map((file) => file.name), [files])
   const tracker = useCodeTracker({ session, labId: null, fileNames })
 
-  const [activeFile, setActiveFile] = useState(LAB_FILES[0].name)
+  const [activeFile, setActiveFile] = useState(INITIAL_FILES[0].name)
   const [timelineExpanded, setTimelineExpanded] = useState(true)
   const [authOpen, setAuthOpen] = useState(false)
+  const [newFileOpen, setNewFileOpen] = useState(false)
+  const [helpModal, setHelpModal] = useState<'shortcuts' | 'about' | null>(null)
   const [diffId, setDiffId] = useState<string | null>(null)
   const [cursor, setCursor] = useState<{ lineNumber: number; column: number } | null>(null)
 
+  // Editor commands for the menu bar, populated when the editor mounts.
+  const editorCommandsRef = useRef<EditorCommands | null>(null)
+
+  // Quick-open search input (Ctrl+P focuses it).
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Last-known content of closed files, so re-opening one (Quick Start or
+  // File > New File…) restores the user's edits instead of the skeleton.
+  const closedFilesRef = useRef(new Map<string, LabFile>())
+
+  // View-menu toggles; owned here so the menu checkmarks stay truthful.
+  const [viewOptions, setViewOptions] = useState<EditorViewOptions>({
+    minimap: false,
+    wordWrap: false,
+    lineNumbers: true
+  })
+
   const activeFileSnapshots = tracker.snapshotsByFile[activeFile] ?? []
   const activeFilePastes = tracker.pastesByFile[activeFile] ?? []
-  const activeLanguage = LAB_FILES.find((file) => file.name === activeFile)?.language ?? 'plaintext'
+  const activeLanguage = files.find((file) => file.name === activeFile)?.language ?? 'plaintext'
   const diffOpen = diffId !== null && activeFileSnapshots.some((s) => s.id === diffId)
 
   const handleSelectFile = (name: string): void => {
@@ -70,6 +119,188 @@ export default function App(): React.ReactElement {
     setDiffId(null)
     setCursor(null)
   }
+
+  const handleCreateFile = (name: string, language: string): void => {
+    setFiles((prev) =>
+      prev.some((file) => file.name === name)
+        ? prev
+        : [...prev, { name, language, initialContent: '' }]
+    )
+    setNewFileOpen(false)
+    setActiveFile(name)
+    setDiffId(null)
+    setCursor(null)
+  }
+
+  const handleCloseFile = (name: string): void => {
+    // The workspace always keeps at least one file open.
+    if (files.length <= 1) return
+    const index = files.findIndex((file) => file.name === name)
+    if (index === -1) return
+    // Remember the live content so the tab can be re-opened with its
+    // edits rather than the starter skeleton.
+    const closing = files[index]
+    closedFilesRef.current.set(name, {
+      name,
+      language: closing.language,
+      initialContent: tracker.getModelValue(name) ?? closing.initialContent
+    })
+    const remaining = files.filter((file) => file.name !== name)
+    setFiles(remaining)
+    if (name === activeFile) {
+      // Move to the adjacent tab (right neighbor, else the left one).
+      const neighbor = remaining[Math.min(index, remaining.length - 1)]
+      if (neighbor) {
+        setActiveFile(neighbor.name)
+        setDiffId(null)
+        setCursor(null)
+      }
+    }
+  }
+
+  const handleOpenStarter = (target: string): void => {
+    // Select the starter's tab if it's open; otherwise re-open it with the
+    // last content from this session (or the starter skeleton).
+    if (files.some((file) => file.name === target)) {
+      handleSelectFile(target)
+      return
+    }
+    const restored = closedFilesRef.current.get(target)
+    const starter = INITIAL_FILES.find((file) => file.name === target)
+    const file: LabFile = restored ??
+      starter ?? { name: target, language: 'plaintext', initialContent: '' }
+    setFiles((prev) => [...prev, file])
+    handleSelectFile(target)
+  }
+
+  const handleExportFile = (): void => {
+    // Download the live editor content as a file (browser download API —
+    // works identically in Electron and plain browser sessions).
+    const content = tracker.getModelValue(activeFile)
+    const blob = new Blob([content ?? ''], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = activeFile
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleToggleViewOption = (key: keyof EditorViewOptions): void => {
+    setViewOptions((prev) => {
+      if (key === 'minimap') return { ...prev, minimap: !prev.minimap }
+      if (key === 'wordWrap') return { ...prev, wordWrap: !prev.wordWrap }
+      return { ...prev, lineNumbers: !prev.lineNumbers }
+    })
+  }
+
+  const handleReportIssue = (): void => {
+    const url = 'https://github.com/Riven-nen/unicode-desktop/issues/new'
+    // Prefer the OS browser via the preload bridge; fall back for plain
+    // browser sessions where the bridge doesn't exist.
+    if (window.api?.openExternal) void window.api.openExternal(url)
+    else window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  // Commands surfaced by the quick-open search (Ctrl+P). Only real
+  // actions that exist today — no stubs.
+  const searchCommands: QuickOpenCommand[] = [
+    {
+      id: 'new-file',
+      label: 'New File…',
+      shortcut: 'Ctrl+N',
+      icon: <FilePlus2 size={13} />,
+      run: () => setNewFileOpen(true)
+    },
+    {
+      id: 'save-snapshot',
+      label: 'Save Snapshot',
+      shortcut: 'Ctrl+S',
+      icon: <Camera size={13} />,
+      run: () => tracker.captureManualSnapshot(activeFile)
+    },
+    {
+      id: 'sync-now',
+      label: 'Sync Now',
+      icon: <RefreshCw size={13} />,
+      run: () => tracker.flushNow()
+    },
+    {
+      id: 'export-file',
+      label: 'Export File…',
+      icon: <Download size={13} />,
+      run: handleExportFile
+    },
+    {
+      id: 'toggle-minimap',
+      label: 'Toggle Minimap',
+      icon: <MapIcon size={13} />,
+      run: () => handleToggleViewOption('minimap')
+    },
+    {
+      id: 'toggle-word-wrap',
+      label: 'Toggle Word Wrap',
+      shortcut: 'Alt+Z',
+      icon: <WrapText size={13} />,
+      run: () => handleToggleViewOption('wordWrap')
+    },
+    {
+      id: 'toggle-line-numbers',
+      label: 'Toggle Line Numbers',
+      icon: <List size={13} />,
+      run: () => handleToggleViewOption('lineNumbers')
+    },
+    {
+      id: 'toggle-timeline',
+      label: 'Toggle Time Travel Panel',
+      icon: <History size={13} />,
+      run: () => setTimelineExpanded((value) => !value)
+    },
+    {
+      id: 'command-palette',
+      label: 'Command Palette',
+      shortcut: 'Ctrl+Shift+P',
+      icon: <Command size={13} />,
+      run: () => editorCommandsRef.current?.commandPalette()
+    },
+    {
+      id: 'keyboard-shortcuts',
+      label: 'Keyboard Shortcuts…',
+      icon: <Keyboard size={13} />,
+      run: () => setHelpModal('shortcuts')
+    },
+    {
+      id: 'about',
+      label: 'About Unicode Lab',
+      icon: <Info size={13} />,
+      run: () => setHelpModal('about')
+    }
+  ]
+
+  // Window-level shortcuts for menu actions monaco doesn't bind itself.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      const key = event.key.toLowerCase()
+      if (key === 's') {
+        event.preventDefault()
+        tracker.captureManualSnapshot(activeFile)
+      } else if (key === 'n' && !event.shiftKey) {
+        event.preventDefault()
+        setNewFileOpen(true)
+      } else if (key === 'p' && !event.shiftKey) {
+        // Ctrl+P opens the quick-open search.
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+      } else if (key === 'p' && event.shiftKey) {
+        event.preventDefault()
+        editorCommandsRef.current?.commandPalette()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeFile, tracker])
 
   const handleSignOut = (): void => {
     void supabase?.auth.signOut()
@@ -85,30 +316,27 @@ export default function App(): React.ReactElement {
               <div className="logo-icon"></div>
               Unicode
             </div>
-            <div className="nav-menu">
-              <span>File</span>
-              <span>Edit</span>
-              <span>View</span>
-              <span>Run</span>
-              <span>Help</span>
-            </div>
+            <MenuBar
+              commandsRef={editorCommandsRef}
+              onNewFile={() => setNewFileOpen(true)}
+              onSaveSnapshot={() => tracker.captureManualSnapshot(activeFile)}
+              onSyncNow={() => tracker.flushNow()}
+              onExportFile={handleExportFile}
+              viewOptions={viewOptions}
+              onToggleViewOption={handleToggleViewOption}
+              timelineVisible={timelineExpanded}
+              onToggleTimeline={() => setTimelineExpanded((value) => !value)}
+              onShowShortcuts={() => setHelpModal('shortcuts')}
+              onShowAbout={() => setHelpModal('about')}
+              onReportIssue={handleReportIssue}
+            />
 
-            <div className="search-wrapper">
-              <div className="search-bar">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-                <input type="text" placeholder="Search files, commands, or symbols" />
-              </div>
-            </div>
+            <SearchBar
+              files={files}
+              onSelectFile={handleSelectFile}
+              commands={searchCommands}
+              inputRef={searchInputRef}
+            />
 
             <div className="nav-right">
               <div
@@ -199,14 +427,20 @@ export default function App(): React.ReactElement {
             <aside className="glass-panel sidebar">
               <div className="section-title">Quick Start</div>
               <div className="file-list">
-                <div className="file-item">Python Starter</div>
-                <div className="file-item">Java Starter</div>
-                <div className="file-item">C++ Starter</div>
+                {QUICK_START.map((item) => (
+                  <div
+                    key={item.target}
+                    className={`file-item ${activeFile === item.target ? 'active' : ''}`}
+                    onClick={() => handleOpenStarter(item.target)}
+                  >
+                    {item.label}
+                  </div>
+                ))}
               </div>
 
               <div className="section-title">Files</div>
               <div className="file-list">
-                {LAB_FILES.map((file) => (
+                {files.map((file) => (
                   <div
                     key={file.name}
                     className={`file-item ${activeFile === file.name ? 'active' : ''}`}
@@ -232,11 +466,15 @@ export default function App(): React.ReactElement {
             {/* Editor, Timeline & Terminal */}
             <main className="editor-area">
               <EditorPane
-                files={LAB_FILES}
+                files={files}
                 activeFile={activeFile}
                 onSelectFile={handleSelectFile}
                 onCursorChange={setCursor}
                 tracker={tracker}
+                commandsRef={editorCommandsRef}
+                viewOptions={viewOptions}
+                onToggleWordWrap={() => handleToggleViewOption('wordWrap')}
+                onCloseFile={handleCloseFile}
               />
 
               <TimelineRail
@@ -292,6 +530,16 @@ export default function App(): React.ReactElement {
           />
 
           <AuthPanel open={authOpen} onClose={() => setAuthOpen(false)} />
+
+          {newFileOpen && (
+            <NewFileModal
+              existingNames={fileNames}
+              onClose={() => setNewFileOpen(false)}
+              onCreate={handleCreateFile}
+            />
+          )}
+
+          <HelpModal mode={helpModal} onClose={() => setHelpModal(null)} />
         </div>
       </FontProvider>
     </ThemeProvider>
