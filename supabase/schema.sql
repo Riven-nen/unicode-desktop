@@ -54,17 +54,63 @@ as $$
   );
 $$;
 
--- 2. Labs ---------------------------------------------------------------------
+-- 2. Courses & enrollment -----------------------------------------------------
+-- A course is a class a professor teaches. Enrollments link students to it.
+-- The student app creates one workspace folder per enrolled course, named
+-- after the course code (e.g. "CS 101"), as soon as the student signs in.
+
+create table if not exists public.courses (
+  id uuid primary key default gen_random_uuid(),
+  code text not null, -- short code, also the workspace folder name
+  title text not null,
+  term text, -- e.g. 'Fall 2026'
+  professor_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists courses_professor_idx on public.courses (professor_id);
+
+create table if not exists public.enrollments (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references public.courses (id) on delete cascade,
+  student_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (course_id, student_id)
+);
+
+create index if not exists enrollments_student_idx on public.enrollments (student_id);
+
+-- Security-definer helper so enrollment policies can check course ownership
+-- without recursing back through the courses row-level security policy.
+create or replace function public.is_course_professor(target uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.courses
+    where courses.id = target and courses.professor_id = auth.uid()
+  );
+$$;
+
+-- 3. Labs ---------------------------------------------------------------------
 
 create table if not exists public.labs (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   description text,
+  course_id uuid references public.courses (id) on delete set null,
   created_by uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now()
 );
 
--- 3. Snapshots: the time-travel timeline --------------------------------------
+-- Existing installs predate the course link; make the column idempotent.
+alter table public.labs
+  add column if not exists course_id uuid references public.courses (id) on delete set null;
+
+create index if not exists labs_course_idx on public.labs (course_id);
+
+-- 4. Snapshots: the time-travel timeline --------------------------------------
 -- One row per captured moment in a file's history.
 
 create table if not exists public.code_snapshots (
@@ -87,7 +133,7 @@ create index if not exists code_snapshots_user_file_idx
 create index if not exists code_snapshots_lab_idx
   on public.code_snapshots (lab_id, created_at desc);
 
--- 4. Paste events: the analytics feed -----------------------------------------
+-- 5. Paste events: the analytics feed -----------------------------------------
 -- Written by the tracker's onDidPaste handler and by the typing-velocity
 -- heuristic (large insert bursts without a clipboard paste).
 
@@ -112,13 +158,15 @@ create index if not exists paste_events_snapshot_idx
 create index if not exists paste_events_text_trgm_idx
   on public.paste_events using gin (pasted_text gin_trgm_ops);
 
--- 5. Row-level security --------------------------------------------------------
+-- 6. Row-level security --------------------------------------------------------
 -- Students can insert their own rows and read only their own data.
 -- Professors can read across students for the dashboard.
 -- There are intentionally NO update/delete policies: the audit trail is
 -- immutable, which is the whole point of paste tracking.
 
 alter table public.profiles enable row level security;
+alter table public.courses enable row level security;
+alter table public.enrollments enable row level security;
 alter table public.labs enable row level security;
 alter table public.code_snapshots enable row level security;
 alter table public.paste_events enable row level security;
@@ -133,6 +181,58 @@ create policy "profiles_update_own" on public.profiles
   for update to authenticated
   using (id = auth.uid())
   with check (id = auth.uid());
+
+-- Students see courses they are enrolled in; professors see their own and
+-- (for the dashboard) every course.
+drop policy if exists "courses_select_enrolled_or_professor" on public.courses;
+create policy "courses_select_enrolled_or_professor" on public.courses
+  for select to authenticated
+  using (
+    professor_id = auth.uid()
+    or public.is_professor()
+    or exists (
+      select 1
+      from public.enrollments
+      where enrollments.course_id = courses.id
+        and enrollments.student_id = auth.uid()
+    )
+  );
+
+drop policy if exists "courses_insert_professor_own" on public.courses;
+create policy "courses_insert_professor_own" on public.courses
+  for insert to authenticated
+  with check (professor_id = auth.uid() and public.is_professor());
+
+drop policy if exists "courses_update_professor_own" on public.courses;
+create policy "courses_update_professor_own" on public.courses
+  for update to authenticated
+  using (professor_id = auth.uid())
+  with check (professor_id = auth.uid());
+
+drop policy if exists "courses_delete_professor_own" on public.courses;
+create policy "courses_delete_professor_own" on public.courses
+  for delete to authenticated
+  using (professor_id = auth.uid());
+
+-- Enrollment rows: students read their own, professors manage their courses.
+drop policy if exists "enrollments_select_own_or_course_professor" on public.enrollments;
+create policy "enrollments_select_own_or_course_professor" on public.enrollments
+  for select to authenticated
+  using (
+    student_id = auth.uid()
+    or public.is_course_professor(course_id)
+    or public.is_professor()
+  );
+
+drop policy if exists "enrollments_insert_course_professor" on public.enrollments;
+create policy "enrollments_insert_course_professor" on public.enrollments
+  for insert to authenticated
+  with check (public.is_course_professor(course_id));
+
+drop policy if exists "enrollments_delete_course_professor" on public.enrollments;
+create policy "enrollments_delete_course_professor" on public.enrollments
+  for delete to authenticated
+  using (public.is_course_professor(course_id));
 
 drop policy if exists "labs_select_authenticated" on public.labs;
 create policy "labs_select_authenticated" on public.labs
@@ -169,5 +269,16 @@ create policy "pastes_select_own_or_professor" on public.paste_events
   for select to authenticated
   using (auth.uid() = user_id or public.is_professor());
 
--- 6. Promote a professor account (run manually as needed) ---------------------
+-- 7. Promote a professor account (run manually as needed) ---------------------
 -- update public.profiles set role = 'professor' where email = 'prof@university.edu';
+
+-- 8. Seed a course + enrollment (optional, for local testing) ------------------
+-- Requires a professor account (promoted above) and a student account.
+-- insert into public.courses (code, title, term, professor_id)
+-- select 'CS 101', 'Intro to Programming', 'Fall 2026', id
+-- from public.profiles where email = 'prof@university.edu';
+--
+-- insert into public.enrollments (course_id, student_id)
+-- select c.id, p.id
+-- from public.courses c, public.profiles p
+-- where c.code = 'CS 101' and p.email = 'student@university.edu';

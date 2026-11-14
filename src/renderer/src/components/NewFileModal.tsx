@@ -4,7 +4,13 @@ import { X } from 'lucide-react'
 interface NewFileModalProps {
   existingNames: string[]
   onClose: () => void
-  onCreate: (name: string, language: string) => void
+  /**
+   * Creates the file. Resolves an error message to show inline, or null on
+   * success (App closes the dialog itself).
+   */
+  onCreate: (name: string, language: string) => Promise<string | null>
+  /** Course folder the file will be created in, when known. */
+  folderLabel?: string
 }
 
 /** Languages Monaco tokenizes in the bundled build (main thread). */
@@ -78,7 +84,8 @@ const INVALID_NAME_CHARS = /[/\\:*?"<>|]/
 export default function NewFileModal({
   existingNames,
   onClose,
-  onCreate
+  onCreate,
+  folderLabel
 }: NewFileModalProps): React.ReactElement {
   const [name, setName] = useState('')
   const [language, setLanguage] = useState('plaintext')
@@ -99,7 +106,7 @@ export default function NewFileModal({
     }
   }
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
     const trimmed = name.trim()
     if (!trimmed) {
       setError('Enter a file name.')
@@ -113,7 +120,8 @@ export default function NewFileModal({
       setError('A file with this name already exists.')
       return
     }
-    onCreate(trimmed, language)
+    const createError = await onCreate(trimmed, language)
+    if (createError) setError(createError)
   }
 
   return (
@@ -126,7 +134,8 @@ export default function NewFileModal({
           </button>
         </header>
         <p className="auth-sub">
-          Create a new file in the lab workspace. The language is detected from the extension.
+          Create a new file{folderLabel ? ` in ${folderLabel}` : ' in the lab workspace'}. The
+          language is detected from the extension.
         </p>
         <div className="auth-form">
           <input
@@ -137,7 +146,7 @@ export default function NewFileModal({
             spellCheck={false}
             onChange={(event) => handleNameChange(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') submit()
+              if (event.key === 'Enter') void submit()
               if (event.key === 'Escape') onClose()
             }}
           />
@@ -157,7 +166,7 @@ export default function NewFileModal({
             </select>
           </div>
           {error && <div className="auth-error">{error}</div>}
-          <button className="auth-submit" onClick={submit}>
+          <button className="auth-submit" onClick={() => void submit()}>
             Create File
           </button>
         </div>

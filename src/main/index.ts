@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { registerFsHandlers } from './fs'
 
 function createWindow(): void {
   // Create the browser window. The native title bar is hidden — the renderer
@@ -65,6 +66,9 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  // Workspace file access (open/save course files on disk).
+  registerFsHandlers()
 
   // Custom title-bar window controls.
   ipcMain.on('window:minimize', (event) => {

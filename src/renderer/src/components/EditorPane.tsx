@@ -8,6 +8,7 @@ import { defineMonacoThemes } from '../themes/themes'
 import { useFont } from '../fonts/useFont'
 import { ensureFontLoaded } from '../fonts/fontLoading'
 import { readClipboardText, writeClipboardText } from '../lib/clipboard'
+import { fileDisplayName } from '../lib/workspace'
 import type { CodeTrackerApi } from '../hooks/useCodeTracker'
 import type { LabFile } from '../types/tracker'
 
@@ -293,14 +294,16 @@ export default function EditorPane({
             key={file.name}
             className={`editor-tab ${activeFile === file.name ? 'active' : ''}`}
             onClick={() => onSelectFile(file.name)}
+            title={file.path ?? file.name}
           >
-            {file.name}
+            {file.dirty && <span className="tab-dirty-dot" aria-label="Unsaved changes" />}
+            {fileDisplayName(file.name)}
             {/* Hidden on single-file workspaces: App never closes the last
                 tab, so the button would be dead UI. */}
             {files.length > 1 && onCloseFile && (
               <button
                 className="tab-close"
-                title={`Close ${file.name}`}
+                title={`Close ${fileDisplayName(file.name)}`}
                 onClick={(event) => {
                   event.stopPropagation()
                   onCloseFile(file.name)

@@ -21,7 +21,6 @@ interface TimelineRailProps {
   expanded: boolean
   onToggle: () => void
   onOpenDiff: (snapshot: CodeSnapshot) => void
-  onSnapshotNow: () => void
   onSyncClick: () => void
 }
 
@@ -41,7 +40,6 @@ export default function TimelineRail({
   expanded,
   onToggle,
   onOpenDiff,
-  onSnapshotNow,
   onSyncClick
 }: TimelineRailProps): React.ReactElement {
   return (
@@ -53,13 +51,6 @@ export default function TimelineRail({
         <span className="timeline-meta">
           {snapshots.length} snapshots · {pasteCount} pastes
         </span>
-        <button
-          className="timeline-action"
-          onClick={onSnapshotNow}
-          title="Capture a snapshot of the current file now"
-        >
-          <Camera size={12} /> Snapshot
-        </button>
         <button
           className={`sync-badge status-${syncStatus}`}
           onClick={onSyncClick}

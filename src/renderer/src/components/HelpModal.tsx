@@ -9,7 +9,9 @@ interface HelpModalProps {
 
 const SHORTCUTS: Array<{ keys: string; label: string }> = [
   { keys: 'Ctrl+N', label: 'New file' },
-  { keys: 'Ctrl+S', label: 'Save snapshot' },
+  { keys: 'Ctrl+O', label: 'Open file' },
+  { keys: 'Ctrl+S', label: 'Save file to disk' },
+  { keys: 'Ctrl+Shift+S', label: 'Save file as…' },
   { keys: 'Ctrl+Shift+P', label: 'Command palette' },
   { keys: 'Ctrl+P', label: 'Quick open (files and commands)' },
   { keys: 'Ctrl+Z', label: 'Undo' },

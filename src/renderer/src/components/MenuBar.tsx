@@ -26,13 +26,15 @@ interface MenuBarProps {
    */
   commandsRef: { current: EditorCommands | null }
   onNewFile: () => void
-  onSaveSnapshot: () => void
+  onOpenFile: () => void
+  onOpenWorkspace: () => void
+  onRefreshWorkspace: () => void
+  onSave: () => void
+  onSaveAs: () => void
   onSyncNow: () => void
   onExportFile: () => void
   viewOptions: EditorViewOptions
   onToggleViewOption: (key: keyof EditorViewOptions) => void
-  timelineVisible: boolean
-  onToggleTimeline: () => void
   onShowShortcuts: () => void
   onShowAbout: () => void
   onReportIssue: () => void
@@ -47,13 +49,15 @@ interface MenuBarProps {
 export default function MenuBar({
   commandsRef,
   onNewFile,
-  onSaveSnapshot,
+  onOpenFile,
+  onOpenWorkspace,
+  onRefreshWorkspace,
+  onSave,
+  onSaveAs,
   onSyncNow,
   onExportFile,
   viewOptions,
   onToggleViewOption,
-  timelineVisible,
-  onToggleTimeline,
   onShowShortcuts,
   onShowAbout,
   onReportIssue
@@ -80,7 +84,13 @@ export default function MenuBar({
 
   const fileEntries: MenuEntry[] = [
     { kind: 'item', label: 'New File…', shortcut: 'Ctrl+N', action: onNewFile },
-    { kind: 'item', label: 'Save Snapshot', shortcut: 'Ctrl+S', action: onSaveSnapshot },
+    { kind: 'item', label: 'Open File…', shortcut: 'Ctrl+O', action: onOpenFile },
+    { kind: 'item', label: 'Open Workspace…', action: onOpenWorkspace },
+    { kind: 'item', label: 'Refresh Workspace', action: onRefreshWorkspace },
+    { kind: 'separator' },
+    { kind: 'item', label: 'Save', shortcut: 'Ctrl+S', action: onSave },
+    { kind: 'item', label: 'Save As…', shortcut: 'Ctrl+Shift+S', action: onSaveAs },
+    { kind: 'separator' },
     { kind: 'item', label: 'Sync Now', action: onSyncNow },
     { kind: 'separator' },
     { kind: 'item', label: 'Export File…', action: onExportFile }
@@ -126,8 +136,7 @@ export default function MenuBar({
       label: 'Line Numbers',
       checked: viewOptions.lineNumbers,
       action: () => onToggleViewOption('lineNumbers')
-    },
-    { kind: 'item', label: 'Time Travel Panel', checked: timelineVisible, action: onToggleTimeline }
+    }
   ]
 
   const helpEntries: MenuEntry[] = [

@@ -40,6 +40,11 @@ interface UseCodeTrackerOptions {
   session: Session | null
   labId?: string | null
   fileNames: string[]
+  /**
+   * Called whenever a tracked model's content changes (real edits, not
+   * programmatic flushes). App uses this to flag tabs dirty against disk.
+   */
+  onModelChange?: (fileName: string, content: string) => void
 }
 
 export interface CodeTrackerApi {
@@ -109,7 +114,8 @@ function resolvePastedText(
 export function useCodeTracker({
   session,
   labId = null,
-  fileNames
+  fileNames,
+  onModelChange
 }: UseCodeTrackerOptions): CodeTrackerApi {
   const userId = session?.user?.id ?? null
 
@@ -136,6 +142,11 @@ export function useCodeTracker({
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flushRef = useRef<() => Promise<void>>(async () => {})
   const finalizeWindowRef = useRef<(fileName: string) => void>(() => {})
+  const onModelChangeRef = useRef(onModelChange)
+
+  useEffect(() => {
+    onModelChangeRef.current = onModelChange
+  })
 
   useEffect(() => {
     userIdRef.current = userId
@@ -394,7 +405,12 @@ export function useCodeTracker({
       const existing = listenersRef.current.get(model)
       if (existing) return () => undefined
 
-      const listener = model.onDidChangeContent((event) => handleContentChange(fileName, event))
+      const listener = model.onDidChangeContent((event) => {
+        // Flush events come from programmatic setValue calls, not edits;
+        // they shouldn't mark a tab dirty.
+        if (!event.isFlush) onModelChangeRef.current?.(fileName, model.getValue())
+        handleContentChange(fileName, event)
+      })
       listenersRef.current.set(model, listener)
 
       return () => {

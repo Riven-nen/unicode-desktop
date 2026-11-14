@@ -44,7 +44,12 @@ export interface PasteEventRecord {
 }
 
 export interface LabFile {
+  /** Unique key for the tracker: `CS 101/main.py`, or a bare file name. */
   name: string
   language: string
   initialContent: string
+  /** Absolute path on disk; absent for untitled files not yet saved. */
+  path?: string
+  /** True while the editor content differs from the last write to disk. */
+  dirty?: boolean
 }
