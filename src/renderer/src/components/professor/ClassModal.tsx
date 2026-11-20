@@ -18,6 +18,8 @@ export default function ClassModal({
 }: ClassModalProps): React.ReactElement {
   const [name, setName] = useState(initial?.name ?? '')
   const [code, setCode] = useState(initial?.code ?? '')
+  const [yearSection, setYearSection] = useState(initial?.yearSection ?? '')
+  const [academicYear, setAcademicYear] = useState(initial?.academicYear ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,10 +32,16 @@ export default function ClassModal({
     setError(null)
     try {
       if (initial) {
-        await updateClass({ classId: initial.id, name, code })
+        await updateClass({ classId: initial.id, name, code, yearSection, academicYear })
         onSaved(initial.id)
       } else {
-        const classId = await createClass({ professorId, name, code })
+        const classId = await createClass({
+          professorId,
+          name,
+          code,
+          yearSection,
+          academicYear
+        })
         onSaved(classId)
       }
     } catch (saveError) {
@@ -72,6 +80,24 @@ export default function ClassModal({
             value={code}
             placeholder="CS101"
             onChange={(event) => setCode(event.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="class-year-section">Year &amp; section</label>
+          <input
+            id="class-year-section"
+            value={yearSection}
+            placeholder="3 - A"
+            onChange={(event) => setYearSection(event.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="class-academic-year">Academic year</label>
+          <input
+            id="class-academic-year"
+            value={academicYear}
+            placeholder="2026-2027"
+            onChange={(event) => setAcademicYear(event.target.value)}
           />
         </div>
         {error && <div className="auth-error">{error}</div>}

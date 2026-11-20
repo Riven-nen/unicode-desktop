@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
-import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
-import { basename, extname, join } from 'path'
+import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'fs/promises'
+import { basename, dirname, extname, join } from 'path'
 import type {
+  AssignmentFileResult,
   CloseChoice,
   WorkspaceCourse,
   WorkspaceFile,
@@ -68,6 +69,11 @@ function hasControlChars(value: string): boolean {
 let workspaceRoot: string | null = null
 // Paths the student explicitly chose through a dialog (normalized, lowercase).
 const allowedPaths = new Set<string>()
+
+/** The active workspace root, used by the terminal to pick a safe cwd. */
+export function getWorkspaceRoot(): string | null {
+  return workspaceRoot
+}
 
 function normalize(value: string): string {
   return value.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -168,40 +174,13 @@ function parentWindow(event: Electron.IpcMainInvokeEvent): BrowserWindow | null 
 }
 
 export function registerFsHandlers(): void {
-  // Resolve the workspace on startup: reuse the remembered root when it
-  // still exists, otherwise create/use Documents/Unicode Lab.
-  ipcMain.handle('fs:bootstrap-workspace', async (_event, preferredRoot: string | null) => {
-    if (preferredRoot) {
-      try {
-        const info = await stat(preferredRoot)
-        if (info.isDirectory()) {
-          workspaceRoot = preferredRoot
-          allowPath(preferredRoot)
-          return workspaceRoot
-        }
-      } catch {
-        // Remembered path is gone — fall back to the default below.
-      }
-    }
-    const fallback = join(app.getPath('documents'), 'Unicode Lab')
-    await mkdir(fallback, { recursive: true })
-    workspaceRoot = fallback
-    allowPath(fallback)
-    return workspaceRoot
-  })
-
-  ipcMain.handle('fs:pick-workspace', async (event) => {
-    const window = parentWindow(event)
-    const options: Electron.OpenDialogOptions = {
-      title: 'Open Workspace Folder',
-      properties: ['openDirectory', 'createDirectory']
-    }
-    const result = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options)
-    if (result.canceled || result.filePaths.length === 0) return null
-    workspaceRoot = result.filePaths[0]
-    allowPath(workspaceRoot)
+  // The student workspace is fixed to Documents/Unicode Lab. There is no
+  // workspace picker; class folders live inside this single root.
+  ipcMain.handle('fs:bootstrap-workspace', async () => {
+    const root = join(app.getPath('documents'), 'Unicode Lab')
+    await mkdir(root, { recursive: true })
+    workspaceRoot = root
+    allowPath(root)
     return workspaceRoot
   })
 
@@ -285,6 +264,41 @@ export function registerFsHandlers(): void {
     return listWorkspace(root)
   })
 
+  // Opens (creating if needed) the workspace file an assignment points at.
+  // Existing files are never overwritten — starter code only seeds new files.
+  ipcMain.handle(
+    'fs:ensure-assignment-file',
+    async (
+      _event,
+      root: string,
+      courseName: string,
+      fileName: string,
+      starterCode = ''
+    ): Promise<AssignmentFileResult> => {
+      assertAllowed(root)
+      const safeName = fileName.trim()
+      assertSimpleName(safeName)
+      if (!isTextFile(safeName)) {
+        throw new Error('Assignments must point at a text or code file.')
+      }
+      const folder = sanitizeFolderName(courseName)
+      const dir = join(root, folder)
+      await mkdir(dir, { recursive: true })
+      allowPath(dir)
+      const filePath = join(dir, safeName)
+      let created = false
+      try {
+        // 'wx' fails when the file already exists, so student work survives.
+        await writeFile(filePath, starterCode, { encoding: 'utf8', flag: 'wx' })
+        created = true
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      }
+      allowPath(filePath)
+      return { path: filePath, fileName: `${folder}/${safeName}`, created }
+    }
+  )
+
   // Native Save / Don't Save / Cancel prompt for dirty tabs.
   ipcMain.handle('fs:confirm-close', async (event, fileName: string): Promise<CloseChoice> => {
     const window = parentWindow(event)
@@ -305,4 +319,68 @@ export function registerFsHandlers(): void {
     if (result.response === 1) return 'discard'
     return 'cancel'
   })
+
+  // Renames a file inside the workspace. Refuses to overwrite an existing
+  // file; case-only renames are allowed on case-insensitive filesystems.
+  ipcMain.handle('fs:rename-file', async (_event, filePath: string, newName: string) => {
+    assertAllowed(filePath)
+    assertSimpleName(newName)
+    const safeName = newName.trim()
+    if (!isTextFile(safeName)) {
+      throw new Error('Only text and code files can be renamed.')
+    }
+    const target = join(dirname(filePath), safeName)
+    const caseOnly = target.toLowerCase() === filePath.toLowerCase()
+    if (!caseOnly) {
+      try {
+        await stat(target)
+        throw new Error(`A file named "${safeName}" already exists here.`)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+    }
+    await rename(filePath, target)
+    allowPath(target)
+    return target
+  })
+
+  // Deletes a single file. Folders are never deleted from the editor.
+  ipcMain.handle('fs:delete-file', async (_event, filePath: string) => {
+    assertAllowed(filePath)
+    const info = await stat(filePath)
+    if (!info.isFile()) throw new Error('Only files can be deleted.')
+    await unlink(filePath)
+    return true
+  })
+
+  // Generic confirmation dialog for destructive or irreversible actions.
+  ipcMain.handle(
+    'app:confirm',
+    async (
+      event,
+      options: {
+        title: string
+        message: string
+        detail?: string
+        confirmLabel?: string
+        danger?: boolean
+      }
+    ): Promise<boolean> => {
+      const window = parentWindow(event)
+      const messageOptions: Electron.MessageBoxOptions = {
+        type: options.danger ? 'warning' : 'question',
+        buttons: [options.confirmLabel ?? 'Confirm', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+        title: options.title,
+        message: options.message,
+        detail: options.detail
+      }
+      const result = window
+        ? await dialog.showMessageBox(window, messageOptions)
+        : await dialog.showMessageBox(messageOptions)
+      return result.response === 0
+    }
+  )
 }

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
-export type ProfileRole = 'student' | 'professor'
+export type ProfileRole = 'student' | 'professor' | 'admin'
 
 interface RoleState {
   userId: string
@@ -14,6 +14,8 @@ export interface ProfileRoleState {
   role: ProfileRole | null
   loading: boolean
   error: string | null
+  /** Re-reads the role, e.g. after a professor invite is redeemed. */
+  reload: () => void
 }
 
 /**
@@ -24,7 +26,9 @@ export interface ProfileRoleState {
  */
 export function useProfileRole(session: Session | null): ProfileRoleState {
   const [state, setState] = useState<RoleState | null>(null)
+  const [version, setVersion] = useState(0)
   const userId = session?.user?.id ?? null
+  const reload = useCallback((): void => setVersion((current) => current + 1), [])
 
   useEffect(() => {
     if (!supabase || !userId) return
@@ -45,7 +49,8 @@ export function useProfileRole(session: Session | null): ProfileRoleState {
         }
         setState({
           userId,
-          role: data?.role === 'professor' ? 'professor' : 'student',
+          role:
+            data?.role === 'admin' ? 'admin' : data?.role === 'professor' ? 'professor' : 'student',
           error: null
         })
       })
@@ -53,12 +58,13 @@ export function useProfileRole(session: Session | null): ProfileRoleState {
     return () => {
       cancelled = true
     }
-  }, [userId])
+  }, [userId, version])
 
   const matches = userId !== null && state?.userId === userId
   return {
     role: matches ? state.role : null,
     loading: userId !== null && !matches,
-    error: matches ? state.error : null
+    error: matches ? state.error : null,
+    reload
   }
 }

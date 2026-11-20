@@ -57,6 +57,10 @@ export interface CodeTrackerApi {
   captureManualSnapshot(fileName: string): void
   restoreSnapshot(fileName: string, snapshot: CodeSnapshot): void
   getModelValue(fileName: string): string | null
+  /** Captures the live content immediately (used when submitting). */
+  captureCurrent(fileName: string): void
+  /** Flushes pending edits and resolves once queued captures are synced. */
+  flush(fileName?: string): Promise<void>
   flushNow(): void
 }
 
@@ -133,9 +137,14 @@ export function useCodeTracker({
   const lastSnapshotRef = useRef(new Map<string, CodeSnapshot>())
   const snapshotsStateRef = useRef<Record<string, CodeSnapshot[]>>({})
   const windowsRef = useRef(new Map<string, ChangeWindow>())
+  // Gaps between edit bursts, attached to the next snapshot for the heatmap.
+  const typingIntervalsRef = useRef(new Map<string, number[]>())
+  const lastChangeRef = useRef(new Map<string, number>())
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const restoringRef = useRef<string | null>(null)
-  const flushingRef = useRef(false)
+  // Serializes sync batches: concurrent callers wait their turn instead of
+  // being dropped while another flush is in flight.
+  const flushChainRef = useRef<Promise<void>>(Promise.resolve())
   const userIdRef = useRef(userId)
   const labIdRef = useRef(labId)
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -173,9 +182,9 @@ export function useCodeTracker({
     }, SYNC_RETRY_MS)
   }, [])
 
-  const flushQueue = useCallback(async (): Promise<void> => {
+  const runFlush = useCallback(async (): Promise<void> => {
     const currentUserId = userIdRef.current
-    if (!supabase || !currentUserId || flushingRef.current) return
+    if (!supabase || !currentUserId) return
 
     const items = snapshotQueue.itemsForUser(currentUserId)
     if (items.length === 0) {
@@ -183,7 +192,6 @@ export function useCodeTracker({
       return
     }
 
-    flushingRef.current = true
     snapshotQueue.setStatus('syncing')
     try {
       for (let start = 0; start < items.length; start += SYNC_BATCH_SIZE) {
@@ -213,10 +221,14 @@ export function useCodeTracker({
       snapshotQueue.bumpAttempts(new Set(items.map((item) => item.id)))
       snapshotQueue.setStatus(navigator.onLine ? 'error' : 'offline')
       scheduleRetry()
-    } finally {
-      flushingRef.current = false
     }
   }, [scheduleRetry])
+
+  const flushQueue = useCallback((): Promise<void> => {
+    const next = flushChainRef.current.then(runFlush)
+    flushChainRef.current = next.catch(() => undefined)
+    return next
+  }, [runFlush])
 
   // Late-bound function references, kept current outside of render so the
   // timers and effects below always call the latest implementation.
@@ -273,6 +285,7 @@ export function useCodeTracker({
       const last = lastSnapshotRef.current.get(fileName)
       if (!force && last && last.content === content) return null
 
+      const intervals = typingIntervalsRef.current.get(fileName) ?? []
       const snapshot: CodeSnapshot = {
         id: crypto.randomUUID(),
         user_id: userIdRef.current ?? LOCAL_USER,
@@ -284,8 +297,11 @@ export function useCodeTracker({
         char_count: content.length,
         line_count: model.getLineCount(),
         language: model.getLanguageId() || null,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        typing_intervals: intervals.length > 0 ? intervals : null
       }
+      typingIntervalsRef.current.delete(fileName)
+      lastChangeRef.current.delete(fileName)
 
       applySnapshotState({
         ...snapshotsStateRef.current,
@@ -309,6 +325,9 @@ export function useCodeTracker({
       // Undo/redo bursts are excluded so they never raise false positives.
       if (changeWindow.chars >= VELOCITY_PASTE_THRESHOLD && !changeWindow.history) {
         windowsRef.current.delete(fileName)
+        // A bulk insert is not typing rhythm.
+        typingIntervalsRef.current.delete(fileName)
+        lastChangeRef.current.delete(fileName)
         const snapshot = captureSnapshot(fileName, 'paste', true)
         recordPaste(fileName, snapshot, changeWindow.texts.join(''), 'velocity')
         return
@@ -353,6 +372,25 @@ export function useCodeTracker({
       // Bulk programmatic replaces (setValue) are not user edits.
       if (event.isFlush) return
 
+      // Edit cadence: one sample per content change, ignoring undo/redo and
+      // implausibly long pauses. These become the typing heatmap points.
+      if (!event.isUndoing && !event.isRedoing) {
+        const inserted = event.changes.reduce((total, change) => total + change.text.length, 0)
+        if (inserted > 0) {
+          const now = Date.now()
+          const previous = lastChangeRef.current.get(fileName)
+          if (previous !== undefined) {
+            const interval = now - previous
+            if (interval >= 20 && interval <= 10_000) {
+              const samples = typingIntervalsRef.current.get(fileName) ?? []
+              if (samples.length < 800) samples.push(Math.round(interval))
+              typingIntervalsRef.current.set(fileName, samples)
+            }
+          }
+          lastChangeRef.current.set(fileName, now)
+        }
+      }
+
       const existing = windowsRef.current.get(fileName)
       const changeWindow: ChangeWindow = existing ?? { chars: 0, texts: [], history: false }
       if (event.isUndoing || event.isRedoing) changeWindow.history = true
@@ -388,6 +426,9 @@ export function useCodeTracker({
       // Reset the window so the velocity heuristic doesn't double-count
       // this paste (onDidChangeModelContent fires before onDidPaste).
       windowsRef.current.delete(fileName)
+      // A paste is not typing rhythm.
+      typingIntervalsRef.current.delete(fileName)
+      lastChangeRef.current.delete(fileName)
 
       const pastedText = resolvePastedText(event, model)
       if (!pastedText) return
@@ -453,6 +494,30 @@ export function useCodeTracker({
     (fileName: string): string | null => modelsRef.current.get(fileName)?.getValue() ?? null,
     []
   )
+
+  const captureCurrent = useCallback(
+    (fileName: string): void => {
+      // Forced capture: submission must not depend on the idle debounce or
+      // the minimum auto-snapshot interval.
+      captureSnapshot(fileName, 'auto', true)
+    },
+    [captureSnapshot]
+  )
+
+  const flush = useCallback(async (fileName?: string): Promise<void> => {
+    // Finalize any debounced edit window so the submitted content is in the
+    // snapshot set, then wait for the queue to finish syncing.
+    const targets = fileName ? [fileName] : Array.from(windowsRef.current.keys())
+    for (const name of targets) {
+      const timer = timersRef.current.get(name)
+      if (timer) {
+        clearTimeout(timer)
+        timersRef.current.delete(name)
+      }
+      finalizeWindowRef.current(name)
+    }
+    await flushRef.current()
+  }, [])
 
   const flushNow = useCallback((): void => {
     void flushRef.current()
@@ -534,6 +599,8 @@ export function useCodeTracker({
     const timers = timersRef.current
     const listeners = listenersRef.current
     const windows = windowsRef.current
+    const typingIntervals = typingIntervalsRef.current
+    const lastChanges = lastChangeRef.current
     return () => {
       for (const timer of timers.values()) clearTimeout(timer)
       timers.clear()
@@ -544,6 +611,8 @@ export function useCodeTracker({
       for (const disposable of listeners.values()) disposable.dispose()
       listeners.clear()
       windows.clear()
+      typingIntervals.clear()
+      lastChanges.clear()
     }
   }, [])
 
@@ -563,6 +632,8 @@ export function useCodeTracker({
     captureManualSnapshot,
     restoreSnapshot,
     getModelValue,
+    captureCurrent,
+    flush,
     flushNow
   }
 }

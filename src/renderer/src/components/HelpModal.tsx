@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { version } from '../../../../package.json'
+import Versions from './Versions'
 
 interface HelpModalProps {
   mode: 'shortcuts' | 'about' | null
@@ -79,6 +80,7 @@ export default function HelpModal({ mode, onClose }: HelpModalProps): React.Reac
               A code lab for programming coursework with time-travel snapshots, paste analytics, and
               academic-integrity review built in.
             </p>
+            <Versions />
           </div>
         )}
       </div>

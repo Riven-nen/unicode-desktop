@@ -8,6 +8,13 @@ export interface ClassSummary {
   code: string
   studentCount: number
   assignmentCount: number
+  archivedAt: string | null
+  /** Free text such as "3 - A"; optional for older classes. */
+  yearSection: string | null
+  /** Free text such as "2026-2027". */
+  academicYear: string | null
+  /** Short code students can use to enroll themselves. */
+  joinCode: string
 }
 
 export interface AssignmentSummary {
@@ -15,9 +22,17 @@ export interface AssignmentSummary {
   title: string
   language: string | null
   description: string | null
+  /** Bare workspace file name students open, e.g. `fibonacci.py`. */
+  fileName: string | null
   starterCode: string | null
   testCaseCount: number
   hiddenCaseCount: number
+  archivedAt: string | null
+  published: boolean
+  /** When students can first see the assignment; null means immediately. */
+  publishAt: string | null
+  dueAt: string | null
+  autoTestEnabled: boolean
 }
 
 export interface RosterStudent {
@@ -29,12 +44,16 @@ export interface RosterStudent {
 
 export interface SubmissionSummary {
   id: string
+  assignmentId: string
   studentId: string
   studentName: string
   studentEmail: string
   submittedAt: string
   status: string
   grade: number | null
+  /** False while the professor is still holding the grade privately. */
+  gradeReleased: boolean
+  gradeReleasedAt: string | null
   ics: number | null
   band: IcsBand | null
   pasteCount: number
@@ -51,6 +70,34 @@ export interface SnapshotEntry {
   content: string
   pasteDetectedVia: string | null
   pasteChars: number
+  /** Gaps between edit bursts captured with this snapshot, in milliseconds. */
+  typingIntervals: number[]
+}
+
+export interface PasteSimilarityMatch {
+  pasteId: string
+  pastedText: string
+  pasteCreatedAt: string
+  similarity: number
+  matchPasteId: string
+  matchText: string
+  matchSubmissionId: string
+  matchStudentId: string
+  matchStudentName: string
+  matchCreatedAt: string
+}
+
+export type LiveLabStatus = 'active' | 'idle' | 'flagged' | 'offline'
+
+export interface LiveLabStudent {
+  studentId: string
+  name: string
+  email: string
+  status: LiveLabStatus
+  storedStatus: 'active' | 'idle' | 'flagged'
+  idleSeconds: number
+  currentFile: string | null
+  lastSeenAt: string
 }
 
 export interface IcsScoreRow {
@@ -67,6 +114,9 @@ export interface IcsScoreRow {
 export interface CommentEntry {
   id: string
   submissionId: string
+  authorId: string
+  authorRole: 'professor' | 'student'
+  authorName: string
   snapshotId: string | null
   anchorLine: number | null
   parentId: string | null
@@ -82,10 +132,23 @@ export interface TestCaseEntry {
   isHidden: boolean
 }
 
+export interface CodeRunEntry {
+  id: string
+  createdAt: string
+  statusId: number
+  statusDescription: string
+  passed: boolean | null
+  timeSeconds: number | null
+  memoryKb: number | null
+  language: string | null
+  testCaseOrdinal: number | null
+}
+
 export interface SubmissionDetailData {
   summary: SubmissionSummary
   assignmentId: string
   assignmentTitle: string
+  fileName: string | null
   language: string | null
   classId: string
   className: string
@@ -99,10 +162,18 @@ export interface SubmissionDetailData {
 
 export interface StudentFeedbackItem {
   id: string
+  submissionId: string
   body: string
   anchorLine: number | null
+  anchorSnapshotId: string | null
   parentId: string | null
+  authorRole: 'professor' | 'student'
+  authorName: string
   createdAt: string
   assignmentTitle: string
   classCode: string
+  /** When the graded submission was handed in. */
+  submittedAt: string
+  /** Professor's mark, or null while the work is ungraded. */
+  grade: number | null
 }

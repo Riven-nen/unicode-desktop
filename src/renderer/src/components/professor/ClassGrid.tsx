@@ -1,11 +1,17 @@
-import { ArrowRight, BookOpen, Plus, Users } from 'lucide-react'
-import { initialsOf } from '../../lib/initials'
+import { Activity, ArrowUpRight, BookOpen, Plus, Users } from 'lucide-react'
 import type { ClassSummary } from '../../types/professor'
 
 interface ClassGridProps {
   classes: ClassSummary[]
   loading: boolean
   error: string | null
+  showArchived: boolean
+  /** New student replies per class since the professor last opened it. */
+  unreadReplies?: Record<string, number>
+  /** New submissions per class since the professor last opened it. */
+  unreadSubmissions?: Record<string, number>
+  onToggleArchived: () => void
+  onOpenLiveLab: () => void
   onSelect: (classId: string) => void
   onCreate: () => void
 }
@@ -14,6 +20,11 @@ export default function ClassGrid({
   classes,
   loading,
   error,
+  showArchived,
+  unreadReplies = {},
+  unreadSubmissions = {},
+  onToggleArchived,
+  onOpenLiveLab,
   onSelect,
   onCreate
 }: ClassGridProps): React.ReactElement {
@@ -31,9 +42,17 @@ export default function ClassGrid({
               : 'Review submissions, integrity signals, and feedback.'}
           </p>
         </div>
-        <button className="btn-primary" onClick={onCreate}>
-          <Plus size={13} /> New class
-        </button>
+        <div className="section-head-actions">
+          <button className="icon-text-btn" onClick={onOpenLiveLab}>
+            <Activity size={12} /> Live lab
+          </button>
+          <button className="icon-text-btn" onClick={onToggleArchived}>
+            {showArchived ? 'Hide archived' : 'Show archived'}
+          </button>
+          <button className="btn-primary" onClick={onCreate}>
+            <Plus size={13} /> New class
+          </button>
+        </div>
       </header>
 
       {loading && <div className="professor-empty">Loading classes…</div>}
@@ -50,28 +69,45 @@ export default function ClassGrid({
             onClick={() => onSelect(klass.id)}
             aria-label={`Open ${klass.name}`}
           >
-            <span className="class-card-wash" aria-hidden="true" />
-            <span className="class-card-head">
-              <span className="class-avatar">{initialsOf(klass.code.replace(/\s+/g, ''))}</span>
+            <span className="class-card-watermark" aria-hidden="true">
+              {klass.code}
+            </span>
+            <span className="class-card-top">
               <span className="class-code">{klass.code}</span>
+              {klass.archivedAt && <span className="archived-badge">Archived</span>}
               <span className="class-card-arrow">
-                <ArrowRight size={15} />
+                <ArrowUpRight size={15} />
               </span>
             </span>
             <span className="class-name">{klass.name}</span>
-            <span className="class-metrics">
-              <span className="class-metric">
+            {(klass.yearSection || klass.academicYear) && (
+              <span className="class-card-meta">
+                {klass.yearSection && <span>{klass.yearSection}</span>}
+                {klass.academicYear && <span>AY {klass.academicYear}</span>}
+              </span>
+            )}
+            {(unreadSubmissions[klass.id] ?? 0) > 0 && (
+              <span className="class-card-replies class-card-submissions">
+                {unreadSubmissions[klass.id]} new{' '}
+                {unreadSubmissions[klass.id] === 1 ? 'submission' : 'submissions'}
+              </span>
+            )}
+            {(unreadReplies[klass.id] ?? 0) > 0 && (
+              <span className="class-card-replies">
+                {unreadReplies[klass.id]} new{' '}
+                {unreadReplies[klass.id] === 1 ? 'student reply' : 'student replies'}
+              </span>
+            )}
+            <span className="class-card-stats">
+              <span className="class-card-stat">
                 <Users size={12} />
                 <strong>{klass.studentCount}</strong> students
               </span>
-              <span className="class-metric">
+              <span className="class-card-stat-sep" aria-hidden="true" />
+              <span className="class-card-stat">
                 <BookOpen size={12} />
                 <strong>{klass.assignmentCount}</strong> assignments
               </span>
-            </span>
-            <span className="class-card-foot">
-              <span>Open class</span>
-              <span className="class-card-line" aria-hidden="true" />
             </span>
           </button>
         ))}

@@ -22,3 +22,12 @@ export interface WorkspaceListing {
 }
 
 export type CloseChoice = 'save' | 'discard' | 'cancel'
+
+export interface AssignmentFileResult {
+  /** Absolute path of the file on disk. */
+  path: string
+  /** Workspace-relative key used by the tracker (e.g. `CS101/fibonacci.py`). */
+  fileName: string
+  /** False when the file already existed and was left untouched. */
+  created: boolean
+}

@@ -1,8 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, clipboard, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerFsHandlers } from './fs'
+import { registerJudge0Handlers } from './judge0'
+import { registerTerminalHandlers, stopAllTerminals } from './terminal'
+import { registerToolchainHandlers } from './toolchains'
 
 function createWindow(): void {
   // Create the browser window. The native title bar is hidden — the renderer
@@ -19,7 +22,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      // Preload only uses contextBridge + ipcRenderer, so the renderer can
+      // stay sandboxed. Clipboard and shell access go through main.
+      sandbox: true
     }
   })
 
@@ -54,8 +59,8 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  // Set app user model id for windows (must match electron-builder's appId).
+  electronApp.setAppUserModelId('com.unicodelab.desktop')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -69,6 +74,26 @@ app.whenReady().then(() => {
 
   // Workspace file access (open/save course files on disk).
   registerFsHandlers()
+
+  // Clipboard + external links. Kept in main so the renderer/preload can run
+  // with the Chromium sandbox enabled.
+  ipcMain.handle('clipboard:read-text', () => clipboard.readText())
+  ipcMain.handle('clipboard:write-text', (_event, text: string) => {
+    clipboard.writeText(text)
+  })
+  ipcMain.handle('app:open-external', async (_event, url: string) => {
+    if (!/^https?:\/\//i.test(url)) throw new Error('Only http(s) links can be opened.')
+    await shell.openExternal(url)
+  })
+
+  // Judge0 execution (professor test runner), isolated in the main process.
+  registerJudge0Handlers()
+
+  // Local PowerShell session for the student terminal.
+  registerTerminalHandlers()
+
+  // Compiler/runtime discovery for the file-open check.
+  registerToolchainHandlers()
 
   // Custom title-bar window controls.
   ipcMain.on('window:minimize', (event) => {
@@ -103,6 +128,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  stopAllTerminals()
 })
 
 // In this file you can include the rest of your app's specific main process

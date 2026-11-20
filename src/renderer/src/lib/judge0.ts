@@ -1,24 +1,19 @@
+import type {
+  Judge0PublicConfig,
+  Judge0RawResult,
+  Judge0SaveConfigInput,
+  Judge0Status
+} from '../../../shared/judge0'
 import type { TestCaseEntry } from '../types/professor'
 
 /**
- * Minimal Judge0 client for the professor test runner.
- *
- * Configure it with VITE_JUDGE0_URL (e.g. http://localhost:2358 for the
- * self-hosted Docker image). VITE_JUDGE0_KEY is optional and is sent as
- * X-Auth-Token. The button is disabled when the URL is absent, so the UI
- * never pretends a run happened.
- *
- * Note: because this runs in the renderer, a Judge0 key would be visible to
- * the client. For a public deployment, proxy these calls through the main
- * process (or an edge function) instead.
+ * Judge0 bridge. The actual HTTP call, endpoint, and token live in the main
+ * process; the renderer only selects a language, sends source/tests, and gets
+ * results back. The endpoint is fixed by the app; only an optional token is
+ * configured from the UI.
  */
 
-const JUDGE0_URL = import.meta.env.VITE_JUDGE0_URL?.replace(/\/+$/, '') ?? ''
-const JUDGE0_KEY = import.meta.env.VITE_JUDGE0_KEY ?? ''
-
-export const isJudge0Configured = JUDGE0_URL.length > 0
-
-const LANGUAGE_IDS: Record<string, number> = {
+export const LANGUAGE_IDS: Record<string, number> = {
   python: 71,
   java: 62,
   c: 50,
@@ -34,76 +29,109 @@ const LANGUAGE_IDS: Record<string, number> = {
   kotlin: 78
 }
 
+export function languageIdFor(language: string | null): number | null {
+  if (!language) return null
+  return LANGUAGE_IDS[language] ?? null
+}
+
+function bridge(): Window['api']['judge0'] {
+  if (!window.api?.judge0) {
+    throw new Error('Judge0 is only available in the desktop app.')
+  }
+  return window.api.judge0
+}
+
+export function getJudge0Config(): Promise<Judge0PublicConfig> {
+  return bridge().getConfig()
+}
+
+export function saveJudge0Config(input: Judge0SaveConfigInput): Promise<Judge0PublicConfig> {
+  return bridge().saveConfig(input)
+}
+
+export function testJudge0(): Promise<Judge0Status> {
+  return bridge().status()
+}
+
+/** Strips Electron's IPC wrapper from a main-process error. */
+export function friendlyJudge0Error(error: unknown): string {
+  if (!(error instanceof Error)) return 'The Judge0 request failed.'
+  return error.message.replace(/^Error invoking remote method '[^']+': Error:\s*/, '')
+}
+
 export interface Judge0CaseResult {
   testCaseId: string
   pass: boolean
   status: string
+  statusId: number
   stdout: string
   stderr: string
   compileOutput: string
   time: string | null
+  timeSeconds: number | null
   memory: number | null
 }
 
-interface Judge0Response {
-  stdout: string | null
-  stderr: string | null
-  compile_output: string | null
-  message: string | null
-  status: { id: number; description: string } | null
-  time: string | null
-  memory: number | null
-}
+const MAX_TEST_CASES = 20
 
 const normalizeOutput = (value: string | null | undefined): string =>
   (value ?? '').replace(/\r\n/g, '\n').trimEnd()
+
+/** Run one source file with optional stdin (student Run panel). */
+export function runSource(input: {
+  source: string
+  language: string | null
+  stdin: string
+  expectedOutput?: string
+}): Promise<Judge0RawResult> {
+  const languageId = languageIdFor(input.language)
+  if (!languageId) {
+    throw new Error(`Judge0 has no language id for "${input.language ?? 'unknown'}".`)
+  }
+  return bridge().run({
+    source: input.source,
+    languageId,
+    stdin: input.stdin,
+    expectedOutput: input.expectedOutput ?? ''
+  })
+}
 
 export async function runTestCases(input: {
   source: string
   language: string | null
   testCases: TestCaseEntry[]
 }): Promise<Judge0CaseResult[]> {
-  if (!JUDGE0_URL) {
-    throw new Error('Judge0 is not configured. Set VITE_JUDGE0_URL to enable test runs.')
-  }
-  const languageId = input.language ? LANGUAGE_IDS[input.language] : undefined
+  const languageId = languageIdFor(input.language)
   if (!languageId) {
     throw new Error(`Judge0 has no language id for "${input.language ?? 'unknown'}".`)
   }
+  if (input.testCases.length > MAX_TEST_CASES) {
+    throw new Error(`Run at most ${MAX_TEST_CASES} test cases at a time.`)
+  }
 
+  const client = bridge()
   const results: Judge0CaseResult[] = []
+
   for (const testCase of input.testCases) {
-    const response = await fetch(`${JUDGE0_URL}/submissions?base64_encoded=false&wait=true`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(JUDGE0_KEY ? { 'X-Auth-Token': JUDGE0_KEY } : {})
-      },
-      body: JSON.stringify({
-        source_code: input.source,
-        language_id: languageId,
-        stdin: testCase.stdin ?? '',
-        expected_output: testCase.expectedStdout ?? ''
-      })
+    const raw = await client.run({
+      source: input.source,
+      languageId,
+      stdin: testCase.stdin ?? '',
+      expectedOutput: testCase.expectedStdout ?? ''
     })
-
-    if (!response.ok) {
-      throw new Error(`Judge0 returned HTTP ${response.status}.`)
-    }
-
-    const data = (await response.json()) as Judge0Response
-    const stdout = data.stdout ?? ''
     results.push({
       testCaseId: testCase.id,
       pass:
-        data.status?.id === 3 &&
-        normalizeOutput(stdout) === normalizeOutput(testCase.expectedStdout),
-      status: data.status?.description ?? data.message ?? 'Unknown',
-      stdout,
-      stderr: data.stderr ?? '',
-      compileOutput: data.compile_output ?? '',
-      time: data.time,
-      memory: data.memory
+        raw.statusId === 3 &&
+        normalizeOutput(raw.stdout) === normalizeOutput(testCase.expectedStdout),
+      status: raw.statusDescription,
+      statusId: raw.statusId,
+      stdout: raw.stdout,
+      stderr: raw.stderr,
+      compileOutput: raw.compileOutput,
+      time: raw.time,
+      timeSeconds: raw.time === null ? null : Number(raw.time),
+      memory: raw.memory
     })
   }
   return results

@@ -1,5 +1,13 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
-import type { CloseChoice, WorkspaceListing } from '../shared/workspace'
+import type { AssignmentFileResult, CloseChoice, WorkspaceListing } from '../shared/workspace'
+import type {
+  Judge0PublicConfig,
+  Judge0RawResult,
+  Judge0RunInput,
+  Judge0SaveConfigInput,
+  Judge0Status
+} from '../shared/judge0'
+import type { TerminalDataEvent, TerminalExitEvent } from '../shared/terminal'
+import type { ToolchainStatus } from '../shared/toolchains'
 
 export interface WindowControlsApi {
   minimize(): void
@@ -15,9 +23,8 @@ export interface ClipboardApi {
 }
 
 export interface FsApi {
-  /** Resolves the workspace root, creating Documents/Unicode Lab if needed. */
-  bootstrapWorkspace(preferredRoot: string | null): Promise<string>
-  pickWorkspace(): Promise<string | null>
+  /** Resolves the fixed Documents/Unicode Lab workspace, creating it if needed. */
+  bootstrapWorkspace(): Promise<string>
   pickFile(): Promise<string | null>
   listWorkspace(root: string): Promise<WorkspaceListing>
   readFile(filePath: string): Promise<string>
@@ -26,20 +33,72 @@ export interface FsApi {
   createFile(dir: string, name: string): Promise<string>
   /** Creates one folder per enrolled course; idempotent, sorts the batch. */
   ensureCourses(root: string, names: string[]): Promise<WorkspaceListing>
+  /**
+   * Opens the file an assignment points at, creating it (and its course
+   * folder) with the starter code when it does not exist yet.
+   */
+  ensureAssignmentFile(
+    root: string,
+    courseName: string,
+    fileName: string,
+    starterCode: string
+  ): Promise<AssignmentFileResult>
   confirmClose(fileName: string): Promise<CloseChoice>
+  /** Renames a workspace file; resolves with the new absolute path. */
+  renameFile(filePath: string, newName: string): Promise<string>
+  /** Permanently deletes a workspace file (never a folder). */
+  deleteFile(filePath: string): Promise<boolean>
+}
+
+export interface UiApi {
+  /** Native OK/Cancel prompt used before submitting or deleting. */
+  confirm(options: {
+    title: string
+    message: string
+    detail?: string
+    confirmLabel?: string
+    danger?: boolean
+  }): Promise<boolean>
+}
+
+export interface ToolchainsApi {
+  /** Detects compiler/runtime availability for a Monaco language id. */
+  check(language: string, refresh?: boolean): Promise<ToolchainStatus>
+}
+
+export interface Judge0Api {
+  /** Endpoint/hasToken/configured; the token value itself never leaves main. */
+  getConfig(): Promise<Judge0PublicConfig>
+  saveConfig(input: Judge0SaveConfigInput): Promise<Judge0PublicConfig>
+  run(input: Judge0RunInput): Promise<Judge0RawResult>
+  status(): Promise<Judge0Status>
+}
+
+export interface TerminalApi {
+  /** Starts a local shell rooted at the active workspace. Returns its cwd. */
+  start(cwd: string | null): Promise<string>
+  write(data: string): void
+  stop(): void
+  onData(callback: (event: TerminalDataEvent) => void): () => void
+  onExit(callback: (event: TerminalExitEvent) => void): () => void
 }
 
 export interface UnicodeApi {
   platform: string
+  /** Runtime versions for the About dialog. */
+  versions: { electron: string; chrome: string; node: string }
   window: WindowControlsApi
   clipboard: ClipboardApi
   openExternal(url: string): Promise<void>
   fs: FsApi
+  ui: UiApi
+  toolchains: ToolchainsApi
+  judge0: Judge0Api
+  terminal: TerminalApi
 }
 
 declare global {
   interface Window {
-    electron: ElectronAPI
     api: UnicodeApi
   }
 }

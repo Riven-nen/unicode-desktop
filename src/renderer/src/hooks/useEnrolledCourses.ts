@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
@@ -8,16 +8,26 @@ export interface EnrolledCourse {
   code: string | null
   title: string
   term: string | null
+  yearSection: string | null
+  academicYear: string | null
 }
 
 interface EnrollmentRow {
-  classes: { id: string; name: string; code: string | null } | null
+  classes: {
+    id: string
+    name: string
+    code: string | null
+    archived_at: string | null
+    year_section: string | null
+    academic_year: string | null
+  } | null
 }
 
 export interface EnrolledCoursesState {
   courses: EnrolledCourse[]
   /** True until the current user's enrollments have been fetched once. */
   loading: boolean
+  reload: () => void
 }
 
 // A snapshot belongs to exactly one user, so switching accounts never shows
@@ -33,7 +43,12 @@ interface Snapshot {
  */
 export function useEnrolledCourses(session: Session | null): EnrolledCoursesState {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
+  const [version, setVersion] = useState(0)
   const userId = session?.user.id ?? null
+
+  const reload = useCallback((): void => {
+    setVersion((current) => current + 1)
+  }, [])
 
   useEffect(() => {
     if (!supabase || !userId) return
@@ -42,7 +57,7 @@ export function useEnrolledCourses(session: Session | null): EnrolledCoursesStat
 
     void client
       .from('enrollments')
-      .select('classes ( id, name, code )')
+      .select('classes ( id, name, code, archived_at, year_section, academic_year )')
       .eq('student_id', userId)
       .then(({ data, error }) => {
         if (cancelled) return
@@ -55,11 +70,14 @@ export function useEnrolledCourses(session: Session | null): EnrolledCoursesStat
         const courses = rows
           .map((row) => row.classes)
           .filter((course): course is NonNullable<EnrollmentRow['classes']> => course !== null)
+          .filter((course) => course.archived_at === null)
           .map((course) => ({
             id: course.id,
             code: course.code,
             title: course.name,
-            term: null
+            term: null,
+            yearSection: course.year_section,
+            academicYear: course.academic_year
           }))
           // Stable order keeps duplicate-name suffixes deterministic.
           .sort((a, b) =>
@@ -73,11 +91,12 @@ export function useEnrolledCourses(session: Session | null): EnrolledCoursesStat
     return () => {
       cancelled = true
     }
-  }, [userId])
+  }, [userId, version])
 
   const matches = userId !== null && snapshot?.userId === userId
   return {
     courses: matches ? snapshot.courses : [],
-    loading: userId !== null && !matches
+    loading: userId !== null && !matches,
+    reload
   }
 }

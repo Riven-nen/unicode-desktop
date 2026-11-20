@@ -46,6 +46,7 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 const PASSWORD = 'Password123!'
 
 const PROFESSOR = { email: 'professor@unicode.test', name: 'Professor Demo' }
+const ADMIN = { email: 'admin@unicode.test', name: 'Admin Demo' }
 const STUDENTS = [
   { key: 's1', email: 'student1@unicode.test', name: 'Student One' },
   { key: 's2', email: 'student2@unicode.test', name: 'Student Two' },
@@ -65,7 +66,8 @@ const ASSIGNMENT_IDS = {
   hello: 'a5510000-0000-4000-8000-000000000101',
   loops: 'a5510000-0000-4000-8000-000000000102',
   fibonacci: 'a5510000-0000-4000-8000-000000000103',
-  linkedList: 'a5510000-0000-4000-8000-000000000201'
+  linkedList: 'a5510000-0000-4000-8000-000000000201',
+  scheduled: 'a5510000-0000-4000-8000-000000000202'
 }
 
 const TEST_CASE_IDS = {
@@ -85,9 +87,17 @@ const SUBMISSION_IDS = {
   s3: '5ab00000-0000-4000-8000-000000000003'
 }
 
-const PASTE_IDS = ['9a5e0000-0000-4000-8000-000000000001', '9a5e0000-0000-4000-8000-000000000002']
+const PASTE_IDS = [
+  '9a5e0000-0000-4000-8000-000000000001',
+  '9a5e0000-0000-4000-8000-000000000002',
+  '9a5e0000-0000-4000-8000-000000000003'
+]
 
-const COMMENT_IDS = ['c0110000-0000-4000-8000-000000000001', 'c0110000-0000-4000-8000-000000000002']
+const COMMENT_IDS = [
+  'c0110000-0000-4000-8000-000000000001',
+  'c0110000-0000-4000-8000-000000000002',
+  'c0110000-0000-4000-8000-000000000003'
+]
 
 const snapshotId = (student, index) => `5a090000-0000-4000-8000-0000000000${student}${index}`
 
@@ -105,10 +115,44 @@ const SNAPSHOT_CONTENTS = [
 
 const SNAPSHOT_TYPES = ['manual', 'auto', 'paste', 'manual', 'auto']
 
+// Final snapshots differ by student so the similarity panel has something
+// meaningful to show: One and Two share a structural copy, Three solved it
+// with a different approach.
+const FINAL_BY_STUDENT = {
+  s1: SNAPSHOT_CONTENTS[SNAPSHOT_CONTENTS.length - 1],
+  s2: 'def fib(n: int) -> int:\n    """Return the nth Fibonacci number (0-indexed)."""\n    if n < 2:\n        return n\n\n    left, right = 0, 1\n    for _ in range(n - 1):\n        left, right = right, left + right\n    return right\n\n\nif __name__ == "__main__":\n    print(fib(int(input())))\n',
+  s3: 'def fib(n):\n    """Return the nth Fibonacci number (0-indexed)."""\n    values = [0, 1]\n    while len(values) < n + 1:\n        values.append(values[-1] + values[-2])\n    return values[n]\n\n\nif __name__ == "__main__":\n    print(fib(int(input())))\n'
+}
+
+const snapshotContentsFor = (studentKey) => {
+  const contents = [...SNAPSHOT_CONTENTS]
+  contents[contents.length - 1] = FINAL_BY_STUDENT[studentKey] ?? contents[contents.length - 1]
+  return contents
+}
+
 const PASTED_TEXTS = [
   'def fib(n):\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    a, b = 0, 1\n    for _ in range(n - 1):\n        a, b = b, a + b\n    return b\n',
   'if __name__ == "__main__":\n    print(fib(int(input())))\n'
 ]
+
+// A shared paste on student2's submission, for the cross-student pg_trgm
+// similarity panel.
+const SHARED_PASTE_TEXT = PASTED_TEXTS[0]
+
+// Deterministic edit-gap samples for the typing heatmap. Student One has a
+// jagged rhythm with long pauses, Two is steadier, and Three is fast/flat.
+const typingSamplesFor = (studentKey, snapshotIndex) => {
+  const patterns = {
+    s1: [1, 0.6, 1.2, 0.8, 3.8, 1.1, 0.5, 2.4, 0.9, 1.5, 0.7, 1.9],
+    s2: [1, 0.9, 1.4, 0.8, 2.2, 1.1, 0.7, 1.6, 1, 1.3],
+    s3: [1, 1.02, 0.96, 1.05, 1, 0.98, 1.03, 0.95, 1.01, 0.99]
+  }
+  const base = studentKey === 's1' ? 170 : studentKey === 's2' ? 240 : 85
+  const pattern = patterns[studentKey] ?? patterns.s2
+  return Array.from({ length: 40 }, (_, index) =>
+    Math.max(20, Math.round(base * pattern[index % pattern.length] * (1 + snapshotIndex * 0.04)))
+  )
+}
 
 // Raw formula inputs. One deliberate pass, one review, one flag.
 const ICS_INPUTS = [
@@ -198,6 +242,7 @@ async function main() {
   )
 
   const professorId = await ensureUser(PROFESSOR, byEmail)
+  const adminId = await ensureUser(ADMIN, byEmail)
   const studentIds = {}
   for (const student of STUDENTS) {
     studentIds[student.key] = await ensureUser(student, byEmail)
@@ -211,6 +256,12 @@ async function main() {
         email: PROFESSOR.email,
         display_name: PROFESSOR.name,
         role: 'professor'
+      },
+      {
+        id: adminId,
+        email: ADMIN.email,
+        display_name: ADMIN.name,
+        role: 'admin'
       },
       ...STUDENTS.map((student) => ({
         id: studentIds[student.key],
@@ -229,12 +280,18 @@ async function main() {
         id: CLASS_IDS.cs101,
         name: 'CS101 - Intro to Programming',
         code: 'CS101',
+        year_section: '1 - A',
+        academic_year: '2026-2027',
+        join_code: 'CS101J4K',
         professor_id: professorId
       },
       {
         id: CLASS_IDS.cs102,
         name: 'CS102 - Data Structures',
         code: 'CS102',
+        year_section: '2 - B',
+        academic_year: '2026-2027',
+        join_code: 'CS102P8Q',
         professor_id: professorId
       }
     ],
@@ -262,6 +319,11 @@ async function main() {
         title: 'Hello World',
         description: 'Print the traditional greeting exactly as specified.',
         language: 'python',
+        file_name: 'hello.py',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: true,
+        due_at: '2026-11-18T23:59:00.000Z',
         starter_code: '# Print the greeting below\n\n'
       },
       {
@@ -270,6 +332,11 @@ async function main() {
         title: 'Loops Practice',
         description: 'Read n and print every integer from 1 to n on its own line.',
         language: 'python',
+        file_name: 'loops.py',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: true,
+        due_at: '2026-11-20T23:59:00.000Z',
         starter_code: 'n = int(input())\n# print the numbers from 1 to n\n'
       },
       {
@@ -278,6 +345,11 @@ async function main() {
         title: 'Fibonacci',
         description: 'Read n and print the nth Fibonacci number (0-indexed).',
         language: 'python',
+        file_name: 'fibonacci.py',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: true,
+        due_at: '2026-11-21T23:59:00.000Z',
         starter_code:
           'def fib(n: int) -> int:\n    # return the nth Fibonacci number\n    pass\n\n\nprint(fib(int(input())))\n'
       },
@@ -287,7 +359,25 @@ async function main() {
         title: 'Linked List Insert',
         description: 'Read space-separated values and print them as a linked list.',
         language: 'python',
+        file_name: 'linked_list.py',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: true,
+        due_at: '2026-11-24T23:59:00.000Z',
         starter_code: 'values = input().split()\n# print the linked list\n'
+      },
+      {
+        id: ASSIGNMENT_IDS.scheduled,
+        class_id: CLASS_IDS.cs102,
+        title: 'Recursion Warmup',
+        description: 'A scheduled assignment that stays hidden until its publish time.',
+        language: 'python',
+        file_name: 'recursion.py',
+        published: true,
+        publish_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        auto_test_enabled: false,
+        due_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+        starter_code: 'def total(values):\n    # add the values recursively\n    pass\n'
       }
     ],
     'id'
@@ -374,22 +464,53 @@ async function main() {
 
   // Submissions first with a null final_snapshot_id (the FK points at a row
   // that does not exist yet), then snapshots, then point them at the last one.
-  const submissionRows = STUDENTS.map((student, index) => ({
-    id: SUBMISSION_IDS[student.key],
-    assignment_id: ASSIGNMENT_IDS.fibonacci,
-    student_id: studentIds[student.key],
-    final_snapshot_id: null,
-    status: 'submitted',
-    submitted_at: iso(studentDay(index + 1), studentHour(index + 1), 45)
-  }))
+  // Student 1 has a released grade, student 2 has a private grade waiting for
+  // the professor to release it, and student 3 is ungraded.
+  const demoGrades = [92, 78, null]
+  const submissionRows = STUDENTS.map((student, index) => {
+    const grade = demoGrades[index]
+    const gradedAt = grade === null ? null : iso(studentDay(index + 1), studentHour(index + 1), 50)
+    return {
+      id: SUBMISSION_IDS[student.key],
+      assignment_id: ASSIGNMENT_IDS.fibonacci,
+      student_id: studentIds[student.key],
+      final_snapshot_id: null,
+      status: 'submitted',
+      submitted_at: iso(studentDay(index + 1), studentHour(index + 1), 45),
+      // Only released marks live on the public submission row.
+      grade: index === 0 ? grade : null,
+      graded_at: gradedAt,
+      graded_by: grade === null ? null : professorId,
+      grade_released: index === 0,
+      grade_released_at: index === 0 ? gradedAt : null
+    }
+  })
 
   await upsert('submissions', submissionRows, 'id')
+
+  // Private marks are stored in the professor-only grade table.
+  await upsert(
+    'submission_grades',
+    STUDENTS.flatMap((student, index) => {
+      const grade = demoGrades[index]
+      if (grade === null) return []
+      return [
+        {
+          submission_id: SUBMISSION_IDS[student.key],
+          grade,
+          graded_at: iso(studentDay(index + 1), studentHour(index + 1), 50),
+          graded_by: professorId
+        }
+      ]
+    }),
+    'submission_id'
+  )
 
   const snapshotRows = []
   for (const [index, student] of STUDENTS.entries()) {
     const day = studentDay(index + 1)
     const hour = studentHour(index + 1)
-    SNAPSHOT_CONTENTS.forEach((content, snapIndex) => {
+    snapshotContentsFor(student.key).forEach((content, snapIndex) => {
       snapshotRows.push({
         id: snapshotId(index + 1, snapIndex + 1),
         user_id: studentIds[student.key],
@@ -402,7 +523,8 @@ async function main() {
         char_count: content.length,
         line_count: content.split('\n').length,
         language: 'python',
-        created_at: iso(day, hour, snapshotMinutes[snapIndex])
+        created_at: iso(day, hour, snapshotMinutes[snapIndex]),
+        typing_intervals: typingSamplesFor(student.key, snapIndex)
       })
     })
   }
@@ -423,10 +545,9 @@ async function main() {
   const flaggedHour = studentHour(3)
   await upsert(
     'paste_events',
-    PASTE_IDS.map((id, index) => {
-      const text = PASTED_TEXTS[index]
-      return {
-        id,
+    [
+      ...PASTED_TEXTS.map((text, index) => ({
+        id: PASTE_IDS[index],
         snapshot_id: snapshotId(3, 3),
         user_id: studentIds.s3,
         lab_id: null,
@@ -436,8 +557,20 @@ async function main() {
         paste_mode: 'multi-line',
         detected_via: 'onDidPaste',
         created_at: iso(flaggedDay, flaggedHour, snapshotMinutes[2], index * 8)
+      })),
+      {
+        id: PASTE_IDS[2],
+        snapshot_id: snapshotId(2, 5),
+        user_id: studentIds.s2,
+        lab_id: null,
+        file_name: 'CS101/fibonacci.py',
+        pasted_text: SHARED_PASTE_TEXT,
+        pasted_chars: SHARED_PASTE_TEXT.length,
+        paste_mode: 'multi-line',
+        detected_via: 'onDidPaste',
+        created_at: iso(studentDay(2), studentHour(2), snapshotMinutes[4], 10)
       }
-    }),
+    ],
     'id'
   )
 
@@ -459,14 +592,14 @@ async function main() {
 
   await upsert('ics_scores', scoreRows, 'submission_id')
 
-  // Comments: one anchored note, then a threaded reply (parent_id).
+  // Comments: a professor note, a professor follow-up, and a student reply.
   await upsert(
     'comments',
     [
       {
         id: COMMENT_IDS[0],
         submission_id: SUBMISSION_IDS.s3,
-        professor_id: professorId,
+        author_id: professorId,
         snapshot_id: snapshotId(3, SNAPSHOT_CONTENTS.length),
         anchor_line: 3,
         body: 'The base cases are right, but this section matches a published solution. Please rework it in your own words.',
@@ -482,12 +615,22 @@ async function main() {
       {
         id: COMMENT_IDS[1],
         submission_id: SUBMISSION_IDS.s3,
-        professor_id: professorId,
+        author_id: professorId,
         snapshot_id: snapshotId(3, SNAPSHOT_CONTENTS.length),
         anchor_line: 3,
         parent_id: COMMENT_IDS[0],
         body: 'Reply: also rename the variables to explain the recurrence.',
         created_at: iso(14, 9, 20)
+      },
+      {
+        id: COMMENT_IDS[2],
+        submission_id: SUBMISSION_IDS.s3,
+        author_id: studentIds.s3,
+        snapshot_id: snapshotId(3, SNAPSHOT_CONTENTS.length),
+        anchor_line: 3,
+        parent_id: COMMENT_IDS[0],
+        body: 'I rewrote the recurrence with clearer names and kept the base cases. Could you check the new version?',
+        created_at: iso(14, 10, 5)
       }
     ],
     'id'
@@ -499,6 +642,8 @@ async function main() {
   console.log('Seed complete.\n')
   console.log('Professor:')
   console.log(`  ${PROFESSOR.email}  ${PASSWORD}  (role=professor)\n`)
+  console.log('Admin:')
+  console.log(`  ${ADMIN.email}  ${PASSWORD}  (role=admin)\n`)
   console.log('Students:')
   for (const student of STUDENTS) {
     console.log(`  ${student.email}  ${PASSWORD}`)

@@ -28,6 +28,8 @@ export interface CodeSnapshot {
   line_count: number
   language: string | null
   created_at: string
+  /** Gaps between edit bursts, captured for the cadence heatmap. */
+  typing_intervals?: number[] | null
 }
 
 export interface PasteEventRecord {

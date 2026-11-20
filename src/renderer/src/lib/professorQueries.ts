@@ -2,9 +2,12 @@ import { supabase } from './supabase'
 import type {
   AssignmentSummary,
   ClassSummary,
+  CodeRunEntry,
   CommentEntry,
   IcsBand,
   IcsScoreRow,
+  LiveLabStudent,
+  PasteSimilarityMatch,
   RosterStudent,
   SnapshotEntry,
   SnapshotType,
@@ -13,6 +16,8 @@ import type {
   SubmissionSummary,
   TestCaseEntry
 } from '../types/professor'
+import type { SimilarityEntry } from './similarity'
+import type { GradebookSubmission } from './gradebook'
 
 function client(): NonNullable<typeof supabase> {
   if (!supabase) throw new Error('Supabase is not configured.')
@@ -39,6 +44,10 @@ interface ClassRow {
   id: string
   name: string
   code: string
+  archived_at: string | null
+  year_section: string | null
+  academic_year: string | null
+  join_code: string
   enrollments: CountRow[] | null
   assignments: CountRow[] | null
 }
@@ -46,7 +55,9 @@ interface ClassRow {
 export async function fetchClasses(professorId: string): Promise<ClassSummary[]> {
   const { data, error } = await client()
     .from('classes')
-    .select('id, name, code, enrollments(count), assignments(count)')
+    .select(
+      'id, name, code, archived_at, year_section, academic_year, join_code, enrollments(count), assignments(count)'
+    )
     .eq('professor_id', professorId)
     .order('code', { ascending: true })
 
@@ -56,7 +67,11 @@ export async function fetchClasses(professorId: string): Promise<ClassSummary[]>
     name: row.name,
     code: row.code,
     studentCount: row.enrollments?.[0]?.count ?? 0,
-    assignmentCount: row.assignments?.[0]?.count ?? 0
+    assignmentCount: row.assignments?.[0]?.count ?? 0,
+    archivedAt: row.archived_at,
+    yearSection: row.year_section,
+    academicYear: row.academic_year,
+    joinCode: row.join_code
   }))
 }
 
@@ -64,13 +79,17 @@ export async function createClass(input: {
   professorId: string
   name: string
   code: string
+  yearSection: string
+  academicYear: string
 }): Promise<string> {
   const { data, error } = await client()
     .from('classes')
     .insert({
       professor_id: input.professorId,
       name: input.name.trim(),
-      code: input.code.trim()
+      code: input.code.trim(),
+      year_section: input.yearSection.trim() || null,
+      academic_year: input.academicYear.trim() || null
     })
     .select('id')
     .single()
@@ -86,10 +105,17 @@ export async function updateClass(input: {
   classId: string
   name: string
   code: string
+  yearSection: string
+  academicYear: string
 }): Promise<void> {
   const { error } = await client()
     .from('classes')
-    .update({ name: input.name.trim(), code: input.code.trim() })
+    .update({
+      name: input.name.trim(),
+      code: input.code.trim(),
+      year_section: input.yearSection.trim() || null,
+      academic_year: input.academicYear.trim() || null
+    })
     .eq('id', input.classId)
 
   if (error) {
@@ -150,14 +176,22 @@ interface AssignmentRow {
   title: string
   language: string | null
   description: string | null
+  file_name: string | null
   starter_code: string | null
+  archived_at: string | null
+  published: boolean
+  publish_at: string | null
+  due_at: string | null
+  auto_test_enabled: boolean
   test_cases: Array<{ id: string; is_hidden: boolean }> | null
 }
 
 export async function fetchAssignments(classId: string): Promise<AssignmentSummary[]> {
   const { data, error } = await client()
     .from('assignments')
-    .select('id, title, language, description, starter_code, test_cases(id, is_hidden)')
+    .select(
+      'id, title, language, description, file_name, starter_code, archived_at, published, publish_at, due_at, auto_test_enabled, test_cases(id, is_hidden)'
+    )
     .eq('class_id', classId)
     .order('created_at', { ascending: true })
 
@@ -169,7 +203,13 @@ export async function fetchAssignments(classId: string): Promise<AssignmentSumma
       title: row.title,
       language: row.language,
       description: row.description,
+      fileName: row.file_name,
       starterCode: row.starter_code,
+      archivedAt: row.archived_at,
+      published: row.published,
+      publishAt: row.publish_at,
+      dueAt: row.due_at,
+      autoTestEnabled: row.auto_test_enabled,
       testCaseCount: cases.length,
       hiddenCaseCount: cases.filter((testCase) => testCase.is_hidden).length
     }
@@ -185,7 +225,12 @@ export async function createAssignment(input: {
   title: string
   description: string
   language: string
+  fileName: string
   starterCode: string
+  published: boolean
+  publishAt: string | null
+  dueAt: string | null
+  autoTestEnabled: boolean
 }): Promise<string> {
   const { data, error } = await client()
     .from('assignments')
@@ -194,7 +239,12 @@ export async function createAssignment(input: {
       title: input.title.trim(),
       description: input.description.trim() || null,
       language: input.language.trim() || null,
-      starter_code: input.starterCode || null
+      file_name: input.fileName.trim() || null,
+      starter_code: input.starterCode || null,
+      published: input.published,
+      publish_at: input.publishAt,
+      due_at: input.dueAt,
+      auto_test_enabled: input.autoTestEnabled
     })
     .select('id')
     .single()
@@ -208,7 +258,12 @@ export async function updateAssignment(input: {
   title: string
   description: string
   language: string
+  fileName: string
   starterCode: string
+  published: boolean
+  publishAt: string | null
+  dueAt: string | null
+  autoTestEnabled: boolean
 }): Promise<void> {
   const { error } = await client()
     .from('assignments')
@@ -216,11 +271,72 @@ export async function updateAssignment(input: {
       title: input.title.trim(),
       description: input.description.trim() || null,
       language: input.language.trim() || null,
-      starter_code: input.starterCode || null
+      file_name: input.fileName.trim() || null,
+      starter_code: input.starterCode || null,
+      published: input.published,
+      publish_at: input.publishAt,
+      due_at: input.dueAt,
+      auto_test_enabled: input.autoTestEnabled
     })
     .eq('id', input.assignmentId)
 
   if (error) throw new Error(error.message)
+}
+
+export async function archiveClass(classId: string, archived: boolean): Promise<void> {
+  const { error } = await client()
+    .from('classes')
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq('id', classId)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteClass(classId: string): Promise<void> {
+  const { error } = await client().from('classes').delete().eq('id', classId)
+  if (error) throw new Error(error.message)
+}
+
+export async function rotateClassJoinCode(classId: string): Promise<string> {
+  const { data, error } = await client().rpc('rotate_class_join_code', {
+    target_class: classId
+  })
+  if (error) throw new Error(error.message)
+  return data as string
+}
+
+export async function archiveAssignment(assignmentId: string, archived: boolean): Promise<void> {
+  const { error } = await client()
+    .from('assignments')
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq('id', assignmentId)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteAssignment(assignmentId: string): Promise<void> {
+  const { error } = await client().from('assignments').delete().eq('id', assignmentId)
+  if (error) throw new Error(error.message)
+}
+
+export interface BulkRosterResult {
+  email: string
+  result: 'added' | 'already_enrolled' | 'not_found'
+}
+
+export async function addStudentsToClass(
+  classId: string,
+  emails: string[]
+): Promise<BulkRosterResult[]> {
+  const { data, error } = await client().rpc('add_students_to_class', {
+    target_class: classId,
+    student_emails: emails
+  })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as unknown as Array<{ student_email: string; result: string }>).map(
+    (row) => ({
+      email: row.student_email,
+      result: row.result === 'added' || row.result === 'already_enrolled' ? row.result : 'not_found'
+    })
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -295,27 +411,43 @@ interface IcsEmbed {
 
 interface SubmissionRow {
   id: string
+  assignment_id: string
   student_id: string
   submitted_at: string
   status: string
   grade: number | string | null
+  grade_released: boolean
+  grade_released_at: string | null
+  private_grade: { grade: number | string | null } | Array<{ grade: number | string | null }> | null
   final_snapshot_id: string | null
   student: { display_name: string | null; email: string | null } | null
   ics: IcsEmbed | IcsEmbed[] | null
   comments: CountRow[] | null
 }
 
-export async function fetchSubmissions(assignmentId: string): Promise<SubmissionSummary[]> {
-  const { data, error } = await client()
+interface SubmissionFilter {
+  assignmentId?: string
+  assignmentIds?: string[]
+  studentId?: string
+}
+
+async function fetchSubmissionRows(filter: SubmissionFilter): Promise<SubmissionSummary[]> {
+  let query = client()
     .from('submissions')
     .select(
-      `id, student_id, submitted_at, status, grade, final_snapshot_id,
+      `id, assignment_id, student_id, submitted_at, status, grade, grade_released, grade_released_at,
+       final_snapshot_id,
        student:profiles!submissions_student_id_fkey ( display_name, email ),
+       private_grade:submission_grades ( grade ),
        ics:ics_scores ( ics, band ),
        comments ( count )`
     )
-    .eq('assignment_id', assignmentId)
-    .order('submitted_at', { ascending: true })
+
+  if (filter.assignmentId) query = query.eq('assignment_id', filter.assignmentId)
+  if (filter.assignmentIds) query = query.in('assignment_id', filter.assignmentIds)
+  if (filter.studentId) query = query.eq('student_id', filter.studentId)
+
+  const { data, error } = await query.order('submitted_at', { ascending: true })
 
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as unknown as SubmissionRow[]
@@ -357,20 +489,202 @@ export async function fetchSubmissions(assignmentId: string): Promise<Submission
 
   return rows.map((row) => {
     const ics = firstOf(row.ics)
+    const privateGrade = firstOf(row.private_grade)
     return {
       id: row.id,
+      assignmentId: row.assignment_id,
       studentId: row.student_id,
       studentName: row.student?.display_name ?? row.student?.email ?? 'Student',
       studentEmail: row.student?.email ?? '',
       submittedAt: row.submitted_at,
       status: row.status,
-      grade: asNumber(row.grade),
+      grade: asNumber(privateGrade?.grade) ?? asNumber(row.grade),
+      gradeReleased: row.grade_released,
+      gradeReleasedAt: row.grade_released_at,
       ics: ics ? asNumber(ics.ics) : null,
       band: ics?.band ?? null,
       pasteCount: pasteCounts.get(row.id) ?? 0,
       commentCount: row.comments?.[0]?.count ?? 0
     }
   })
+}
+
+export function fetchSubmissions(assignmentId: string): Promise<SubmissionSummary[]> {
+  return fetchSubmissionRows({ assignmentId })
+}
+
+export function fetchStudentSubmissions(
+  assignmentIds: string[],
+  studentId: string
+): Promise<SubmissionSummary[]> {
+  if (assignmentIds.length === 0) return Promise.resolve([])
+  return fetchSubmissionRows({ assignmentIds, studentId })
+}
+
+// ---------------------------------------------------------------------------
+// Class-wide gradebook + student reply notifications
+// ---------------------------------------------------------------------------
+
+export async function fetchClassSubmissions(
+  assignmentIds: string[]
+): Promise<GradebookSubmission[]> {
+  if (assignmentIds.length === 0) return []
+
+  const { data, error } = await client()
+    .from('submissions')
+    .select(
+      `id, assignment_id, student_id, submitted_at, grade,
+       private_grade:submission_grades ( grade ),
+       ics:ics_scores ( ics, band ),
+       comments ( count )`
+    )
+    .in('assignment_id', assignmentIds)
+    .order('submitted_at', { ascending: true })
+
+  if (error) throw new Error(error.message)
+
+  return (
+    (data ?? []) as unknown as Array<{
+      assignment_id: string
+      student_id: string
+      submitted_at: string
+      grade: number | null
+      private_grade: { grade: number | null } | Array<{ grade: number | null }> | null
+      ics: { ics: number; band: string } | Array<{ ics: number; band: string }> | null
+      comments: Array<{ count: number }> | null
+    }>
+  ).map((row) => {
+    const ics = firstOf(row.ics)
+    const privateGrade = firstOf(row.private_grade)
+    return {
+      assignmentId: row.assignment_id,
+      studentId: row.student_id,
+      submittedAt: row.submitted_at,
+      grade: privateGrade?.grade ?? row.grade,
+      ics: ics?.ics ?? null,
+      band: ics?.band ?? null,
+      commentCount: row.comments?.[0]?.count ?? 0
+    }
+  })
+}
+
+export interface StudentReplyEvent {
+  id: string
+  classId: string
+  createdAt: string
+}
+
+/** Recent student-authored comments across the professor's classes. */
+export async function fetchStudentReplyEvents(limit = 400): Promise<StudentReplyEvent[]> {
+  const { data, error } = await client()
+    .from('comments')
+    .select(
+      `id, created_at,
+       author:profiles!comments_author_id_fkey ( role ),
+       submission:submissions!comments_submission_id_fkey (
+         assignment:assignments!submissions_assignment_id_fkey ( class_id )
+       )`
+    )
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+
+  const rows = (data ?? []) as unknown as Array<{
+    id: string
+    created_at: string
+    author: { role: string } | Array<{ role: string }> | null
+    submission:
+      | { assignment: { class_id: string } | Array<{ class_id: string }> | null }
+      | Array<{ assignment: { class_id: string } | Array<{ class_id: string }> | null }>
+      | null
+  }>
+
+  const events: StudentReplyEvent[] = []
+  for (const row of rows) {
+    const author = firstOf(row.author)
+    if (author?.role !== 'student') continue
+    const submission = firstOf(row.submission)
+    const assignment = firstOf(submission?.assignment ?? null)
+    if (!assignment?.class_id) continue
+    events.push({ id: row.id, classId: assignment.class_id, createdAt: row.created_at })
+  }
+  return events
+}
+
+export interface SubmissionEvent {
+  id: string
+  classId: string
+  submittedAt: string
+}
+
+/** Recent submissions across the professor's classes, for class-card badges. */
+export async function fetchSubmissionEvents(limit = 400): Promise<SubmissionEvent[]> {
+  const { data, error } = await client()
+    .from('submissions')
+    .select(
+      `id, submitted_at,
+       assignment:assignments!submissions_assignment_id_fkey ( class_id )`
+    )
+    .order('submitted_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+
+  const events: SubmissionEvent[] = []
+  for (const row of (data ?? []) as unknown as Array<{
+    id: string
+    submitted_at: string
+    assignment: { class_id: string } | Array<{ class_id: string }> | null
+  }>) {
+    const assignment = firstOf(row.assignment)
+    if (!assignment?.class_id) continue
+    events.push({ id: row.id, classId: assignment.class_id, submittedAt: row.submitted_at })
+  }
+  return events
+}
+
+// ---------------------------------------------------------------------------
+// Cross-student similarity (final snapshot content per latest submission)
+// ---------------------------------------------------------------------------
+
+interface SubmissionContentRow {
+  id: string
+  student_id: string
+  submitted_at: string
+  student:
+    | { display_name: string | null; email: string | null }
+    | Array<{ display_name: string | null; email: string | null }>
+    | null
+  snapshot: { content: string } | Array<{ content: string }> | null
+}
+
+export async function fetchSubmissionContents(assignmentId: string): Promise<SimilarityEntry[]> {
+  const { data, error } = await client()
+    .from('submissions')
+    .select(
+      `id, student_id, submitted_at,
+       student:profiles!submissions_student_id_fkey ( display_name, email ),
+       snapshot:code_snapshots!submissions_final_snapshot_id_fkey ( content )`
+    )
+    .eq('assignment_id', assignmentId)
+    .order('submitted_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  return ((data ?? []) as unknown as SubmissionContentRow[])
+    .map((row) => {
+      const student = firstOf(row.student)
+      const snapshot = firstOf(row.snapshot)
+      return {
+        submissionId: row.id,
+        studentId: row.student_id,
+        studentName: student?.display_name?.trim() || student?.email?.split('@')[0] || 'Student',
+        submittedAt: row.submitted_at,
+        content: snapshot?.content ?? ''
+      }
+    })
+    .filter((entry) => entry.content.trim().length > 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +701,7 @@ interface AssignmentEmbed {
   id: string
   title: string
   language: string | null
+  file_name: string | null
   class_id: string
   class: ClassEmbed | ClassEmbed[] | null
 }
@@ -409,6 +724,9 @@ interface DetailRow {
   submitted_at: string
   status: string
   grade: number | string | null
+  grade_released: boolean
+  grade_released_at: string | null
+  private_grade: { grade: number | string | null } | Array<{ grade: number | string | null }> | null
   final_snapshot_id: string | null
   student: { display_name: string | null; email: string | null } | null
   assignment: AssignmentEmbed | AssignmentEmbed[] | null
@@ -423,6 +741,7 @@ interface SnapshotRow {
   line_count: number
   version: number
   created_at: string
+  typing_intervals: number[] | null
 }
 
 interface PasteRow {
@@ -434,11 +753,16 @@ interface PasteRow {
 interface CommentRow {
   id: string
   submission_id: string
+  author_id: string
   snapshot_id: string | null
   anchor_line: number | null
   parent_id: string | null
   body: string
   created_at: string
+  author:
+    | { display_name: string | null; role: string }
+    | Array<{ display_name: string | null; role: string }>
+    | null
 }
 
 interface TestCaseRow {
@@ -453,10 +777,12 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
   const { data, error } = await client()
     .from('submissions')
     .select(
-      `id, assignment_id, student_id, submitted_at, status, grade, final_snapshot_id,
+      `id, assignment_id, student_id, submitted_at, status, grade, grade_released, grade_released_at,
+       final_snapshot_id,
        student:profiles!submissions_student_id_fkey ( display_name, email ),
+       private_grade:submission_grades ( grade ),
        assignment:assignments!submissions_assignment_id_fkey (
-         id, title, language, class_id,
+         id, title, language, file_name, class_id,
          class:classes!assignments_class_id_fkey ( id, name, code )
        ),
        ics:ics_scores ( submission_id, paste_term, cadence_term, focus_term, compilation_term, ics, band, computed_at )`
@@ -469,16 +795,22 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
   const assignment = firstOf(row.assignment)
   const klass = firstOf(assignment?.class ?? null)
   const ics = firstOf(row.ics)
+  const privateGrade = firstOf(row.private_grade)
 
   const [snapshotRes, commentRes, testRes] = await Promise.all([
     client()
       .from('code_snapshots')
-      .select('id, snapshot_type, content, char_count, line_count, version, created_at')
+      .select(
+        'id, snapshot_type, content, char_count, line_count, version, created_at, typing_intervals'
+      )
       .eq('submission_id', submissionId)
       .order('created_at', { ascending: true }),
     client()
       .from('comments')
-      .select('id, submission_id, snapshot_id, anchor_line, parent_id, body, created_at')
+      .select(
+        `id, submission_id, author_id, snapshot_id, anchor_line, parent_id, body, created_at,
+         author:profiles!comments_author_id_fkey ( display_name, role )`
+      )
       .eq('submission_id', submissionId)
       .order('created_at', { ascending: true }),
     client()
@@ -530,19 +862,26 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
       version: snapshot.version,
       content: snapshot.content,
       pasteDetectedVia: meta ? Array.from(meta.sources).join(', ') : null,
-      pasteChars: meta?.chars ?? 0
+      pasteChars: meta?.chars ?? 0,
+      typingIntervals: snapshot.typing_intervals ?? []
     }
   })
 
-  const comments: CommentEntry[] = commentRows.map((comment) => ({
-    id: comment.id,
-    submissionId: comment.submission_id,
-    snapshotId: comment.snapshot_id,
-    anchorLine: comment.anchor_line,
-    parentId: comment.parent_id,
-    body: comment.body,
-    createdAt: comment.created_at
-  }))
+  const comments: CommentEntry[] = commentRows.map((comment) => {
+    const author = firstOf(comment.author)
+    return {
+      id: comment.id,
+      submissionId: comment.submission_id,
+      authorId: comment.author_id,
+      authorRole: author?.role === 'professor' ? 'professor' : 'student',
+      authorName: author?.display_name ?? (author?.role === 'professor' ? 'Professor' : 'Student'),
+      snapshotId: comment.snapshot_id,
+      anchorLine: comment.anchor_line,
+      parentId: comment.parent_id,
+      body: comment.body,
+      createdAt: comment.created_at
+    }
+  })
 
   const testCases: TestCaseEntry[] = testRows.map((testCase) => ({
     id: testCase.id,
@@ -570,12 +909,15 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
   return {
     summary: {
       id: row.id,
+      assignmentId: row.assignment_id,
       studentId: row.student_id,
       studentName: row.student?.display_name ?? row.student?.email ?? 'Student',
       studentEmail: row.student?.email ?? '',
       submittedAt: row.submitted_at,
       status: row.status,
-      grade: asNumber(row.grade),
+      grade: asNumber(privateGrade?.grade) ?? asNumber(row.grade),
+      gradeReleased: row.grade_released,
+      gradeReleasedAt: row.grade_released_at,
       ics: icsScore?.ics ?? null,
       band: icsScore?.band ?? null,
       pasteCount,
@@ -583,6 +925,7 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
     },
     assignmentId: row.assignment_id,
     assignmentTitle: assignment?.title ?? 'Assignment',
+    fileName: assignment?.file_name ?? null,
     language: assignment?.language ?? null,
     classId: klass?.id ?? assignment?.class_id ?? '',
     className: klass?.name ?? '',
@@ -596,29 +939,183 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
 }
 
 // ---------------------------------------------------------------------------
+// Professor insight views
+// ---------------------------------------------------------------------------
+
+export async function fetchPasteSimilarity(
+  submissionId: string,
+  minSimilarity = 0.45
+): Promise<PasteSimilarityMatch[]> {
+  const { data, error } = await client().rpc('professor_paste_matches', {
+    target_submission: submissionId,
+    min_similarity: minSimilarity
+  })
+  if (error) throw new Error(error.message)
+
+  return (
+    (data ?? []) as unknown as Array<{
+      paste_id: string
+      pasted_text: string
+      paste_created_at: string
+      similarity: number
+      match_paste_id: string
+      match_text: string
+      match_submission_id: string
+      match_student_id: string
+      match_student_name: string
+      match_created_at: string
+    }>
+  ).map((row) => ({
+    pasteId: row.paste_id,
+    pastedText: row.pasted_text,
+    pasteCreatedAt: row.paste_created_at,
+    similarity: Number(row.similarity),
+    matchPasteId: row.match_paste_id,
+    matchText: row.match_text,
+    matchSubmissionId: row.match_submission_id,
+    matchStudentId: row.match_student_id,
+    matchStudentName: row.match_student_name,
+    matchCreatedAt: row.match_created_at
+  }))
+}
+
+export async function fetchLiveLabStatus(): Promise<LiveLabStudent[]> {
+  const { data, error } = await client()
+    .from('student_presence')
+    .select(
+      `student_id, current_file, status, idle_seconds, last_seen_at,
+       student:profiles!student_presence_student_id_fkey ( display_name, email )`
+    )
+    .order('last_seen_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  const now = Date.now()
+  return (
+    (data ?? []) as unknown as Array<{
+      student_id: string
+      current_file: string | null
+      status: string
+      idle_seconds: number
+      last_seen_at: string
+      student:
+        | { display_name: string | null; email: string | null }
+        | Array<{ display_name: string | null; email: string | null }>
+        | null
+    }>
+  ).map((row) => {
+    const student = firstOf(row.student)
+    const storedStatus: 'active' | 'idle' | 'flagged' =
+      row.status === 'active' || row.status === 'flagged' ? row.status : 'idle'
+    const age = now - (Date.parse(row.last_seen_at) || 0)
+    return {
+      studentId: row.student_id,
+      name: student?.display_name?.trim() || student?.email?.split('@')[0] || 'Student',
+      email: student?.email ?? '',
+      status: age > 90_000 ? 'offline' : storedStatus,
+      storedStatus,
+      idleSeconds: row.idle_seconds,
+      currentFile: row.current_file,
+      lastSeenAt: row.last_seen_at
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
+
+export async function recomputeIcs(submissionId: string): Promise<void> {
+  const { error } = await client().rpc('recompute_ics', {
+    target_submission: submissionId
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function recomputeIcsForAssignment(assignmentId: string): Promise<number> {
+  const { data, error } = await client().rpc('recompute_ics_for_assignment', {
+    target_assignment: assignmentId
+  })
+  if (error) throw new Error(error.message)
+  return (data as number | null) ?? 0
+}
+
+interface CodeRunRow {
+  id: string
+  created_at: string
+  status_id: number
+  status_description: string
+  passed: boolean | null
+  time_seconds: number | string | null
+  memory_kb: number | null
+  language: string | null
+  test_case: { ordinal: number } | { ordinal: number }[] | null
+}
+
+export async function fetchSubmissionRuns(submissionId: string): Promise<CodeRunEntry[]> {
+  const { data, error } = await client()
+    .from('code_runs')
+    .select(
+      'id, created_at, status_id, status_description, passed, time_seconds, memory_kb, language, test_case:test_cases(ordinal)'
+    )
+    .eq('submission_id', submissionId)
+    .order('created_at', { ascending: false })
+    .limit(12)
+
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as unknown as CodeRunRow[]).map((row) => {
+    const testCase = firstOf(row.test_case)
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      statusId: row.status_id,
+      statusDescription: row.status_description,
+      passed: row.passed,
+      timeSeconds: row.time_seconds === null ? null : Number(row.time_seconds),
+      memoryKb: row.memory_kb,
+      language: row.language,
+      testCaseOrdinal: testCase?.ordinal ?? null
+    }
+  })
+}
 
 export async function saveGrade(input: {
   submissionId: string
   professorId: string
   grade: number
 }): Promise<void> {
-  const { error } = await client()
-    .from('submissions')
-    .update({
-      grade: input.grade,
-      graded_at: new Date().toISOString(),
-      graded_by: input.professorId
-    })
-    .eq('id', input.submissionId)
+  // The RPC stores the mark in the professor-only table and clears the
+  // published value, so saving is always private until an explicit release.
+  const { error } = await client().rpc('save_submission_grade', {
+    target_submission: input.submissionId,
+    target_grade: input.grade
+  })
 
   if (error) throw new Error(error.message)
 }
 
+export async function setSubmissionGradeRelease(input: {
+  submissionId: string
+  released: boolean
+}): Promise<void> {
+  const { error } = await client().rpc('set_submission_grade_release', {
+    target_submission: input.submissionId,
+    released: input.released
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function releaseAssignmentGrades(assignmentId: string): Promise<number> {
+  const { data, error } = await client().rpc('release_assignment_grades', {
+    target_assignment: assignmentId
+  })
+  if (error) throw new Error(error.message)
+  return (data as number | null) ?? 0
+}
+
 export async function insertComment(input: {
   submissionId: string
-  professorId: string
+  authorId: string
   snapshotId: string | null
   anchorLine: number
   body: string
@@ -626,7 +1123,7 @@ export async function insertComment(input: {
 }): Promise<void> {
   const { error } = await client().from('comments').insert({
     submission_id: input.submissionId,
-    professor_id: input.professorId,
+    author_id: input.authorId,
     snapshot_id: input.snapshotId,
     anchor_line: input.anchorLine,
     body: input.body.trim(),
@@ -642,6 +1139,7 @@ export async function insertComment(input: {
 
 interface FeedbackSubmissionRow {
   id: string
+  submitted_at: string
   assignment: { title: string; class: ClassEmbed | ClassEmbed[] | null } | null
 }
 
@@ -649,7 +1147,7 @@ export async function fetchStudentFeedback(studentId: string): Promise<StudentFe
   const { data, error } = await client()
     .from('submissions')
     .select(
-      `id,
+      `id, submitted_at,
        assignment:assignments!submissions_assignment_id_fkey (
          title,
          class:classes!assignments_class_id_fkey ( code )
@@ -662,6 +1160,22 @@ export async function fetchStudentFeedback(studentId: string): Promise<StudentFe
   const submissions = (data ?? []) as unknown as FeedbackSubmissionRow[]
   if (submissions.length === 0) return []
 
+  // Grades come from the masked student view so unpublished marks stay hidden.
+  const gradeRes = await client()
+    .from('student_submissions')
+    .select('id, grade')
+    .in(
+      'id',
+      submissions.map((submission) => submission.id)
+    )
+  if (gradeRes.error) throw new Error(gradeRes.error.message)
+
+  const gradeById = new Map(
+    ((gradeRes.data ?? []) as unknown as Array<{ id: string; grade: number | null }>).map(
+      (row) => [row.id, row.grade] as const
+    )
+  )
+
   const byId = new Map(
     submissions.map((submission) => {
       const assignment = firstOf(submission.assignment)
@@ -670,7 +1184,9 @@ export async function fetchStudentFeedback(studentId: string): Promise<StudentFe
         submission.id,
         {
           assignmentTitle: assignment?.title ?? 'Assignment',
-          classCode: klass?.code ?? ''
+          classCode: klass?.code ?? '',
+          submittedAt: submission.submitted_at,
+          grade: gradeById.get(submission.id) ?? null
         }
       ] as const
     })
@@ -678,7 +1194,7 @@ export async function fetchStudentFeedback(studentId: string): Promise<StudentFe
 
   const commentRes = await client()
     .from('comments')
-    .select('id, body, anchor_line, parent_id, created_at, submission_id')
+    .select('id, body, anchor_line, snapshot_id, parent_id, created_at, submission_id, author_id')
     .in(
       'submission_id',
       submissions.map((submission) => submission.id)
@@ -692,20 +1208,33 @@ export async function fetchStudentFeedback(studentId: string): Promise<StudentFe
       id: string
       body: string
       anchor_line: number | null
+      snapshot_id: string | null
       parent_id: string | null
       created_at: string
       submission_id: string
+      author_id: string
     }>
   ).map((comment) => {
     const meta = byId.get(comment.submission_id)
+    // Professors' profile rows are not readable by students, so derive the
+    // author from the submission: RLS only lets the owner or the class
+    // professor write here, so anything not written by this student is the
+    // professor's feedback.
+    const isProfessor = comment.author_id !== studentId
     return {
       id: comment.id,
+      submissionId: comment.submission_id,
       body: comment.body,
       anchorLine: comment.anchor_line,
+      anchorSnapshotId: comment.snapshot_id,
       parentId: comment.parent_id,
+      authorRole: isProfessor ? 'professor' : 'student',
+      authorName: isProfessor ? 'Professor' : 'You',
       createdAt: comment.created_at,
       assignmentTitle: meta?.assignmentTitle ?? 'Assignment',
-      classCode: meta?.classCode ?? ''
+      classCode: meta?.classCode ?? '',
+      submittedAt: meta?.submittedAt ?? comment.created_at,
+      grade: meta?.grade ?? null
     }
   })
 }

@@ -43,6 +43,36 @@ export function termValue(score: IcsScoreRow, key: (typeof TERM_META)[number]['k
   return score.compilationTerm
 }
 
+export interface IcsBreakdown {
+  pasteTerm: number
+  cadenceTerm: number
+  focusTerm: number
+  compilationTerm: number
+  ics: number
+  band: IcsBand
+}
+
+/**
+ * Weighted score for the student-facing demo. Mirrors the database formula:
+ * paste 35, cadence 25, focus 20, compilation 20. Inputs are clamped so the
+ * gauge can never leave 0-100.
+ */
+export function computeIcs(inputs: DerivedIcsInputs): IcsBreakdown {
+  const pasteTerm = 35 * (1 - clamp(inputs.pasteRatio, 0, 1))
+  const cadenceTerm = 25 * (clamp(inputs.cadence, 0, 100) / 100)
+  const focusTerm = 20 * (clamp(inputs.focus, 0, 100) / 100)
+  const compilationTerm = 20 * (clamp(inputs.compilation, 0, 100) / 100)
+  const ics = pasteTerm + cadenceTerm + focusTerm + compilationTerm
+  return {
+    pasteTerm,
+    cadenceTerm,
+    focusTerm,
+    compilationTerm,
+    ics,
+    band: bandForScore(ics)
+  }
+}
+
 /** A short, plain-language explanation of what dragged the score down. */
 export function describeIcs(score: IcsScoreRow): string {
   const raw = deriveRawInputs(score)

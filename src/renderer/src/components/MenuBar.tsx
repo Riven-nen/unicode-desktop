@@ -4,12 +4,14 @@ import type { EditorCommands, EditorViewOptions } from './EditorPane'
 
 type MenuId = 'file' | 'edit' | 'view' | 'help'
 
+type MenuCommand = Exclude<keyof EditorCommands, 'reveal'>
+
 interface MenuItemEntry {
   kind: 'item'
   label: string
   shortcut?: string
   /** Editor command, resolved against the live editor at click time. */
-  command?: keyof EditorCommands
+  command?: MenuCommand
   /** Direct callback (menu actions that live in App state). */
   action?: () => void
   /** Toggle items render a check mark in the leading column. */
@@ -27,7 +29,6 @@ interface MenuBarProps {
   commandsRef: { current: EditorCommands | null }
   onNewFile: () => void
   onOpenFile: () => void
-  onOpenWorkspace: () => void
   onRefreshWorkspace: () => void
   onSave: () => void
   onSaveAs: () => void
@@ -50,7 +51,6 @@ export default function MenuBar({
   commandsRef,
   onNewFile,
   onOpenFile,
-  onOpenWorkspace,
   onRefreshWorkspace,
   onSave,
   onSaveAs,
@@ -85,7 +85,6 @@ export default function MenuBar({
   const fileEntries: MenuEntry[] = [
     { kind: 'item', label: 'New File…', shortcut: 'Ctrl+N', action: onNewFile },
     { kind: 'item', label: 'Open File…', shortcut: 'Ctrl+O', action: onOpenFile },
-    { kind: 'item', label: 'Open Workspace…', action: onOpenWorkspace },
     { kind: 'item', label: 'Refresh Workspace', action: onRefreshWorkspace },
     { kind: 'separator' },
     { kind: 'item', label: 'Save', shortcut: 'Ctrl+S', action: onSave },

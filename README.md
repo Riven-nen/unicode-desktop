@@ -36,37 +36,87 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
 
 ### Student
 
-- Sign-in screen with email/password and a local-only guest mode
-- Real workspace on disk:
-  - `Documents/Unicode Lab` by default
-  - `Open Workspace…` for any folder
+- Sign-in screen with email/password; the workspace opens only after authentication
+- Password reset from the sign-in screen: send a reset email, then paste the recovery link or 6-digit code with a new password
+- Join a class with the professor-issued join code; the class and its workspace folder appear immediately
+- Fixed workspace on disk at `Documents/Unicode Lab` — there is no folder picker
   - class folders derived from enrollments
   - create, open, edit, and save files with `Ctrl+S` / `Ctrl+O` / `Ctrl+Shift+S`
 - Monaco editor with themes, fonts, and ligatures
+- Python editor intelligence:
+  - live syntax diagnostics with red squiggles and a status-bar count
+  - an Outline panel listing functions, methods, classes, and module-level names
+  - completion for local symbols, keywords, and builtins
+  - hover details for local definitions
 - Automatic snapshots with type metadata (`auto`, `paste`, `restore`) and a local sync queue
+- Offline-safe submissions: a network failure queues the submission locally and retries with an idempotent token when the app is back online
 - Paste capture through `onDidPaste` plus a typing-velocity heuristic for non-clipboard inserts
-- Read-only professor feedback panel
+- Class dashboard as the first screen after sign-in:
+  - stats for classes, assignments, submitted, graded, and feedback
+  - a card per enrolled class with code, name, year & section, academic year, progress, and feedback count
+  - clicking a class opens a class info dashboard with that class's stats, progress, recent feedback, and assignment list
+  - unread feedback badges, “N new assignments”, and “N new grades” chips are tracked per device until the class, assignment details, or feedback panel is opened
+  - assignment cards show status, file name, language, due date, and late/past-due flags, with **Details**, **Open file**, and **Submit** actions
+  - scheduled assignments appear automatically when their publish time arrives
+  - **Details** opens the brief: full instructions, starter code, due date, submission time, grade, and comment count
+  - “Open class files” jumps into the editor with the class folder expanded
+  - one click into the editor workspace, and a dashboard button to return
+  - submitting asks for confirmation first, then shows a success toast
+- Professor feedback panel with two-way replies:
+  - feedback grouped by submission with the submitted time and grade (or “Not graded”)
+  - comments and professor replies anchored to submission lines, with student replies in the same thread
+- Integrity score demo: a live playground where typing and pasting update the weighted gauge in real time and flash the signal that just changed
+- Real code execution panel in the editor:
+  - **Terminal dock**: always-visible local PowerShell session rooted in the workspace
+  - type directly into the terminal buffer with an inline prompt and caret
+  - a toolchain chip shows whether the active file’s compiler/runtime is installed (Python, JDK, GCC/G++, .NET, Node, Go, Rust, Ruby, PHP, Swift, Kotlin)
+  - **Run file** checks that toolchain first, then compiles/runs the active file; if it is missing, the terminal explains what to install instead of failing silently
+  - **Test cases** button opens a side panel next to the terminal when the professor enables Judge0 auto tests
+  - **Run tests** shows visible test cases and pass/fail output
+  - **Submit assignment** button in the dock header
+  - draggable dock height
+- Files-only sidebar that resizes and collapses into an icon rail
+  - rename files inline and delete them with a native confirmation
 - The student-facing time-travel browser was intentionally removed; history is still recorded automatically and is reviewed by professors.
 
 ### Professor
 
 - Role-gated dashboard after login
-- Class grid with student/assignment counts, plus create/edit class
+- Class grid with student/assignment counts, plus create/edit/archive/delete class
+- Class metadata: year & section and academic year, shown on class cards and in the class header
+- Class join code with copy and rotate actions for student self-enrollment
 - Class view with assignments and a persistent student roster
-- Manage students by email (add/remove)
-- Create/edit assignments (title, language, description, starter code)
+- Unread student-reply and new-submission badges on class cards, cleared when the class is opened
+- Dashboards refresh live through Supabase Realtime when submissions, comments, or assignments change
+- Class-wide gradebook CSV export (student × assignment with due, late, grade, ICS, band, comments)
+- Manage students by email (add/remove) or bulk import from pasted emails/CSV
+- Create/edit assignments (title, language, description, workspace file name, starter code)
+- Assignment lifecycle: draft vs published, optional future publish time, due date, Judge0 auto-tests toggle, archive/restore/delete
 - Manage test cases (add, hide from students, delete)
 - Submissions table:
   - sortable by ICS and submitted time
   - filter by pass/review/flag
   - paste/comment counts and band indicators
+  - CSV export
+- Assignment analytics derived from the loaded submissions:
+  - submitted vs. enrolled, late count, average ICS, average grade
+  - pass / review / flag / not-scored distribution bars
+- Cross-student similarity for each assignment:
+  - compares the final snapshot of each student's latest submission
+  - configurable 60 / 75 / 90% threshold with an inspect action
 - Submission detail:
   - read-only Monaco snapshot viewer
   - SVG snapshot timeline (click a node to inspect that moment)
+  - **Diff mode**: compare the selected snapshot with the previous one in Monaco's inline diff
+  - **Replay**: play snapshots back in order with a typewriter reveal and progress bar
   - ICS breakdown with weighted term bars and a plain-language explanation
+  - clickable Cadence bar with a **typing rhythm** scatter plot, median gap, and longest pause
+  - cross-student **paste similarity** (pg_trgm) with a Paste detected badge and matched student
+  - **Recompute ICS** for one submission or all submissions in an assignment
   - inline comments anchored to line numbers, with threaded replies
-  - numeric grade save
-  - Judge0 test runner (when configured)
+  - numeric grade save with private/released visibility control, per submission or for the whole assignment
+  - Judge0 test runner (fixed endpoint, optional token) with persisted execution history
+- **Live Lab** page: student heartbeats every 30 seconds show active, idle, flagged (recent paste), or offline, with the current file. Updates arrive over Realtime.
 
 ## Tech stack
 
@@ -75,10 +125,10 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
 | Desktop shell | Electron 44 |
 | UI | React 19 + TypeScript |
 | Build | electron-vite / Vite 8 |
-| Editor | Monaco Editor |
+| Editor | Monaco Editor + Lezer Python analysis |
 | Backend | Supabase (Postgres, Auth, Row-Level Security) |
 | Visuals | Existing CSS theme tokens + plain SVG (no charting dependency) |
-| Execution | Judge0 (optional, env-gated) |
+| Execution | Judge0 (optional, configured in the app) |
 | Packaging | electron-builder |
 
 ## Repository layout
@@ -106,6 +156,8 @@ supabase/
 └── schema.sql             legacy hand-run schema (do not run; migrations win)
 
 scripts/seed.mjs           idempotent demo data
+
+admin-web/                 separate Node project for the admin console
 ```
 
 ## Getting started
@@ -113,7 +165,7 @@ scripts/seed.mjs           idempotent demo data
 ### Prerequisites
 
 - Node.js 20+ and npm
-- A Supabase project (optional if you only want local-only mode)
+- A Supabase project (required; there is no offline guest mode)
 - The Supabase CLI if you want to apply migrations from the terminal
 
 ### 1. Install
@@ -180,30 +232,81 @@ Do not reuse these credentials for anything real.
 npm run dev
 ```
 
-Sign in as the professor to see the dashboard, or as a student to see the editor.
+Sign in as the professor to see the dashboard, or as a student to land on the class dashboard and open the editor workspace from there. `npm run dev` also starts the admin console at <http://localhost:5174>.
 
-### Optional: Judge0
+### Judge0
 
-The professor test runner calls Judge0 when configured:
+The professor test runner executes code through Judge0. The endpoint is **fixed in the app and hidden from the UI**:
 
-```ini
-VITE_JUDGE0_URL=http://localhost:2358
-# VITE_JUDGE0_KEY=...   # if your instance requires an auth token
-```
+- Default: `http://localhost:2358` (self-hosted Docker — free, private, no account)
+- Developers can point at another instance by launching with `JUDGE0_URL` in the shell, or by changing `DEFAULT_ENDPOINT` in `src/main/judge0.ts`
+- If the endpoint requires a token, open a submission → **Test cases → Judge0**, enter the token, and use **Save & test**
 
-Without `VITE_JUDGE0_URL`, the button stays disabled and explains why.
+The token is kept in the app's `userData/judge0.json`, never in the repository or renderer. **Run test cases** executes each test against the selected snapshot and shows pass/fail, runtime, memory, and compiler output. Each execution is stored in `code_runs`, and the submission sidebar shows the execution history.
+
+Students get an always-visible **Terminal** dock with a local PowerShell session rooted in the workspace, plus **Run file** for Python/JavaScript/PowerShell. The prompt and caret live inside the terminal buffer, so commands are typed directly in the terminal. When the professor enables **auto tests** on an assignment, a **Test cases** button opens a side panel next to the terminal with visible tests and a **Run tests** button, plus a **Submit assignment** action in the dock header. Requests are capped at 30 per minute and 120k source characters; test runs are capped at 20 cases.
+
+Calls run in the Electron main process, so the token is not exposed to the renderer and local Judge0 instances don't hit browser CORS rules. `JUDGE0_URL` / `JUDGE0_KEY` can be used as a development fallback.
+
+Free options: self-host Judge0 with Docker (default and private), or use a hosted free tier — those require an endpoint URL and an API key, and have request limits.
 
 ## Scripts
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Electron + Vite development app |
+| `npm run dev` | Desktop app + admin web console together |
+| `npm run dev:desktop` | Desktop app only |
+| `npm run dev:admin` | Admin web console only (port 5174) |
 | `npm run build` | Typecheck and build |
 | `npm run build:win` / `build:mac` / `build:linux` | Package installers |
+| `npm run build:unpack` | Build an unpacked app folder (no installer) |
 | `npm run typecheck` | TypeScript checks (main + renderer) |
+| `npm test` | Unit tests (Vitest) |
+| `npm run test:rls` | Live RLS regression checks (uses `.env`) |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
 | `node scripts/seed.mjs` | Seed demo data (requires service-role key) |
+
+CI runs lint, typecheck, unit tests, and a production bundle build on every push and pull request.
+
+## Installers
+
+`npm run build:win` produces:
+
+- `dist/unicode-desktop-1.0.0-setup.exe` — per-user NSIS installer with Start menu and desktop shortcuts.
+- `dist/win-unpacked/unicode-lab.exe` — the same app as a portable folder.
+
+Builds are **unsigned**, so Windows SmartScreen may ask for confirmation on first launch. Increase the version in `package.json` before cutting a new installer; the artifact name follows it. macOS and Linux scripts exist but have not been exercised on those platforms.
+
+## Admin web console
+
+`admin-web/` is a separate Node/Vite project — not part of the Electron bundle. It is intended for account and class administration:
+
+- sign in with an `admin` profile
+- search/filter users and change roles through `admin_set_role`
+- generate professor invite codes with a lifespan (`hours` or `days`) and usage limit, then copy or revoke them
+- review classes, professors, join codes, student counts, and assignment counts
+- never reads submissions or code
+
+Professor invite holders create a normal account, open **Redeem invite** on the student dashboard, and enter the code. A successful redemption promotes the account to professor and re-routes the desktop app.
+
+The root `npm run dev` starts both the desktop app and this console. To run the console alone:
+
+```bash
+cd admin-web
+cp .env.example .env   # same Supabase URL + publishable key as the desktop app
+npm install
+npm run dev            # http://localhost:5174
+npm run build          # static output in admin-web/dist
+```
+
+The seed creates `admin@unicode.test` / `Password123!`. For a real deployment, promote an account once with the service role:
+
+```sql
+update public.profiles set role = 'admin' where email = 'you@school.edu';
+```
+
+Deploy `admin-web/dist` to any static host. See [`admin-web/README.md`](admin-web/README.md) for the safety rules. Admin accounts that sign into the desktop app see a notice pointing them to this console instead of the student view.
 
 ## Security model
 
@@ -212,28 +315,55 @@ Without `VITE_JUDGE0_URL`, the button stays disabled and explains why.
 - Professors are scoped to their own classes through `SECURITY DEFINER` helpers.
 - Profile roles cannot be escalated by signed-in users (column-level grants + a guard trigger).
 - Hidden test cases are filtered out for students.
+- Unreleased grades live in a professor-only `submission_grades` table. `submissions.grade` holds only the released copy, and student reads go through a guarded `student_submissions` view, so a private mark cannot be read from the API or Realtime.
+- Published assignments with a future `publish_at` are invisible to enrolled students until that time.
+- Class join codes are resolved by a `SECURITY DEFINER` function; only an active class code enrolls, and repeated use is idempotent.
+- Live Lab presence rows are readable only by the student and professors of that student's classes; the heartbeat RPC always writes the caller's own row.
+- Paste similarity is a professor-only, class-scoped RPC. Typing interval arrays travel with snapshots and are hidden by the same submission policies.
+- Professor invites live in an admin-only table. Creation, revocation, and redemption are guarded RPCs; expiry and usage counts are checked while the invite row is locked, and redemption sets a transaction-local flag that the profile role guard accepts.
+- Admin accounts can read profiles, class metadata, enrollments, assignment metadata, and professor invites — never submissions, snapshots, paste events, or code — and change roles only through the guarded `admin_set_role` RPC.
+- Password recovery goes through Supabase's recovery link/OTP; the app never stores or logs passwords.
 - The renderer only receives `VITE_`-prefixed variables; the service-role key is never bundled into the app.
-- Judge0 calls currently run from the renderer. If a Judge0 key is used, move that call behind the main process for a public deployment.
+- The renderer runs with the Chromium sandbox enabled; the preload exposes only narrow IPC wrappers, and clipboard/link handling stays in the main process.
+- Judge0 calls run in the main process; the token stays out of the renderer and is stored in the app's user-data folder, not the repository.
 
 Detailed per-view access expectations are in [`supabase/RLS_TEST_NOTES.md`](supabase/RLS_TEST_NOTES.md).
 
+## Integrity score (ICS)
+
+The professor **Recompute** action runs a server-side pipeline:
+
+- **Paste (35%)** — pasted chars ÷ the larger of final content and pasted chars
+- **Cadence (25%)** — consistency of snapshot intervals, pulled toward neutral when there are few intervals
+- **Focus (20%)** — share of elapsed time covered by gaps of two minutes or less
+- **Compilation (20%)** — newest Judge0 result per test case, as a pass percentage; neutral 50 when no test-case run exists
+
+The weighted terms are stored on `ics_scores` and the band is `pass` at 80+, `review` at 60+, otherwise `flag`. Recompute works for one submission or every submission in an assignment.
+
 ## Known limitations / in development
 
-- **ICS recomputation** is not implemented yet. Seeded scores display fully, but the “Recompute” action is disabled until the Chapter 3 signal pipeline exists.
-- **Judge0** is implemented but disabled unless `VITE_JUDGE0_URL` is configured.
-- Classes and assignments cannot be deleted yet (create/edit only).
-- The terminal panel is still a mock; it is reserved for the execution phase.
+- **Judge0** points at a fixed endpoint; if that instance isn't reachable, the run panel reports it.
+- **ICS** uses the documented snapshot/paste/Judge0 model above; it does not claim access to keystroke-level telemetry.
+- **Python intelligence** is parser-based (Lezer), not a full type checker. It catches syntax errors and local symbols but does not infer types or resolve imports.
+- The local PowerShell terminal is pipe-based, not a full PTY. It runs commands and scripts well, but interactive stdin-heavy programs are better tested through Judge0.
 - `courses_legacy` and `enrollments_legacy` remain from the pre-migration schema.
+- **Similarity** is a token-sequence heuristic (renamed identifiers are normalized); it highlights pairs to review, not a plagiarism verdict.
+- The **ICS demo** is a simulator for students; real scores are recomputed from submission telemetry on the server.
+- **Realtime** refresh depends on Supabase Realtime; **queued submissions** retry while the app is running (or on the next launch).
+- **Typing rhythm** stores edit-burst gaps with each snapshot, not raw per-key events. It is a cadence fingerprint, not a full keystroke log.
+- **Replay** compresses long sessions into a short playback (about 3–45 seconds) and uses a prefix reveal, so mid-file rewrites appear as jumps.
+- **Live Lab** depends on the 30-second heartbeat and treats a student as offline after 90 seconds without one. Flagged means a paste was recorded in the last 15 minutes.
+- **Password recovery** uses a pasted recovery link/code rather than a deep link; join-code and professor-invite attempts are not rate-limited yet.
+- **Professor accounts** are promoted by redeeming an admin invite, through the admin console role change, or manually; class reassignment is not implemented yet. Invite codes are shared out-of-band (no email delivery) and have no per-user lock beyond the global usage count.
+- The **toolchain check** looks for commands on PATH; it confirms presence, not versions. **Run file** executes locally, so compiled languages may leave build artifacts next to the source.
 - Visible test cases still expose expected output to students; hidden cases are filtered.
 - No real-time collaboration.
 
 ## Roadmap
 
-1. Judge0 end-to-end flow, run history, and output in the app
-2. ICS signal pipeline + professor recomputation
-3. Class/assignment lifecycle (archive/delete, exports)
-4. Automated RLS regression tests
-5. Installers and release notes
+1. Configurable Judge0 limits and hosted-instance presets
+2. Similarity review queue
+3. Code signing and notarized macOS builds
 
 ## Why a revision?
 

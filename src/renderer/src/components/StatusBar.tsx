@@ -1,5 +1,6 @@
 import { SYNC_STATUS_LABELS } from '../lib/syncLabels'
 import type { SyncStatus } from '../types/tracker'
+import type { ToolchainStatus } from '../../../shared/toolchains'
 
 interface StatusBarProps {
   fileName: string
@@ -8,6 +9,10 @@ interface StatusBarProps {
   snapshotCount: number
   pasteCount: number
   syncStatus: SyncStatus
+  /** Python syntax diagnostics, or null for non-Python / not analyzed yet. */
+  pythonErrors?: number | null
+  /** Local compiler/runtime check for the active language. */
+  toolchain?: ToolchainStatus | null
 }
 
 export default function StatusBar({
@@ -16,7 +21,9 @@ export default function StatusBar({
   cursor,
   snapshotCount,
   pasteCount,
-  syncStatus
+  syncStatus,
+  pythonErrors = null,
+  toolchain = null
 }: StatusBarProps): React.ReactElement {
   return (
     <footer className="status-bar">
@@ -24,6 +31,35 @@ export default function StatusBar({
         <span className="status-item status-file">{fileName}</span>
         <span className="status-sep" />
         <span className="status-item">{language}</span>
+        {toolchain?.required && (
+          <>
+            <span className="status-sep" />
+            <span
+              className={`status-item status-toolchain ${
+                toolchain.available ? 'is-ok' : 'is-missing'
+              }`}
+              title={
+                toolchain.available
+                  ? `Found: ${toolchain.found.join(', ')}`
+                  : `Missing: ${toolchain.missing.join(', ')}`
+              }
+            >
+              {toolchain.label} {toolchain.available ? 'ready' : 'missing'}
+            </span>
+          </>
+        )}
+        {pythonErrors !== null && (
+          <>
+            <span className="status-sep" />
+            <span
+              className={`status-item status-python ${pythonErrors > 0 ? 'is-error' : 'is-ok'}`}
+            >
+              {pythonErrors > 0
+                ? `${pythonErrors} syntax ${pythonErrors === 1 ? 'error' : 'errors'}`
+                : 'Python OK'}
+            </span>
+          </>
+        )}
         {cursor && (
           <>
             <span className="status-sep" />

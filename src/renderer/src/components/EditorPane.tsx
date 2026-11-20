@@ -8,6 +8,8 @@ import { defineMonacoThemes } from '../themes/themes'
 import { useFont } from '../fonts/useFont'
 import { ensureFontLoaded } from '../fonts/fontLoading'
 import { readClipboardText, writeClipboardText } from '../lib/clipboard'
+import { analyzePython, PYTHON_BUILTINS, PYTHON_KEYWORDS } from '../lib/pythonAnalysis'
+import type { PythonAnalysis, PythonSymbolKind } from '../lib/pythonAnalysis'
 import { fileDisplayName } from '../lib/workspace'
 import type { CodeTrackerApi } from '../hooks/useCodeTracker'
 import type { LabFile } from '../types/tracker'
@@ -20,6 +22,8 @@ import type { LabFile } from '../types/tracker'
  * go through the system clipboard.
  */
 export interface EditorCommands {
+  focus(): void
+  reveal(line: number, column: number): void
   undo(): void
   redo(): void
   cut(): void
@@ -62,6 +66,8 @@ interface EditorPaneProps {
    * editor.
    */
   onToggleWordWrap?: () => void
+  /** Receives the active Python file's live symbols and diagnostics. */
+  onAnalysisChange?: (analysis: PythonAnalysis | null) => void
   /**
    * Closes a workspace tab. The last remaining file can't be closed —
    * App guards it, so the close button is hidden on single-file workspaces.
@@ -78,6 +84,7 @@ export default function EditorPane({
   commandsRef,
   viewOptions = DEFAULT_VIEW_OPTIONS,
   onToggleWordWrap,
+  onAnalysisChange,
   onCloseFile
 }: EditorPaneProps): React.ReactElement {
   const { monacoTheme } = useTheme()
@@ -91,6 +98,14 @@ export default function EditorPane({
   const activeFileRef = useRef(activeFile)
   const onCursorChangeRef = useRef(onCursorChange)
   const onToggleWordWrapRef = useRef(onToggleWordWrap)
+  const onAnalysisChangeRef = useRef(onAnalysisChange)
+  const analysisCacheRef = useRef(new Map<string, { version: number; analysis: PythonAnalysis }>())
+  const analysisTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const analysisDisposersRef = useRef(new Map<string, monacoTypes.IDisposable>())
+  const providerDisposablesRef = useRef<monacoTypes.IDisposable[]>([])
+  const publishAnalysisRef = useRef<
+    (fileName: string, model: monacoTypes.editor.ITextModel) => void
+  >(() => undefined)
 
   // Keep the cursor callback fresh without re-attaching editor listeners.
   useEffect(() => {
@@ -100,6 +115,11 @@ export default function EditorPane({
   // Same for the Alt+Z word-wrap binding, which routes into app state.
   useEffect(() => {
     onToggleWordWrapRef.current = onToggleWordWrap
+  })
+
+  // Keep the latest analysis callback available to model listeners.
+  useEffect(() => {
+    onAnalysisChangeRef.current = onAnalysisChange
   })
 
   // Apply view toggles (minimap / word wrap / line numbers) live.
@@ -175,14 +195,180 @@ export default function EditorPane({
       if (files.some((file) => file.name === name)) continue
       disposersRef.current.get(name)?.()
       disposersRef.current.delete(name)
+      analysisDisposersRef.current.get(name)?.dispose()
+      analysisDisposersRef.current.delete(name)
+      const timer = analysisTimersRef.current.get(name)
+      if (timer) clearTimeout(timer)
+      analysisTimersRef.current.delete(name)
+      analysisCacheRef.current.delete(model.uri.toString())
       modelsRef.current.delete(name)
       model.dispose()
     }
   }, [files])
 
+  const analysisFor = (model: monacoTypes.editor.ITextModel): PythonAnalysis | null => {
+    if (model.getLanguageId() !== 'python') return null
+    const key = model.uri.toString()
+    const cached = analysisCacheRef.current.get(key)
+    if (cached && cached.version === model.getVersionId()) return cached.analysis
+    const analysis = analyzePython(model.getValue())
+    analysisCacheRef.current.set(key, { version: model.getVersionId(), analysis })
+    return analysis
+  }
+
+  const publishAnalysis = (fileName: string, model: monacoTypes.editor.ITextModel): void => {
+    const monacoInstance = monacoRef.current
+    const analysis = analysisFor(model)
+
+    if (monacoInstance) {
+      if (!analysis) {
+        monacoInstance.editor.setModelMarkers(model, 'python', [])
+      } else {
+        const markers: monacoTypes.editor.IMarkerData[] = analysis.diagnostics.map((diagnostic) => {
+          const maxColumn = model.getLineMaxColumn(diagnostic.line)
+          const startColumn = Math.min(Math.max(1, diagnostic.column), maxColumn)
+          const endColumn = Math.min(
+            Math.max(diagnostic.endColumn, startColumn + 1),
+            Math.max(maxColumn, startColumn + 1)
+          )
+          return {
+            severity: monacoInstance.MarkerSeverity.Error,
+            message: diagnostic.message,
+            source: 'python',
+            startLineNumber: diagnostic.line,
+            startColumn,
+            endLineNumber: diagnostic.endLine,
+            endColumn
+          }
+        })
+        monacoInstance.editor.setModelMarkers(model, 'python', markers)
+      }
+    }
+
+    if (activeFileRef.current === fileName) {
+      onAnalysisChangeRef.current?.(analysis)
+    }
+  }
+
+  const scheduleAnalysis = (fileName: string, model: monacoTypes.editor.ITextModel): void => {
+    const existing = analysisTimersRef.current.get(fileName)
+    if (existing) clearTimeout(existing)
+    analysisTimersRef.current.set(
+      fileName,
+      setTimeout(() => {
+        analysisTimersRef.current.delete(fileName)
+        publishAnalysis(fileName, model)
+      }, 350)
+    )
+  }
+
+  const registerPythonProviders = (monacoInstance: typeof monacoTypes): void => {
+    if (providerDisposablesRef.current.length > 0) return
+
+    const completion = monacoInstance.languages.registerCompletionItemProvider('python', {
+      provideCompletionItems(model, position) {
+        const analysis = analyzePython(model.getValue())
+        const word = model.getWordUntilPosition(position)
+        const range = new monacoInstance.Range(
+          position.lineNumber,
+          word.startColumn,
+          position.lineNumber,
+          word.endColumn
+        )
+        const { CompletionItemKind } = monacoInstance.languages
+        const suggestions: monacoTypes.languages.CompletionItem[] = []
+        const seen = new Set<string>()
+
+        const add = (
+          label: string,
+          kind: monacoTypes.languages.CompletionItemKind,
+          detail: string,
+          sortText: string
+        ): void => {
+          if (seen.has(label)) return
+          seen.add(label)
+          suggestions.push({
+            label,
+            kind,
+            detail,
+            insertText: label,
+            range,
+            sortText
+          })
+        }
+
+        const kindFor = (kind: PythonSymbolKind): monacoTypes.languages.CompletionItemKind => {
+          if (kind === 'class') return CompletionItemKind.Class
+          if (kind === 'variable') return CompletionItemKind.Variable
+          return CompletionItemKind.Function
+        }
+
+        analysis.symbols.forEach((symbol, index) => {
+          add(
+            symbol.name,
+            kindFor(symbol.kind),
+            `${symbol.kind} · line ${symbol.line}`,
+            `0_${String(index).padStart(4, '0')}`
+          )
+        })
+        analysis.names.forEach((name, index) => {
+          add(
+            name,
+            CompletionItemKind.Variable,
+            'name in this file',
+            `1_${String(index).padStart(4, '0')}`
+          )
+        })
+        PYTHON_KEYWORDS.forEach((keyword) => {
+          add(keyword, CompletionItemKind.Keyword, 'keyword', '2')
+        })
+        PYTHON_BUILTINS.forEach((builtin) => {
+          add(builtin, CompletionItemKind.Function, 'builtin', '3')
+        })
+
+        return { suggestions }
+      }
+    })
+
+    const hover = monacoInstance.languages.registerHoverProvider('python', {
+      provideHover(model, position) {
+        const word = model.getWordAtPosition(position)
+        if (!word) return null
+        const analysis = analyzePython(model.getValue())
+        const symbol = analysis.symbols.find((item) => item.name === word.word)
+        if (!symbol) return null
+        return {
+          range: new monacoInstance.Range(
+            position.lineNumber,
+            word.startColumn,
+            position.lineNumber,
+            word.endColumn
+          ),
+          contents: [
+            { value: `**${symbol.kind}** \`${symbol.name}\`` },
+            { value: `Defined on line ${symbol.line}` }
+          ]
+        }
+      }
+    })
+
+    providerDisposablesRef.current = [completion, hover]
+  }
+
   const handleBeforeMount: BeforeMount = (monacoInstance) => {
     defineMonacoThemes(monacoInstance)
+    registerPythonProviders(monacoInstance)
   }
+
+  // Keep the latest analysis function available to the tab-switch effect.
+  useEffect(() => {
+    publishAnalysisRef.current = publishAnalysis
+  })
+
+  useEffect(() => {
+    const model = modelsRef.current.get(activeFile)
+    if (model) publishAnalysisRef.current(activeFile, model)
+  }, [activeFile])
 
   const handleMount: OnMount = (editor, monacoInstance) => {
     editorRef.current = editor
@@ -200,10 +386,19 @@ export default function EditorPane({
       if (!disposersRef.current.has(file.name)) {
         disposersRef.current.set(file.name, tracker.attachModel(file.name, model))
       }
+      if (!analysisDisposersRef.current.has(file.name)) {
+        analysisDisposersRef.current.set(
+          file.name,
+          model.onDidChangeContent(() => scheduleAnalysis(file.name, model))
+        )
+      }
     }
 
     const current = modelsRef.current.get(activeFileRef.current)
-    if (current) editor.setModel(current)
+    if (current) {
+      editor.setModel(current)
+      publishAnalysis(activeFileRef.current, current)
+    }
 
     // Editor-level paste hook (fires after the paste lands in the model).
     editor.onDidPaste((event) => {
@@ -262,6 +457,14 @@ export default function EditorPane({
 
     if (commandsRef) {
       commandsRef.current = {
+        focus: () => {
+          editor.focus()
+        },
+        reveal: (line, column) => {
+          editor.revealLineInCenter(line)
+          editor.setPosition({ lineNumber: line, column })
+          editor.focus()
+        },
         undo: () => {
           editor.focus()
           editor.trigger('menu', 'undo', null)
@@ -285,6 +488,22 @@ export default function EditorPane({
       }
     }
   }
+
+  useEffect(() => {
+    const timers = analysisTimersRef.current
+    const disposers = analysisDisposersRef.current
+    const providers = providerDisposablesRef
+    const cache = analysisCacheRef.current
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
+      for (const disposable of disposers.values()) disposable.dispose()
+      disposers.clear()
+      for (const disposable of providers.current) disposable.dispose()
+      providers.current = []
+      cache.clear()
+    }
+  }, [])
 
   return (
     <div className="glass-panel editor-window">

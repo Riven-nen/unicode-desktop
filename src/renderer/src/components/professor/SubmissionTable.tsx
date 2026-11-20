@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, ClipboardPaste, MessageSquare } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  ClipboardPaste,
+  Download,
+  MessageSquare
+} from 'lucide-react'
 import BandBadge from './BandBadge'
 import { initialsOf } from '../../lib/initials'
+import { downloadCsv } from '../../lib/csv'
 import type { IcsBand, SubmissionSummary } from '../../types/professor'
 
 type SortKey = 'ics' | 'submittedAt'
@@ -64,6 +72,35 @@ export default function SubmissionTable({
   const sortIcon = (key: SortKey): React.ReactNode =>
     sortKey === key ? sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} /> : null
 
+  const exportCsv = (): void => {
+    downloadCsv('submissions.csv', [
+      [
+        'Student',
+        'Email',
+        'Submitted',
+        'Status',
+        'Grade',
+        'Grade released',
+        'ICS',
+        'Band',
+        'Pastes',
+        'Comments'
+      ],
+      ...submissions.map((submission) => [
+        submission.studentName,
+        submission.studentEmail,
+        submission.submittedAt,
+        submission.status,
+        submission.grade,
+        submission.grade === null ? '' : submission.gradeReleased ? 'yes' : 'no',
+        submission.ics,
+        submission.band,
+        submission.pasteCount,
+        submission.commentCount
+      ])
+    ])
+  }
+
   return (
     <section className="submissions-section">
       <header className="submissions-head">
@@ -74,16 +111,21 @@ export default function SubmissionTable({
             {sortKey === 'ics' ? 'ICS' : 'submitted time'}
           </p>
         </div>
-        <div className="band-filter" role="group" aria-label="Filter by integrity band">
-          {BAND_FILTERS.map((filter) => (
-            <button
-              key={filter.key}
-              className={`band-filter-btn ${bandFilter === filter.key ? 'active' : ''}`}
-              onClick={() => setBandFilter(filter.key)}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="submissions-head-actions">
+          <div className="band-filter" role="group" aria-label="Filter by integrity band">
+            {BAND_FILTERS.map((filter) => (
+              <button
+                key={filter.key}
+                className={`band-filter-btn ${bandFilter === filter.key ? 'active' : ''}`}
+                onClick={() => setBandFilter(filter.key)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn-secondary" onClick={exportCsv} disabled={submissions.length === 0}>
+            <Download size={12} /> Export CSV
+          </button>
         </div>
       </header>
 
@@ -104,6 +146,7 @@ export default function SubmissionTable({
                     Submitted {sortIcon('submittedAt')}
                   </button>
                 </th>
+                <th>Grade</th>
                 <th>
                   <button className="table-sort" onClick={() => toggleSort('ics')}>
                     ICS {sortIcon('ics')}
@@ -141,6 +184,16 @@ export default function SubmissionTable({
                     </div>
                   </td>
                   <td className="mono-cell">{formatDateTime(submission.submittedAt)}</td>
+                  <td className="mono-cell">
+                    {submission.grade === null ? (
+                      <span className="cell-muted">—</span>
+                    ) : (
+                      <>
+                        {submission.grade}
+                        {!submission.gradeReleased && <span className="release-chip">private</span>}
+                      </>
+                    )}
+                  </td>
                   <td>
                     {submission.ics === null ? (
                       <span className="cell-muted">—</span>

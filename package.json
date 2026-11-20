@@ -1,18 +1,22 @@
 {
   "name": "unicode-desktop",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Unicode Lab: a desktop lab for programming coursework with Supabase, Monaco, and Judge0",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Unicode Lab",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:rls": "node --env-file=.env scripts/rls-check.mjs",
     "start": "electron-vite preview",
-    "dev": "electron-vite dev",
+    "dev": "concurrently -k -n desktop,admin -c blue,magenta \"npm run dev:desktop\" \"npm run dev:admin\"",
+    "dev:desktop": "electron-vite dev",
+    "dev:admin": "npm --prefix admin-web run dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "install-electron && electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
@@ -21,8 +25,8 @@
     "build:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
-    "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@lezer/python": "^1.1.19",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.119.0",
     "lucide-react": "^1.66.0"
@@ -35,6 +39,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.7",
     "electron": "^44.7.2",
     "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
@@ -47,6 +52,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^5.9.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "vitest": "^5.1.1"
   }
 }

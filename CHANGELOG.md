@@ -1,0 +1,88 @@
+# Changelog
+
+All notable changes to Unicode Lab are recorded here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+### Added
+
+- Student class dashboard with class cards, class detail pages, assignment briefs, unread feedback badges, and “new assignment” chips.
+- Two-way feedback: students can reply to professor comments inside the same submission thread.
+- Assignment analytics for professors: submitted vs. enrolled, late count, averages, and ICS band distribution.
+- Cross-student similarity panel with a configurable threshold and inspect action.
+- Live integrity-score demo: typing and pasting update the gauge in real time and highlight the active signal.
+- ICS demo playground uses Monaco with Python syntax highlighting.
+- `npm run dev` starts the desktop app and admin web console together.
+- Class-wide gradebook CSV export (student × assignment, with grades, ICS, band, late flag, and comment counts).
+- Professor unread student-reply badges on class cards.
+- Professor new-submission badges on class cards.
+- Grade release: professors save grades privately, release one submission or a
+  whole assignment, and hide a released grade again.
+- Student `New grade` badges and class-card counters when a grade is released.
+- Assignment scheduling: an optional publish time keeps published assignments
+  hidden from students until that moment; student dashboards poll for newly
+  visible assignments.
+- Admin-generated professor invite codes with a configurable lifespan
+  (hours/days) and usage limit, plus copy/revoke actions in the admin console.
+- Student dashboard **Redeem invite** flow: a valid code promotes the account
+  to professor and re-routes the desktop app.
+- Snapshot **Diff mode** in submission review, comparing the selected snapshot
+  with the previous one in Monaco's inline diff editor.
+- **Typing rhythm heatmap** behind the Cadence bar: edit gaps per snapshot with
+  median and longest-pause stats.
+- Cross-student **paste similarity** panel using `pg_trgm`, with a red
+  Paste detected badge and matched student.
+- **Live Lab** page showing student presence heartbeats as active, idle,
+  flagged, or offline.
+- Submission **Replay** that plays snapshots back in chronological order with
+  a progress bar and typewriter reveal.
+- Inline file rename and delete in the workspace sidebar.
+- Native confirmation and success toast for submissions.
+- Offline submission queue with idempotent client tokens and automatic retry.
+- Supabase Realtime refresh for student and professor dashboards.
+- Compiler/runtime check when a file becomes active, with a status-bar and terminal chip, plus a **Run file** action that is gated on the local toolchain for Python, JavaScript/TypeScript, Java, C/C++, C#, Go, Rust, Ruby, PHP, Swift, Kotlin, and PowerShell.
+- Password reset from the sign-in screen using a recovery link or code.
+- Class join codes: students self-enroll with a code, professors copy or rotate it.
+- Separate `admin-web` Node project with an admin role, user search, role management, and class/join-code review.
+- Error boundary for renderer crashes.
+- Unit tests (Vitest) and an RLS regression script (`npm run test:rls`).
+- CI workflow running lint, typecheck, unit tests, and a production bundle build.
+- Windows NSIS installer and unpacked build via electron-builder; packaged-app smoke test passes.
+
+### Changed
+
+- Student workspace is fixed at `Documents/Unicode Lab`; the workspace picker was removed.
+- Sidebar is Files-only, with an animated collapse into an icon rail.
+- Renderer runs with the Chromium sandbox; clipboard and external links go through main-process IPC.
+- About dialog reports Electron, Chromium, and Node versions.
+- Saving a grade now stores it privately; the professor explicitly releases it
+  to the student (or releases all saved grades for an assignment at once).
+- Assignments can be scheduled with a publish time instead of only draft or
+  published.
+
+### Security
+
+- Two-way comments migration: `comments.professor_id` → `author_id`, professors keep their policy, students may reply only inside threads on their own submission.
+- Idempotent submission tokens: retries cannot create duplicate submissions, and the token is scoped to the student.
+- Realtime publication for comments, submissions, and assignments; verified that a student subscription receives only comments on their own submissions.
+- RLS checks cover submissions, hidden tests, comments, grades, grade release,
+  and scheduled assignment visibility.
+- Private grades are stored in a professor-only `submission_grades` table;
+  `submissions.grade` receives the mark only when it is released. Student reads
+  use a masked `student_submissions` view.
+- Professor invites live in an admin-only table. Creation, revocation, and
+  redemption are guarded RPCs; expiry and usage limits are checked under a row
+  lock, and only student accounts can redeem.
+- Live Lab presence is scoped to a professor's own students. Students can only
+  read/write their own heartbeat row.
+- Paste similarity is a class-scoped, professor-only RPC; it never returns
+  another class's pastes. Typing intervals are attached to snapshots and only
+  visible through the same submission policies.
+
+## [1.0.0] - 2026-11-14
+
+Initial capstone build: Electron + React desktop lab with Supabase auth/RLS,
+Monaco editor, workspace filesystem, snapshot and paste tracking, Professor
+review dashboard, Judge0 test runner, local PowerShell terminal, ICS review
+bands, and seeded demo data.

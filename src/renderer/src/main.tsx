@@ -6,6 +6,7 @@ import './fonts/fonts.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // Platform hint so CSS can adjust for OS-specific chrome (e.g. reserving
 // space for the macOS traffic lights next to our custom title bar).
@@ -13,6 +14,8 @@ document.documentElement.dataset.platform = window.api?.platform ?? 'win32'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>
 )

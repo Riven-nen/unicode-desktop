@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  AlertTriangle,
+  CheckCircle2,
   Command,
   Download,
   FilePlus2,
   FileText,
-  FolderOpen,
   Info,
   Keyboard,
+  LayoutDashboard,
   List,
-  LogIn,
   LogOut,
   Map as MapIcon,
   MessageSquare,
@@ -18,14 +19,16 @@ import {
   WrapText
 } from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
-import AuthPanel from './components/AuthPanel'
 import EditorPane from './components/EditorPane'
 import MenuBar from './components/MenuBar'
 import HelpModal from './components/HelpModal'
 import NewFileModal from './components/NewFileModal'
+import BottomPanel from './components/BottomPanel'
 import SearchBar from './components/SearchBar'
 import SignInScreen from './components/SignInScreen'
+import StudentDashboard from './components/StudentDashboard'
 import StudentFeedbackModal from './components/StudentFeedbackModal'
+import AdminConsoleNotice from './components/AdminConsoleNotice'
 import ProfessorDashboard from './components/professor/ProfessorDashboard'
 import type { QuickOpenCommand } from './components/SearchBar'
 import StatusBar from './components/StatusBar'
@@ -34,19 +37,42 @@ import WorkspacePanel from './components/WorkspacePanel'
 import { ThemeProvider } from './themes/ThemeProvider'
 import { FontProvider } from './fonts/FontProvider'
 import { useCodeTracker } from './hooks/useCodeTracker'
+import { useToolchainStatus } from './hooks/useToolchainStatus'
 import { useEnrolledCourses } from './hooks/useEnrolledCourses'
 import { useProfileRole } from './hooks/useProfileRole'
 import { useSupabaseSession } from './hooks/useSupabaseSession'
+import { useStudentAssignments } from './hooks/useStudentAssignments'
+import { useStudentPresence } from './hooks/useStudentPresence'
 import { supabase } from './lib/supabase'
 import { languageFromName } from './lib/languages'
+import { fileNameForAssignment } from './lib/assignments'
+import {
+  enqueueSubmission,
+  isNetworkError,
+  listPendingSubmissions,
+  recordPendingFailure,
+  removePendingSubmission
+} from './lib/submissionQueue'
+import { submitAssignment } from './lib/studentAssignments'
 import { defaultSavePath, fileDisplayName, workspaceNameFor } from './lib/workspace'
 import type { EditorCommands, EditorViewOptions } from './components/EditorPane'
+import type { PythonAnalysis } from './lib/pythonAnalysis'
 import type { LabFile } from './types/tracker'
-import type { WorkspaceListing } from '../../shared/workspace'
+import type { StudentAssignment } from './types/student'
+import type { AssignmentFileResult, WorkspaceListing } from '../../shared/workspace'
 import './index.css'
 
-// Persisted workspace root so restarts reopen the same folder.
-const WORKSPACE_KEY = 'unicode-lab.workspace'
+// Persisted sidebar width and student view.
+const SIDEBAR_WIDTH_KEY = 'unicode-lab.sidebarWidth'
+
+// Which student surface is visible. The dashboard owns the first paint after
+// sign-in; the editor is opened explicitly (or by opening an assignment).
+type StudentView = 'dashboard' | 'workspace'
+
+interface StudentViewState {
+  userId: string
+  view: StudentView
+}
 
 // The first-launch tab. It lives only in memory until the student saves it,
 // which teaches the workspace flow without writing files behind their back.
@@ -60,9 +86,10 @@ const INITIAL_FILES: LabFile[] = [
       'This editor works on real files in your workspace folder.',
       '',
       '- Sign in and a folder appears for every class you are enrolled in',
-      '- Open a file from the Explorer, or use File > Open File…',
+      '- Open a file from the sidebar, or use File > Open File…',
       '- Ctrl+S saves the active file to disk',
-      '- File > Open Workspace… points the app at a different folder',
+      '- Your workspace lives in Documents\\Unicode Lab',
+      '- The folder icon at the top of the sidebar collapses it to icons',
       '',
       'Your edits are still captured as time-travel snapshots, and paste',
       'activity is recorded for academic-integrity analytics.',
@@ -93,9 +120,18 @@ function uniqueFileName(base: string, files: LabFile[]): string {
   return `${stem} (${index})${extension}`
 }
 
+/** Windows paths are case-insensitive; compare them that way. */
+function samePath(a: string, b: string): boolean {
+  return a.replace(/\\/g, '/').toLowerCase() === b.replace(/\\/g, '/').toLowerCase()
+}
+
 export default function App(): React.ReactElement {
   const { session, loading: sessionLoading } = useSupabaseSession()
-  const { role: profileRole, loading: roleLoading } = useProfileRole(session)
+  const {
+    role: profileRole,
+    loading: roleLoading,
+    reload: reloadProfileRole
+  } = useProfileRole(session)
 
   // The open tabs. Files opened from the workspace carry their absolute
   // path; New File… tabs are untitled until the first save.
@@ -126,6 +162,9 @@ export default function App(): React.ReactElement {
 
   // Enrolled classes drive the course folders — no manual folder setup.
   const enrolled = useEnrolledCourses(session)
+  // Assignments power the dashboard, the active-assignment panel, and submit.
+  const studentAssignments = useStudentAssignments(session)
+  const reloadAssignments = studentAssignments.reload
   const enrollmentNames = useMemo(
     () =>
       enrolled.courses
@@ -135,14 +174,65 @@ export default function App(): React.ReactElement {
   )
 
   const [activeFile, setActiveFile] = useState(INITIAL_FILES[0].name)
-  const [authOpen, setAuthOpen] = useState(false)
+  const lastPasteAt = useMemo(() => {
+    let latest = 0
+    for (const pastes of Object.values(tracker.pastesByFile)) {
+      for (const paste of pastes) {
+        const at = Date.parse(paste.created_at) || 0
+        if (at > latest) latest = at
+      }
+    }
+    return latest > 0 ? latest : null
+  }, [tracker.pastesByFile])
+
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-  const [guestMode, setGuestMode] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [studentViewState, setStudentViewState] = useState<StudentViewState | null>(null)
+
+  const sessionUserId = session?.user.id ?? null
+  // Transient confirmation ("Assignment submitted.") shared by both views.
+  const showToast = useCallback((message: string): void => {
+    setToast(message)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 4000)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    }
+  }, [])
+
+  // Opening feedback clears the unread badge for every entry point.
+  const openStudentFeedback = (): void => {
+    setFeedbackOpen(true)
+  }
+  // A new sign-in always starts on the dashboard. The stored view is scoped
+  // to the user, so switching accounts never reopens the previous workspace.
+  const studentView: StudentView =
+    sessionUserId !== null && studentViewState?.userId === sessionUserId
+      ? studentViewState.view
+      : 'dashboard'
+
+  const showStudentView = (view: StudentView): void => {
+    if (!sessionUserId) return
+    // Monaco keeps focus behind the dashboard overlay; drop it so keystrokes
+    // cannot edit a hidden file.
+    if (view === 'dashboard') (document.activeElement as HTMLElement | null)?.blur()
+    setStudentViewState({ userId: sessionUserId, view })
+    if (view === 'workspace') {
+      requestAnimationFrame(() => editorCommandsRef.current?.focus())
+    }
+  }
+
+  useStudentPresence(session, profileRole, activeFile, lastPasteAt, studentView === 'workspace')
   const [newFileOpen, setNewFileOpen] = useState(false)
   // Course folder the pending New File dialog targets (null = untitled tab).
   const [newFileDir, setNewFileDir] = useState<string | null>(null)
   const [helpModal, setHelpModal] = useState<'shortcuts' | 'about' | null>(null)
   const [cursor, setCursor] = useState<{ lineNumber: number; column: number } | null>(null)
+  const [activeAnalysis, setActiveAnalysis] = useState<PythonAnalysis | null>(null)
 
   // Editor commands for the menu bar, populated when the editor mounts.
   const editorCommandsRef = useRef<EditorCommands | null>(null)
@@ -157,13 +247,83 @@ export default function App(): React.ReactElement {
     lineNumbers: true
   })
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
+    return Number.isFinite(stored) && stored >= 190 ? Math.min(460, stored) : 250
+  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('unicode-lab.sidebarCollapsed') === '1'
+  )
+  const [focusedCourse, setFocusedCourse] = useState<string | null>(null)
+
+  const toggleSidebar = (): void => {
+    setSidebarCollapsed((collapsed) => {
+      const next = !collapsed
+      localStorage.setItem('unicode-lab.sidebarCollapsed', next ? '1' : '0')
+      return next
+    })
+  }
+
+  const openClassFiles = (course: { code: string | null; title: string }): void => {
+    setFocusedCourse(course.code?.trim() || course.title)
+    setSidebarCollapsed(false)
+    localStorage.setItem('unicode-lab.sidebarCollapsed', '0')
+    showStudentView('workspace')
+  }
+
+  const handleJoinedClass = (): void => {
+    enrolled.reload()
+    studentAssignments.reload()
+    void refreshWorkspace()
+    showToast('Joined class.')
+  }
+
+  const startSidebarResize = (event: React.PointerEvent<HTMLDivElement>): void => {
+    event.preventDefault()
+    document.body.classList.add('sidebar-resizing')
+    const startX = event.clientX
+    const startWidth = sidebarWidth
+    let latestWidth = startWidth
+    const handleMove = (moveEvent: PointerEvent): void => {
+      latestWidth = Math.min(460, Math.max(190, startWidth + (moveEvent.clientX - startX)))
+      setSidebarWidth(latestWidth)
+    }
+    const handleUp = (): void => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      document.body.classList.remove('sidebar-resizing')
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(latestWidth))
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+  }
+
   const activeFileSnapshots = tracker.snapshotsByFile[activeFile] ?? []
   const activeFilePastes = tracker.pastesByFile[activeFile] ?? []
   const activeLanguage = files.find((file) => file.name === activeFile)?.language ?? 'plaintext'
+  const toolchain = useToolchainStatus(activeLanguage)
+
+  // The bottom panel uses the assignment whose workspace file is active.
+  const activeAssignment = useMemo(() => {
+    const key = activeFile.toLowerCase()
+    const base = fileDisplayName(activeFile).toLowerCase()
+    const exact = studentAssignments.assignments.find((assignment) => {
+      const folder = (assignment.classCode || assignment.className).toLowerCase()
+      const fileName = fileNameForAssignment(assignment).toLowerCase()
+      return key === `${folder}/${fileName}`
+    })
+    if (exact) return exact
+    return (
+      studentAssignments.assignments.find(
+        (assignment) => fileNameForAssignment(assignment).toLowerCase() === base
+      ) ?? null
+    )
+  }, [activeFile, studentAssignments.assignments])
 
   const handleSelectFile = (name: string): void => {
     setActiveFile(name)
     setCursor(null)
+    setActiveAnalysis(null)
   }
 
   const refreshWorkspace = useCallback(
@@ -180,11 +340,11 @@ export default function App(): React.ReactElement {
   )
 
   // Read a file from disk into a new tab (or focus its existing tab).
-  const openFileFromDisk = async (filePath: string): Promise<void> => {
+  const openFileFromDisk = async (filePath: string): Promise<string | null> => {
     const existing = files.find((file) => file.path === filePath)
     if (existing) {
       handleSelectFile(existing.name)
-      return
+      return existing.name
     }
     try {
       const content = await window.api.fs.readFile(filePath)
@@ -205,8 +365,10 @@ export default function App(): React.ReactElement {
       )
       handleSelectFile(name)
       setWorkspaceError(null)
+      return name
     } catch (error) {
       setWorkspaceError(fsErrorMessage(error))
+      return null
     }
   }
 
@@ -219,18 +381,153 @@ export default function App(): React.ReactElement {
     }
   }
 
-  const handleOpenWorkspace = async (): Promise<void> => {
+  // A submission and an "open file" both need the assignment's workspace
+  // file to exist; starter code only seeds files that don't exist yet.
+  const prepareAssignmentFile = async (
+    assignment: StudentAssignment
+  ): Promise<AssignmentFileResult> => {
+    if (!workspaceRoot) {
+      throw new Error('The workspace is still loading. Try again in a moment.')
+    }
     try {
-      const root = await window.api.fs.pickWorkspace()
-      if (!root) return
-      localStorage.setItem(WORKSPACE_KEY, root)
-      setWorkspaceRoot(root)
-      setWorkspaceError(null)
-      await refreshWorkspace(root)
+      const file = await window.api.fs.ensureAssignmentFile(
+        workspaceRoot,
+        assignment.classCode.trim() || assignment.className,
+        fileNameForAssignment(assignment),
+        assignment.starterCode ?? ''
+      )
+      await refreshWorkspace()
+      return file
     } catch (error) {
-      setWorkspaceError(fsErrorMessage(error))
+      throw new Error(fsErrorMessage(error), { cause: error })
     }
   }
+
+  const handleOpenAssignmentFile = async (assignment: StudentAssignment): Promise<void> => {
+    const file = await prepareAssignmentFile(assignment)
+    const key = await openFileFromDisk(file.path)
+    if (!key) throw new Error('Could not open the assignment file.')
+    showStudentView('workspace')
+  }
+
+  const handleSubmitAssignment = async (assignment: StudentAssignment): Promise<void> => {
+    if (!session) throw new Error('Sign in to submit an assignment.')
+    const confirmed = await window.api.ui.confirm({
+      title: 'Submit Assignment',
+      message: `Submit "${assignment.title}"?`,
+      detail: `Your saved file content and snapshot history for ${assignment.classCode} will be sent to your professor.`,
+      confirmLabel: 'Submit'
+    })
+    if (!confirmed) return
+    const file = await prepareAssignmentFile(assignment)
+    const openTab = files.find((item) => item.path && samePath(item.path, file.path))
+    const key = openTab?.name ?? file.fileName
+
+    let content: string
+    if (openTab) {
+      // Submit the live editor content, and capture it immediately so the
+      // trailing edits are part of this submission's snapshot set.
+      const live = tracker.getModelValue(openTab.name)
+      if (live === null) throw new Error('The assignment file is still opening. Try again.')
+      content = live
+      tracker.captureCurrent(openTab.name)
+      await tracker.flush(openTab.name)
+    } else {
+      try {
+        content = await window.api.fs.readFile(file.path)
+      } catch (error) {
+        throw new Error(fsErrorMessage(error), { cause: error })
+      }
+      await tracker.flush()
+    }
+
+    const clientToken = crypto.randomUUID()
+    try {
+      await submitAssignment({
+        assignmentId: assignment.id,
+        fileName: key,
+        content,
+        clientToken
+      })
+      showToast(`Submitted ${assignment.title}`)
+    } catch (error) {
+      if (isNetworkError(error)) {
+        const queued = enqueueSubmission({
+          token: clientToken,
+          assignmentId: assignment.id,
+          assignmentTitle: assignment.title,
+          fileName: key,
+          content,
+          createdAt: new Date().toISOString(),
+          attempts: 1,
+          lastError: error instanceof Error ? error.message : null
+        })
+        if (queued) {
+          showToast('Submission queued — it will send when you are back online.')
+          return
+        }
+      }
+      throw error
+    }
+  }
+
+  // Retry queued submissions when the app restarts or the network returns.
+  const retryingQueued = useRef(false)
+  const trackerRef = useRef(tracker)
+  useEffect(() => {
+    trackerRef.current = tracker
+  })
+
+  const retryQueuedSubmissions = useCallback(async (): Promise<void> => {
+    if (!session || retryingQueued.current) return
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+    const pending = listPendingSubmissions()
+    if (pending.length === 0) return
+
+    retryingQueued.current = true
+    let sent = false
+    try {
+      // Upload any snapshots captured while offline first, so the server can
+      // attach them to this submission instead of the next one.
+      try {
+        await trackerRef.current.flush()
+      } catch {
+        // Snapshots retry on their own; the queued content is still enough.
+      }
+
+      for (const entry of pending) {
+        if (entry.attempts >= 3) continue
+        try {
+          await submitAssignment({
+            assignmentId: entry.assignmentId,
+            fileName: entry.fileName,
+            content: entry.content,
+            clientToken: entry.token
+          })
+          removePendingSubmission(entry.token)
+          sent = true
+          showToast(`Queued submission sent: ${entry.assignmentTitle}`)
+        } catch (error) {
+          if (isNetworkError(error)) break
+          const message = error instanceof Error ? error.message : 'Unknown error'
+          recordPendingFailure(entry.token, message)
+          showToast(`Queued submission needs attention: ${message}`)
+        }
+      }
+    } finally {
+      retryingQueued.current = false
+      if (sent) reloadAssignments()
+    }
+  }, [session, showToast, reloadAssignments])
+
+  useEffect(() => {
+    void retryQueuedSubmissions()
+    const handleOnline = (): void => {
+      void retryQueuedSubmissions()
+    }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [retryQueuedSubmissions])
 
   // Save As runs first so Save can fall back to it for untitled files.
   const saveFileAs = async (name: string = activeFile): Promise<boolean> => {
@@ -323,6 +620,78 @@ export default function App(): React.ReactElement {
     setNewFileOpen(true)
   }
 
+  // Renaming keeps the tab open: the model is rebuilt from its live content
+  // under the new key, and its on-disk path is replaced.
+  const handleRenameFile = async (filePath: string, nextName: string): Promise<void> => {
+    if (!workspaceRoot) return
+    const target = files.find((file) => file.path && samePath(file.path, filePath))
+    try {
+      const liveContent = target ? tracker.getModelValue(target.name) : null
+      const newPath = await window.api.fs.renameFile(filePath, nextName)
+      await refreshWorkspace()
+      if (target) {
+        const base = workspaceNameFor(workspaceRoot, newPath)
+        const others = files.filter((file) => file.name !== target.name)
+        const newKey = uniqueFileName(base, others)
+        setFiles((prev) =>
+          prev.map((file) =>
+            file.name === target.name
+              ? {
+                  ...file,
+                  name: newKey,
+                  path: newPath,
+                  language: languageFromName(newKey),
+                  initialContent: liveContent ?? file.initialContent
+                }
+              : file
+          )
+        )
+        if (activeFile === target.name) setActiveFile(newKey)
+      }
+      setWorkspaceError(null)
+      showToast(`Renamed to ${nextName.trim()}`)
+    } catch (error) {
+      setWorkspaceError(fsErrorMessage(error))
+    }
+  }
+
+  const handleDeleteFile = async (filePath: string): Promise<void> => {
+    const displayName = fileDisplayName(filePath)
+    const openTab = files.find((file) => file.path && samePath(file.path, filePath))
+    if (openTab && files.length <= 1) {
+      setWorkspaceError('Open another file before deleting the last open tab.')
+      return
+    }
+    try {
+      const confirmed = await window.api.ui.confirm({
+        title: 'Delete File',
+        message: `Delete "${displayName}"?`,
+        detail: openTab?.dirty
+          ? 'The file is permanently removed and the unsaved changes in its open tab will be lost.'
+          : 'The file is permanently removed from your workspace. This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true
+      })
+      if (!confirmed) return
+
+      await window.api.fs.deleteFile(filePath)
+      if (openTab) {
+        const index = files.findIndex((file) => file.name === openTab.name)
+        const remaining = files.filter((file) => file.name !== openTab.name)
+        setFiles(remaining)
+        if (openTab.name === activeFile) {
+          const neighbor = remaining[Math.min(index, remaining.length - 1)]
+          if (neighbor) handleSelectFile(neighbor.name)
+        }
+      }
+      await refreshWorkspace()
+      setWorkspaceError(null)
+      showToast(`Deleted ${displayName}`)
+    } catch (error) {
+      setWorkspaceError(fsErrorMessage(error))
+    }
+  }
+
   const handleCreateFile = async (name: string, language: string): Promise<string | null> => {
     if (newFileDir) {
       // Course folders get a real file immediately, so the Explorer stays
@@ -395,12 +764,6 @@ export default function App(): React.ReactElement {
       run: () => void handleOpenFileDialog()
     },
     {
-      id: 'open-workspace',
-      label: 'Open Workspace…',
-      icon: <FolderOpen size={13} />,
-      run: () => void handleOpenWorkspace()
-    },
-    {
       id: 'refresh-workspace',
       label: 'Refresh Workspace',
       icon: <RefreshCw size={13} />,
@@ -419,6 +782,12 @@ export default function App(): React.ReactElement {
       shortcut: 'Ctrl+Shift+S',
       icon: <SaveAll size={13} />,
       run: () => void saveFileAs()
+    },
+    {
+      id: 'dashboard',
+      label: 'Student Dashboard',
+      icon: <LayoutDashboard size={13} />,
+      run: () => showStudentView('dashboard')
     },
     {
       id: 'sync-now',
@@ -488,16 +857,13 @@ export default function App(): React.ReactElement {
     }
   })
 
-  // Resolve the workspace once: reuse the remembered root when it still
-  // exists, otherwise create/use Documents/Unicode Lab.
+  // Resolve the fixed student workspace (Documents/Unicode Lab) once.
   useEffect(() => {
     let cancelled = false
-    const preferred = localStorage.getItem(WORKSPACE_KEY)
     void window.api.fs
-      .bootstrapWorkspace(preferred)
+      .bootstrapWorkspace()
       .then(async (root) => {
         if (cancelled) return
-        localStorage.setItem(WORKSPACE_KEY, root)
         setWorkspaceRoot(root)
         try {
           const listing = await window.api.fs.listWorkspace(root)
@@ -534,10 +900,10 @@ export default function App(): React.ReactElement {
     }
   }, [workspaceRoot, enrollmentNames])
 
-  // Window-level shortcuts only apply to the student editor (signed in or
-  // local guest mode) — never to the sign-in screen or professor dashboard.
+  // Window-level shortcuts only apply to the student editor — never to the
+  // sign-in screen, student dashboard, or professor dashboard.
   const editorActive =
-    (session !== null || guestMode) && !roleLoading && profileRole !== 'professor'
+    session !== null && !roleLoading && profileRole !== 'professor' && studentView === 'workspace'
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -572,7 +938,7 @@ export default function App(): React.ReactElement {
   }, [editorActive])
 
   const handleSignOut = (): void => {
-    setGuestMode(false)
+    setStudentViewState(null)
     void supabase?.auth.signOut()
   }
 
@@ -580,213 +946,230 @@ export default function App(): React.ReactElement {
     <ThemeProvider>
       <FontProvider>
         {sessionLoading || (session !== null && roleLoading) ? (
-          <SignInScreen loading onGuest={() => undefined} />
-        ) : !session && !guestMode ? (
-          <SignInScreen onGuest={() => setGuestMode(true)} />
-        ) : profileRole === 'professor' && session ? (
+          <SignInScreen loading />
+        ) : !session ? (
+          <SignInScreen />
+        ) : profileRole === 'admin' ? (
+          <AdminConsoleNotice onSignOut={handleSignOut} />
+        ) : profileRole === 'professor' ? (
           <ProfessorDashboard session={session} onSignOut={handleSignOut} />
         ) : (
-          <div className="app-container">
-            {/* Custom title bar / top navigation (draggable frameless region) */}
-            <nav className="top-nav">
-              <div className="nav-logo">
-                <div className="logo-icon"></div>
-                Unicode
-              </div>
-              <MenuBar
-                commandsRef={editorCommandsRef}
-                onNewFile={() => openNewFileDialog()}
-                onOpenFile={() => void handleOpenFileDialog()}
-                onOpenWorkspace={() => void handleOpenWorkspace()}
-                onRefreshWorkspace={() => void refreshWorkspace()}
-                onSave={() => void saveFile()}
-                onSaveAs={() => void saveFileAs()}
-                onSyncNow={() => tracker.flushNow()}
-                onExportFile={handleExportFile}
-                viewOptions={viewOptions}
-                onToggleViewOption={handleToggleViewOption}
-                onShowShortcuts={() => setHelpModal('shortcuts')}
-                onShowAbout={() => setHelpModal('about')}
-                onReportIssue={handleReportIssue}
-              />
-
-              <SearchBar
-                files={files}
-                onSelectFile={handleSelectFile}
-                commands={searchCommands}
-                inputRef={searchInputRef}
-              />
-
-              <div className="nav-right">
-                <div
-                  className="tracking-indicator"
-                  title="Editing and paste activity is being recorded for this lab."
-                >
-                  <span className="status-dot recording"></span>
-                  Tracking active
+          <>
+            <div className="app-container">
+              {/* Custom title bar / top navigation (draggable frameless region) */}
+              <nav className="top-nav">
+                <div className="nav-logo">
+                  <div className="logo-icon"></div>
+                  Unicode
                 </div>
-                {session && profileRole !== 'professor' && (
-                  <button
-                    className="nav-icon-btn"
-                    onClick={() => setFeedbackOpen(true)}
-                    title="Feedback from your professor"
-                  >
-                    <MessageSquare size={14} />
-                  </button>
-                )}
-                {session ? (
-                  <>
-                    <span className="nav-user">{session.user.email}</span>
-                    <button className="nav-icon-btn" onClick={handleSignOut} title="Sign out">
-                      <LogOut size={14} />
-                    </button>
-                  </>
-                ) : (
-                  <button className="nav-signin" onClick={() => setAuthOpen(true)}>
-                    <LogIn size={12} /> Sign in
-                  </button>
-                )}
-                <AppearancePanel />
-              </div>
-              {/* Direct child of the bar (outside .nav-right) so the controls sit
-              flush against the window's right edge and the close button's
-              red hover fills the top-right corner like a native title bar. */}
-              <TitleBarControls />
-            </nav>
-
-            <div className="main-layout">
-              {/* Activity Bar */}
-              <div className="activity-bar">
-                <div className="activity-icon active" title="Explorer">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                <div className="activity-icon" title="Search">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                </div>
-                <div className="activity-icon" title="Source Control">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="18" cy="18" r="3" />
-                    <circle cx="6" cy="6" r="3" />
-                    <path d="M6 21V9a9 9 0 0 0 9 9" />
-                  </svg>
-                </div>
-                <div className="activity-icon" title="Extensions">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Sidebar: real workspace tree */}
-              <WorkspacePanel
-                root={workspaceRoot}
-                listing={workspace}
-                error={workspaceError}
-                activeFile={activeFile}
-                onOpenFile={(filePath) => void openFileFromDisk(filePath)}
-                onNewFileInCourse={(coursePath) => openNewFileDialog(coursePath)}
-                onOpenWorkspace={() => void handleOpenWorkspace()}
-                onRefresh={() => void refreshWorkspace()}
-                signedIn={session !== null}
-                coursesLoading={enrolled.loading}
-              />
-
-              {/* Editor & Terminal */}
-              <main className="editor-area">
-                <EditorPane
-                  files={files}
-                  activeFile={activeFile}
-                  onSelectFile={handleSelectFile}
-                  onCursorChange={setCursor}
-                  tracker={tracker}
+                <MenuBar
                   commandsRef={editorCommandsRef}
+                  onNewFile={() => openNewFileDialog()}
+                  onOpenFile={() => void handleOpenFileDialog()}
+                  onRefreshWorkspace={() => void refreshWorkspace()}
+                  onSave={() => void saveFile()}
+                  onSaveAs={() => void saveFileAs()}
+                  onSyncNow={() => tracker.flushNow()}
+                  onExportFile={handleExportFile}
                   viewOptions={viewOptions}
-                  onToggleWordWrap={() => handleToggleViewOption('wordWrap')}
-                  onCloseFile={(name) => void handleCloseFile(name)}
+                  onToggleViewOption={handleToggleViewOption}
+                  onShowShortcuts={() => setHelpModal('shortcuts')}
+                  onShowAbout={() => setHelpModal('about')}
+                  onReportIssue={handleReportIssue}
                 />
 
-                <div className="glass-panel terminal-window">
-                  <div className="terminal-header">
-                    <span>Terminal</span>
-                    <span>Type and press Enter</span>
+                <SearchBar
+                  files={files}
+                  onSelectFile={handleSelectFile}
+                  commands={searchCommands}
+                  inputRef={searchInputRef}
+                />
+
+                <div className="nav-right">
+                  {session && (
+                    <button
+                      className="nav-dashboard-btn"
+                      onClick={() => showStudentView('dashboard')}
+                      title="Back to your classes dashboard"
+                    >
+                      <LayoutDashboard size={13} />
+                      Dashboard
+                    </button>
+                  )}
+                  <div
+                    className="tracking-indicator"
+                    title="Editing and paste activity is being recorded for this lab."
+                  >
+                    <span className="status-dot recording"></span>
+                    Tracking active
                   </div>
-                  <div className="terminal-content">
-                    $ Welcome to Unicode terminal mock
-                    <br />
-                    <br />
-                    <span className="term-user">user@unicode</span>:
-                    <span className="term-path">~</span>${' '}
-                    <span className="term-hint">run command...</span>
-                  </div>
+                  {session && (
+                    <button
+                      className="nav-icon-btn"
+                      onClick={openStudentFeedback}
+                      title="Feedback from your professor"
+                    >
+                      <MessageSquare size={14} />
+                    </button>
+                  )}
+                  {session && (
+                    <>
+                      <span className="nav-user">{session.user.email}</span>
+                      <button className="nav-icon-btn" onClick={handleSignOut} title="Sign out">
+                        <LogOut size={14} />
+                      </button>
+                    </>
+                  )}
+                  <AppearancePanel />
                 </div>
-              </main>
+                {/* Direct child of the bar (outside .nav-right) so the controls sit
+              flush against the window's right edge and the close button's
+              red hover fills the top-right corner like a native title bar. */}
+                <TitleBarControls />
+              </nav>
+
+              <div className="main-layout">
+                {/* Sidebar: real workspace tree */}
+                <WorkspacePanel
+                  width={sidebarWidth}
+                  collapsed={sidebarCollapsed}
+                  onToggleCollapsed={toggleSidebar}
+                  focusCourse={focusedCourse}
+                  root={workspaceRoot}
+                  listing={workspace}
+                  error={workspaceError}
+                  activeFile={activeFile}
+                  onOpenFile={(filePath) => void openFileFromDisk(filePath)}
+                  onNewFileInCourse={(coursePath) => openNewFileDialog(coursePath)}
+                  onRenameFile={handleRenameFile}
+                  onDeleteFile={handleDeleteFile}
+                  onRefresh={() => void refreshWorkspace()}
+                  signedIn={session !== null}
+                  coursesLoading={enrolled.loading}
+                  outline={activeLanguage === 'python' ? activeAnalysis : null}
+                  onRevealSymbol={(line, column) => editorCommandsRef.current?.reveal(line, column)}
+                />
+
+                {!sidebarCollapsed && (
+                  <div
+                    className="sidebar-resizer"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize workspace sidebar"
+                    onPointerDown={startSidebarResize}
+                  />
+                )}
+
+                {/* Editor & Terminal */}
+                <main className="editor-area">
+                  {toolchain.status?.required && !toolchain.status.available && (
+                    <div className="toolchain-banner" role="status">
+                      <AlertTriangle size={14} />
+                      <div className="toolchain-banner-copy">
+                        <strong>{toolchain.status.label} not found</strong>
+                        <span>
+                          Missing {toolchain.status.missing.join(', ')}. {toolchain.status.hint} You
+                          can still edit this file and run tests through Judge0.
+                        </span>
+                      </div>
+                      <button className="icon-text-btn" onClick={toolchain.recheck}>
+                        Recheck
+                      </button>
+                    </div>
+                  )}
+                  <EditorPane
+                    files={files}
+                    activeFile={activeFile}
+                    onSelectFile={handleSelectFile}
+                    onCursorChange={setCursor}
+                    tracker={tracker}
+                    commandsRef={editorCommandsRef}
+                    viewOptions={viewOptions}
+                    onToggleWordWrap={() => handleToggleViewOption('wordWrap')}
+                    onCloseFile={(name) => void handleCloseFile(name)}
+                    onAnalysisChange={setActiveAnalysis}
+                  />
+
+                  <BottomPanel
+                    workspaceRoot={workspaceRoot}
+                    activeFile={activeFile}
+                    filePath={files.find((file) => file.name === activeFile)?.path ?? null}
+                    language={activeLanguage}
+                    toolchain={toolchain.status}
+                    onRecheckToolchain={toolchain.recheck}
+                    readSource={() => tracker.getModelValue(activeFile)}
+                    assignment={activeAssignment}
+                    onSubmit={async () => {
+                      if (!activeAssignment) return
+                      await handleSubmitAssignment(activeAssignment)
+                    }}
+                    onSubmitted={() => studentAssignments.reload()}
+                  />
+                </main>
+              </div>
+
+              <StatusBar
+                fileName={activeFile}
+                language={activeLanguage}
+                cursor={cursor}
+                snapshotCount={activeFileSnapshots.length}
+                pasteCount={activeFilePastes.length}
+                syncStatus={tracker.syncStatus}
+                pythonErrors={
+                  activeLanguage === 'python' ? (activeAnalysis?.diagnostics.length ?? null) : null
+                }
+                toolchain={toolchain.status}
+              />
+
+              {newFileOpen && (
+                <NewFileModal
+                  existingNames={fileNames}
+                  folderLabel={newFileDir ? fileDisplayName(newFileDir) : undefined}
+                  onClose={() => {
+                    setNewFileOpen(false)
+                    setNewFileDir(null)
+                  }}
+                  onCreate={handleCreateFile}
+                />
+              )}
+
+              <HelpModal mode={helpModal} onClose={() => setHelpModal(null)} />
+
+              <StudentFeedbackModal
+                open={feedbackOpen}
+                studentId={session?.user.id ?? null}
+                onClose={() => setFeedbackOpen(false)}
+              />
             </div>
 
-            <StatusBar
-              fileName={activeFile}
-              language={activeLanguage}
-              cursor={cursor}
-              snapshotCount={activeFileSnapshots.length}
-              pasteCount={activeFilePastes.length}
-              syncStatus={tracker.syncStatus}
-            />
-
-            <AuthPanel open={authOpen} onClose={() => setAuthOpen(false)} />
-
-            {newFileOpen && (
-              <NewFileModal
-                existingNames={fileNames}
-                folderLabel={newFileDir ? fileDisplayName(newFileDir) : undefined}
-                onClose={() => {
-                  setNewFileOpen(false)
-                  setNewFileDir(null)
-                }}
-                onCreate={handleCreateFile}
+            {session && (
+              <StudentDashboard
+                active={studentView === 'dashboard'}
+                session={session}
+                courses={enrolled.courses}
+                coursesLoading={enrolled.loading}
+                assignments={studentAssignments.assignments}
+                loading={studentAssignments.loading}
+                error={studentAssignments.error}
+                reload={studentAssignments.reload}
+                onOpenClassFiles={openClassFiles}
+                onOpenAssignment={handleOpenAssignmentFile}
+                onSubmitAssignment={handleSubmitAssignment}
+                onJoinedClass={handleJoinedClass}
+                onOpenWorkspace={() => showStudentView('workspace')}
+                onOpenFeedback={openStudentFeedback}
+                onProfessorInviteRedeemed={reloadProfileRole}
+                onSignOut={handleSignOut}
               />
             )}
 
-            <HelpModal mode={helpModal} onClose={() => setHelpModal(null)} />
-
-            <StudentFeedbackModal
-              open={feedbackOpen}
-              studentId={session?.user.id ?? null}
-              onClose={() => setFeedbackOpen(false)}
-            />
-          </div>
+            {toast && (
+              <div className="app-toast" role="status" aria-live="polite">
+                <CheckCircle2 size={14} />
+                {toast}
+              </div>
+            )}
+          </>
         )}
       </FontProvider>
     </ThemeProvider>
