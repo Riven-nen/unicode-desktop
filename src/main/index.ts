@@ -2,8 +2,10 @@ import { app, shell, BrowserWindow, clipboard, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { registerDiagnosticsHandlers } from './diagnostics'
 import { registerFsHandlers } from './fs'
 import { registerJudge0Handlers } from './judge0'
+import { registerPythonLspHandlers, stopPythonLsp } from './pythonLsp'
 import { registerTerminalHandlers, stopAllTerminals } from './terminal'
 import { registerToolchainHandlers } from './toolchains'
 
@@ -95,6 +97,12 @@ app.whenReady().then(() => {
   // Compiler/runtime discovery for the file-open check.
   registerToolchainHandlers()
 
+  // Local compiler diagnostics for Java and C/C++ files.
+  registerDiagnosticsHandlers()
+
+  // Bundled Pyright language server (completion, hover, definitions, diagnostics).
+  registerPythonLspHandlers()
+
   // Custom title-bar window controls.
   ipcMain.on('window:minimize', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize()
@@ -132,6 +140,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopAllTerminals()
+  stopPythonLsp()
 })
 
 // In this file you can include the rest of your app's specific main process

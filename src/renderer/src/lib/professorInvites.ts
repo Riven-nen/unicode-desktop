@@ -5,6 +5,25 @@ function client(): NonNullable<typeof supabase> {
   return supabase
 }
 
+/**
+ * The registration form redeems immediately when Supabase returns a session.
+ * This module lock prevents the post-confirmation fallback in App from racing
+ * the same code while that request is in flight.
+ */
+let claimInProgress = false
+
+export function beginProfessorInviteClaim(): void {
+  claimInProgress = true
+}
+
+export function endProfessorInviteClaim(): void {
+  claimInProgress = false
+}
+
+export function professorInviteClaimInProgress(): boolean {
+  return claimInProgress
+}
+
 /** Promotes the signed-in student through an admin-issued invite code. */
 export async function redeemProfessorInvite(code: string): Promise<void> {
   const { error } = await client().rpc('redeem_professor_invite', {

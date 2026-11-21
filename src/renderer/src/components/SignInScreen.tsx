@@ -1,4 +1,10 @@
 import { useState } from 'react'
+import { emailConfirmationRequired } from '../lib/authMode'
+import {
+  beginProfessorInviteClaim,
+  endProfessorInviteClaim,
+  redeemProfessorInvite
+} from '../lib/professorInvites'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import AppearancePanel from './AppearancePanel'
 import TitleBarControls from './TitleBarControls'
@@ -6,6 +12,8 @@ import TitleBarControls from './TitleBarControls'
 interface SignInScreenProps {
   /** Shown while the persisted session is being restored. */
   loading?: boolean
+  /** Re-reads the role after an invite is redeemed during registration. */
+  onProfessorInviteRedeemed?: () => void
 }
 
 type AuthMode = 'signin' | 'signup' | 'reset'
@@ -38,10 +46,14 @@ function parseRecoveryInput(raw: string): RecoveryInput {
   }
 }
 
-export default function SignInScreen({ loading = false }: SignInScreenProps): React.ReactElement {
+export default function SignInScreen({
+  loading = false,
+  onProfessorInviteRedeemed
+}: SignInScreenProps): React.ReactElement {
   const [mode, setMode] = useState<AuthMode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -56,6 +68,7 @@ export default function SignInScreen({ loading = false }: SignInScreenProps): Re
     setResetCode('')
     setNewPassword('')
     setConfirmPassword('')
+    setInviteCode('')
     if (nextMode !== 'signin') setPassword('')
   }
 
@@ -73,19 +86,70 @@ export default function SignInScreen({ loading = false }: SignInScreenProps): Re
         if (authError) throw authError
         // The session listener in App routes to the editor/dashboard.
       } else {
+        const normalizedInvite = inviteCode.trim().toUpperCase()
+        if (normalizedInvite) beginProfessorInviteClaim()
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { display_name: email.split('@')[0] } }
+          options: {
+            data: {
+              display_name: email.split('@')[0],
+              ...(normalizedInvite ? { professor_invite_code: normalizedInvite } : {})
+            }
+          }
         })
         if (authError) throw authError
-        if (!data.session) {
-          setInfo('Account created. Check your email to confirm, then sign in.')
+
+        if (emailConfirmationRequired && data.session) {
+          // Fail safely if the production project has confirmation disabled.
+          await supabase.auth.signOut()
+          setError(
+            'Production requires email confirmation, but the Supabase project returned a session. Enable Confirm email in Supabase Auth settings.'
+          )
+          return
+        }
+
+        if (data.session) {
+          if (normalizedInvite) {
+            try {
+              await redeemProfessorInvite(normalizedInvite)
+              // Prevent the post-confirmation fallback from redeeming twice.
+              await supabase.auth
+                .updateUser({ data: { professor_invite_code: null } })
+                .catch(() => undefined)
+              setInfo('Account created. Professor access unlocked.')
+              onProfessorInviteRedeemed?.()
+            } catch (inviteError) {
+              await supabase.auth
+                .updateUser({ data: { professor_invite_code: null } })
+                .catch(() => undefined)
+              await supabase.auth.signOut()
+              setError(
+                inviteError instanceof Error
+                  ? inviteError.message
+                  : 'Could not redeem that professor invite.'
+              )
+              return
+            }
+          } else {
+            setInfo('Account created. You are signed in.')
+          }
+        } else if (emailConfirmationRequired) {
+          setInfo(
+            normalizedInvite
+              ? 'Account created. Check your email to confirm, then sign in. Your professor invite will be applied after sign-in.'
+              : 'Account created. Check your email to confirm, then sign in.'
+          )
+        } else {
+          setInfo(
+            'Account created. This development project still requires email confirmation. Check your email, or disable Confirm email in the dev Supabase project.'
+          )
         }
       }
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'Authentication failed')
     } finally {
+      endProfessorInviteClaim()
       setBusy(false)
     }
   }
@@ -278,6 +342,18 @@ export default function SignInScreen({ loading = false }: SignInScreenProps): Re
                     />
                   )}
 
+                  {mode === 'signup' && (
+                    <input
+                      type="text"
+                      placeholder="Professor invite code (optional)"
+                      value={inviteCode}
+                      maxLength={32}
+                      autoComplete="off"
+                      spellCheck={false}
+                      onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                    />
+                  )}
+
                   {mode === 'signin' && (
                     <button type="button" className="auth-link" onClick={() => switchMode('reset')}>
                       Forgot password?
@@ -337,8 +413,7 @@ export default function SignInScreen({ loading = false }: SignInScreenProps): Re
                 Your workspace and class folders appear after you sign in.
               </p>
               <p className="signin-note">
-                Have a professor invite? Create or sign in to your account, then redeem the code
-                from your dashboard.
+                Have a professor invite? Enter the code in the Create account form.
               </p>
             </>
           )}

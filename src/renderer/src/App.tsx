@@ -19,6 +19,7 @@ import {
   WrapText
 } from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
+import ConfirmDialog from './components/ConfirmDialog'
 import EditorPane from './components/EditorPane'
 import MenuBar from './components/MenuBar'
 import HelpModal from './components/HelpModal'
@@ -43,6 +44,7 @@ import { useProfileRole } from './hooks/useProfileRole'
 import { useSupabaseSession } from './hooks/useSupabaseSession'
 import { useStudentAssignments } from './hooks/useStudentAssignments'
 import { useStudentPresence } from './hooks/useStudentPresence'
+import { professorInviteClaimInProgress, redeemProfessorInvite } from './lib/professorInvites'
 import { supabase } from './lib/supabase'
 import { languageFromName } from './lib/languages'
 import { fileNameForAssignment } from './lib/assignments'
@@ -56,7 +58,7 @@ import {
 import { submitAssignment } from './lib/studentAssignments'
 import { defaultSavePath, fileDisplayName, workspaceNameFor } from './lib/workspace'
 import type { EditorCommands, EditorViewOptions } from './components/EditorPane'
-import type { PythonAnalysis } from './lib/pythonAnalysis'
+import type { CodeAnalysis } from './lib/codeAnalysis'
 import type { LabFile } from './types/tracker'
 import type { StudentAssignment } from './types/student'
 import type { AssignmentFileResult, WorkspaceListing } from '../../shared/workspace'
@@ -132,6 +134,41 @@ export default function App(): React.ReactElement {
     loading: roleLoading,
     reload: reloadProfileRole
   } = useProfileRole(session)
+  const attemptedInviteRef = useRef<string | null>(null)
+
+  // A production sign-up may need email confirmation before the invite can be
+  // redeemed. The registration form stores the code in user metadata; claim it
+  // once the confirmed user signs in.
+  useEffect(() => {
+    const pendingInvite = session?.user.user_metadata?.professor_invite_code
+    if (
+      !session ||
+      profileRole !== 'student' ||
+      typeof pendingInvite !== 'string' ||
+      !pendingInvite.trim() ||
+      professorInviteClaimInProgress() ||
+      attemptedInviteRef.current === pendingInvite
+    ) {
+      return
+    }
+
+    attemptedInviteRef.current = pendingInvite
+    let cancelled = false
+    void redeemProfessorInvite(pendingInvite)
+      .then(async () => {
+        if (cancelled) return
+        await supabase?.auth
+          .updateUser({ data: { professor_invite_code: null } })
+          .catch(() => undefined)
+        reloadProfileRole()
+      })
+      .catch((error) => {
+        console.warn('[invite] deferred redemption failed:', error)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session, profileRole, reloadProfileRole])
 
   // The open tabs. Files opened from the workspace carry their absolute
   // path; New File… tabs are untitled until the first save.
@@ -186,6 +223,8 @@ export default function App(): React.ReactElement {
   }, [tracker.pastesByFile])
 
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [submitConfirmation, setSubmitConfirmation] = useState<StudentAssignment | null>(null)
+  const submitConfirmationResolver = useRef<((confirmed: boolean) => void) | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [studentViewState, setStudentViewState] = useState<StudentViewState | null>(null)
@@ -196,6 +235,24 @@ export default function App(): React.ReactElement {
     setToast(message)
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 4000)
+  }, [])
+
+  const requestSubmitConfirmation = useCallback(
+    (assignment: StudentAssignment): Promise<boolean> => {
+      if (submitConfirmationResolver.current) return Promise.resolve(false)
+      return new Promise<boolean>((resolve) => {
+        submitConfirmationResolver.current = resolve
+        setSubmitConfirmation(assignment)
+      })
+    },
+    []
+  )
+
+  const finishSubmitConfirmation = useCallback((confirmed: boolean): void => {
+    const resolve = submitConfirmationResolver.current
+    submitConfirmationResolver.current = null
+    setSubmitConfirmation(null)
+    resolve?.(confirmed)
   }, [])
 
   useEffect(() => {
@@ -232,7 +289,7 @@ export default function App(): React.ReactElement {
   const [newFileDir, setNewFileDir] = useState<string | null>(null)
   const [helpModal, setHelpModal] = useState<'shortcuts' | 'about' | null>(null)
   const [cursor, setCursor] = useState<{ lineNumber: number; column: number } | null>(null)
-  const [activeAnalysis, setActiveAnalysis] = useState<PythonAnalysis | null>(null)
+  const [activeAnalysis, setActiveAnalysis] = useState<CodeAnalysis | null>(null)
 
   // Editor commands for the menu bar, populated when the editor mounts.
   const editorCommandsRef = useRef<EditorCommands | null>(null)
@@ -412,12 +469,7 @@ export default function App(): React.ReactElement {
 
   const handleSubmitAssignment = async (assignment: StudentAssignment): Promise<void> => {
     if (!session) throw new Error('Sign in to submit an assignment.')
-    const confirmed = await window.api.ui.confirm({
-      title: 'Submit Assignment',
-      message: `Submit "${assignment.title}"?`,
-      detail: `Your saved file content and snapshot history for ${assignment.classCode} will be sent to your professor.`,
-      confirmLabel: 'Submit'
-    })
+    const confirmed = await requestSubmitConfirmation(assignment)
     if (!confirmed) return
     const file = await prepareAssignmentFile(assignment)
     const openTab = files.find((item) => item.path && samePath(item.path, file.path))
@@ -946,9 +998,9 @@ export default function App(): React.ReactElement {
     <ThemeProvider>
       <FontProvider>
         {sessionLoading || (session !== null && roleLoading) ? (
-          <SignInScreen loading />
+          <SignInScreen loading onProfessorInviteRedeemed={reloadProfileRole} />
         ) : !session ? (
-          <SignInScreen />
+          <SignInScreen onProfessorInviteRedeemed={reloadProfileRole} />
         ) : profileRole === 'admin' ? (
           <AdminConsoleNotice onSignOut={handleSignOut} />
         ) : profileRole === 'professor' ? (
@@ -1046,7 +1098,7 @@ export default function App(): React.ReactElement {
                   onRefresh={() => void refreshWorkspace()}
                   signedIn={session !== null}
                   coursesLoading={enrolled.loading}
-                  outline={activeLanguage === 'python' ? activeAnalysis : null}
+                  outline={activeAnalysis}
                   onRevealSymbol={(line, column) => editorCommandsRef.current?.reveal(line, column)}
                 />
 
@@ -1115,9 +1167,7 @@ export default function App(): React.ReactElement {
                 snapshotCount={activeFileSnapshots.length}
                 pasteCount={activeFilePastes.length}
                 syncStatus={tracker.syncStatus}
-                pythonErrors={
-                  activeLanguage === 'python' ? (activeAnalysis?.diagnostics.length ?? null) : null
-                }
+                analysisErrors={activeAnalysis?.diagnostics.length ?? null}
                 toolchain={toolchain.status}
               />
 
@@ -1158,8 +1208,18 @@ export default function App(): React.ReactElement {
                 onJoinedClass={handleJoinedClass}
                 onOpenWorkspace={() => showStudentView('workspace')}
                 onOpenFeedback={openStudentFeedback}
-                onProfessorInviteRedeemed={reloadProfileRole}
                 onSignOut={handleSignOut}
+              />
+            )}
+
+            {submitConfirmation && (
+              <ConfirmDialog
+                title="Submit Assignment"
+                message={`Submit "${submitConfirmation.title}"?`}
+                detail={`Your saved file content and snapshot history for ${submitConfirmation.classCode} will be sent to your professor.`}
+                confirmLabel="Submit"
+                onConfirm={() => finishSubmitConfirmation(true)}
+                onCancel={() => finishSubmitConfirmation(false)}
               />
             )}
 

@@ -46,17 +46,17 @@ Expected accounts:
 
 | Role | Email | Password |
 |---|---|---|
-| Professor | `professor@unicode.test` | `Password123!` |
+| Professor | `professor@unicode.test`, `professor2@unicode.test`, `professor3@unicode.test` | `Password123!` |
 | Admin | `admin@unicode.test` | `Password123!` |
-| Student 1 | `student1@unicode.test` | `Password123!` |
-| Student 2 | `student2@unicode.test` | `Password123!` |
-| Student 3 | `student3@unicode.test` | `Password123!` |
+| Students | `student1@unicode.test` … `student10@unicode.test` | `Password123!` |
 
 Expected demo state:
 
-- [ ] CS101 has 3 students and 3 assignments.
-- [ ] CS102 has 2 students and 2 assignments; one is scheduled +3 days.
-- [ ] Join codes are `CS101J4K` and `CS102P8Q`.
+- [ ] CS101 has 6 students and 3 Python assignments.
+- [ ] CS102 has 3 students and 2 Python assignments; one is scheduled +3 days.
+- [ ] CS201 belongs to Professor Lin and has a Java assignment.
+- [ ] CS301 belongs to Professor Ortega and has a C++ assignment.
+- [ ] Join codes are `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z`.
 - [ ] Student1 has a released Fibonacci grade of 92.
 - [ ] Student2 has a private Fibonacci grade of 78.
 - [ ] Student3 is ungraded and flagged.
@@ -80,7 +80,7 @@ Expected:
 - [ ] Typecheck passes.
 - [ ] Lint passes with no errors.
 - [ ] **59/59** Vitest tests pass.
-- [ ] **40/40** RLS checks pass.
+- [ ] **41/41** RLS checks pass.
 - [ ] Admin build passes.
 
 ---
@@ -106,7 +106,9 @@ Expected:
 - [ ] **P0** Professor sign-in lands on the professor dashboard.
 - [ ] **P0** Admin signing into the desktop sees “Use the admin console”.
 - [ ] **P0** Wrong password shows a readable error.
-- [ ] **P1** Sign-up creates an account/profile.
+- [ ] **P1** Dev sign-up creates an account and enters the app immediately when the dev project has **Confirm email OFF**.
+- [ ] **P1** Production sign-up returns no session and shows the email-confirmation message when **Confirm email ON**.
+- [ ] **P1** Production mode signs out and shows a readable configuration error if the project returns a session during sign-up.
 - [ ] **P1** Session survives app restart.
 - [ ] **P1** Sign-out clears the session and returns to sign-in.
 - [ ] **P1** No guest/editor access remains after sign-out.
@@ -115,13 +117,15 @@ Expected:
 - [ ] **P1** Reset rejects mismatched/short passwords.
 - [ ] **P1** Re-sign-in works after reset.
 - [ ] **P2** `.test` addresses are understood not to receive real mail.
+- [ ] **P2** Supabase’s built-in email rate limit is understood; use seed accounts for immediate QA, or configure SMTP.
 
 ### Professor invites
 
 - [ ] **P0** Admin creates an invite with a note, lifespan, and max uses.
 - [ ] **P0** Generated code has `PROF-XXXX-XXXX` shape.
-- [ ] **P0** Student redeems a valid code from the dashboard.
+- [ ] **P0** Student enters a valid code on the Create account form.
 - [ ] **P0** Account role changes to professor and the app re-routes.
+- [ ] **P1** The dashboard no longer shows a professor invite button.
 - [ ] **P1** Lowercase code is accepted.
 - [ ] **P1** Invalid, expired, revoked, and used-up codes show readable errors.
 - [ ] **P1** Admin can revoke a code; revocation blocks redemption.
@@ -144,7 +148,8 @@ Expected:
 - [ ] **P1** Join class accepts `CS102P8Q` for an eligible student.
 - [ ] **P1** Joining creates enrollment and class folder.
 - [ ] **P1** Invalid/archived/lowercase-with-spaces code errors are readable.
-- [ ] **P1** Joining twice does not duplicate enrollment.
+- [ ] **P1** Joining an already-joined class says “You are already enrolled in…”
+      and does not duplicate enrollment.
 - [ ] **P1** “N new assignments” chip clears after opening the class.
 - [ ] **P1** “N new grades” chip clears after opening Details.
 - [ ] **P1** New grade chip appears after a professor release.
@@ -196,7 +201,7 @@ Expected:
 
 ---
 
-## 7. Editor and Python intelligence
+## 7. Editor and language intelligence
 
 - [ ] **P0** Monaco opens with syntax highlighting for Python/Java/C/C++.
 - [ ] **P0** Tabs open/close and dirty dots appear.
@@ -207,11 +212,34 @@ Expected:
 - [ ] **P1** Themes apply and persist.
 - [ ] **P1** Fonts/size/ligatures apply and persist.
 - [ ] **P1** Word wrap/minimap/line numbers toggles work.
-- [ ] **P1** Python syntax errors show red squiggles and status count.
-- [ ] **P1** Outline lists functions/classes/names and jumps on click.
-- [ ] **P1** Completion shows local symbols/keywords/builtins.
-- [ ] **P1** Hover shows local definition details.
-- [ ] **P2** Python parser limitation (no full type inference) is understood.
+- [ ] **P1** Python syntax errors and undefined names show red squiggles and the
+      status count.
+- [ ] **P1** Typing an error into a disk-loaded `.py` file updates diagnostics
+      without reopening the file.
+- [ ] **P1** Python type errors appear after a short pause: a wrong assignment,
+      a wrong argument type, and an undefined name are each reported.
+- [ ] **P1** Python completion is type-aware: after `name = "hi"`, typing
+      `name.` offers `upper`, `capitalize`, and other string methods.
+- [ ] **P1** Python hover shows the inferred type, and F12 jumps to a local
+      definition.
+- [ ] **P2** If the Pyright language server cannot start, Python falls back to
+      local completion/hover plus the Pyright CLI checker.
+- [ ] **P1** Outline lists Python functions/classes/names and jumps on click.
+- [ ] **P1** Java syntax errors show squiggles and an outline of classes/methods.
+- [ ] **P1** With a JDK installed, a Java semantic error (undefined variable)
+      appears after a short pause and the status bar reads `N Java errors`.
+- [ ] **P1** Without a JDK, the status bar says `Java syntax OK` and the
+      toolchain chip reports the missing JDK.
+- [ ] **P1** C/C++ syntax errors show squiggles and a function/class outline.
+- [ ] **P1** With `g++` installed, C++ semantic errors appear after a short
+      pause; without it, the status bar labels the check as syntax-only.
+- [ ] **P1** Completion shows Python local symbols/keywords/builtins.
+- [ ] **P1** Hover shows Python local definition details.
+- [ ] **P2** Python language-server limitation is understood: Pyright supplies
+      Python intelligence, but Java/C++ still use compiler diagnostics rather
+      than clangd/JDT language servers.
+- [ ] **P2** Java/C++ limitation (compile diagnostics, not a language server) is
+      understood.
 
 ---
 
@@ -266,6 +294,10 @@ Expected:
 - [ ] **P0** Band thresholds: pass ≥80, review ≥60, flag below 60.
 - [ ] **P0** Cadence click opens typing-rhythm heatmap.
 - [ ] **P0** Heatmap shows points and median/longest-pause stats.
+- [ ] **P1** A normally typed submission gets a nonzero Cadence/Focus score after recompute.
+- [ ] **P1** Overnight/long idle gaps do not force Cadence or Focus to zero.
+- [ ] **P1** Timeline scrolls horizontally when snapshots exceed the card width;
+      every snapshot is reachable and the selected dot stays visible.
 - [ ] **P1** Heatmap empty state is readable for old/no-interval data.
 - [ ] **P1** Student ICS demo opens from dashboard.
 - [ ] **P1** Demo editor uses Monaco Python highlighting.
@@ -300,7 +332,7 @@ Expected:
 
 ---
 
-## 12. Submission review, diff, replay, heatmap, paste similarity
+## 12. Submission review, diff, timeline, heatmap, paste similarity
 
 - [ ] **P0** Submissions table loads with grade/ICS/band/pastes/comments.
 - [ ] **P0** Sort by ICS/time works.
@@ -308,12 +340,11 @@ Expected:
 - [ ] **P0** Submission CSV export downloads.
 - [ ] **P0** Submission detail opens.
 - [ ] **P0** Snapshot timeline selects snapshots.
+- [ ] **P0** Timeline scrolls horizontally when needed and keeps the selected dot visible.
 - [ ] **P0** Diff toggle compares selected snapshot to previous.
 - [ ] **P0** Diff shows green additions and red deletions.
 - [ ] **P0** Diff disabled on first snapshot.
-- [ ] **P0** Replay starts at first snapshot and advances the timeline.
-- [ ] **P0** Replay shows progress and progressive code.
-- [ ] **P0** Stop restores normal review.
+- [ ] **P0** No Replay control is present.
 - [ ] **P0** Cadence heatmap opens with points.
 - [ ] **P0** Paste detected badge appears for student3.
 - [ ] **P0** Paste panel shows matched student and similarity.
@@ -406,7 +437,7 @@ Expected:
 
 ## 17. Security and data isolation
 
-- [ ] **P0** `npm run test:rls` passes 40/40.
+- [ ] **P0** `npm run test:rls` passes 41/41.
 - [ ] **P0** Student sees only their own submissions/snapshots.
 - [ ] **P0** Student never receives hidden test cases.
 - [ ] **P0** Student cannot start a top-level comment on another student.
@@ -435,7 +466,7 @@ Expected:
 - [ ] **P1** Keyboard navigation reaches primary actions.
 - [ ] **P1** Escape closes modals.
 - [ ] **P1** Focus returns to a sensible element after modal close.
-- [ ] **P1** Diff/Replay/heatmap buttons have titles/accessible labels.
+- [ ] **P1** Diff/heatmap controls and timeline stops have accessible labels.
 - [ ] **P1** Error boundary catches renderer crashes and offers Reload.
 - [ ] **P1** File/Supabase errors show readable messages.
 - [ ] **P1** Toasts appear for submit/rename/delete/queued actions.
@@ -452,7 +483,7 @@ Expected:
 - [ ] **P0** Installer hash recorded in `dist/SHA256SUMS.txt`.
 - [ ] **P0** README/QA/CHANGELOG describe the current build.
 - [ ] **P0** Packaged app signs in and opens workspace files.
-- [ ] **P0** Packaged app shows Diff/Replay/Cadence/Paste/Live Lab controls.
+- [ ] **P0** Packaged app shows Diff/Cadence/Paste/Live Lab controls and the timeline.
 - [ ] **P1** Admin `dist/` builds from a clean install.
 - [ ] **P1** CI workflow runs lint/typecheck/tests/build.
 - [ ] **P2** Unsigned-build warning is included in release notes.
@@ -471,11 +502,10 @@ Expected:
 2. Show class cards and new-submission/reply badges.
 3. Open CS101 → Fibonacci.
 4. Open student3’s submission:
-   - show snapshot timeline;
+   - show the scrollable snapshot timeline;
    - toggle **Diff**;
    - click **Cadence** and show typing rhythm;
    - show **Paste detected** and 100% student2 match;
-   - play **Replay**;
    - show grade box is private and release a grade.
 5. Open **Live Lab** with a student signed in on another window.
 6. Sign in as a student:
@@ -487,5 +517,5 @@ Expected:
    - show user/role management;
    - generate a professor invite with lifespan/uses;
    - copy/revoke it.
-8. Sign in as a student and redeem the invite; show professor routing.
-9. Run `npm run test:rls` and mention 40/40.
+8. Create a new account with the invite code; show professor routing.
+9. Run `npm run test:rls` and mention 41/41.

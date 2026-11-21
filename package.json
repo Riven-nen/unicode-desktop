@@ -26,10 +26,13 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "@lezer/cpp": "^1.1.6",
+    "@lezer/java": "^1.2.0",
     "@lezer/python": "^1.1.19",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.119.0",
-    "lucide-react": "^1.66.0"
+    "lucide-react": "^1.66.0",
+    "pyright": "^1.1.414"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.1",

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import type { WorkspaceListing } from '../../../shared/workspace'
 import { fileDisplayName } from '../lib/workspace'
-import type { PythonAnalysis } from '../lib/pythonAnalysis'
+import type { CodeAnalysis } from '../lib/codeAnalysis'
 
 interface WorkspacePanelProps {
   /** Expanded sidebar width in pixels (draggable splitter in App). */
@@ -38,8 +38,8 @@ interface WorkspacePanelProps {
   /** Drives the empty state: signed-out vs. no enrolled classes yet. */
   signedIn: boolean
   coursesLoading: boolean
-  /** Python symbols/diagnostics for the active file, or null for other files. */
-  outline: PythonAnalysis | null
+  /** Symbols/diagnostics for the active file, or null for unsupported files. */
+  outline: CodeAnalysis | null
   onRevealSymbol: (line: number, column: number) => void
 }
 
@@ -295,13 +295,13 @@ export default function WorkspacePanel({
               {outline.diagnostics.length > 0 ? (
                 <button
                   className="outline-status is-error"
-                  title="Reveal the first syntax error"
+                  title="Reveal the first issue"
                   onClick={() =>
                     onRevealSymbol(outline.diagnostics[0].line, outline.diagnostics[0].column)
                   }
                 >
-                  {outline.diagnostics.length} syntax{' '}
-                  {outline.diagnostics.length === 1 ? 'error' : 'errors'}
+                  {outline.diagnostics.length}{' '}
+                  {outline.diagnostics.length === 1 ? 'issue' : 'issues'}
                 </button>
               ) : (
                 <span className="outline-status is-ok">OK</span>
@@ -321,7 +321,13 @@ export default function WorkspacePanel({
                     onClick={() => onRevealSymbol(symbol.line, symbol.column)}
                   >
                     <span className={`outline-kind is-${symbol.kind}`}>
-                      {symbol.kind === 'class' ? 'C' : symbol.kind === 'variable' ? 'V' : 'ƒ'}
+                      {symbol.kind === 'class'
+                        ? 'C'
+                        : symbol.kind === 'method'
+                          ? 'M'
+                          : symbol.kind === 'variable'
+                            ? 'V'
+                            : 'ƒ'}
                     </span>
                     <span className="outline-name">{symbol.name}</span>
                     <span className="outline-line">{symbol.line}</span>

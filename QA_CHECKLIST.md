@@ -6,13 +6,15 @@ should pass before the demo.
 
 ## Test data
 
-- Professor: `professor@unicode.test` / `Password123!`
+- Professors: `professor@unicode.test`, `professor2@unicode.test`,
+  `professor3@unicode.test` / `Password123!`
 - Admin: `admin@unicode.test` / `Password123!`
-- Students: `student1@unicode.test`, `student2@unicode.test`,
-  `student3@unicode.test` / `Password123!`
-- Classes: CS101 (3 students, 3 assignments), CS102 (2 students, 2 assignments,
-  one scheduled three days out)
-- Join codes: CS101 `CS101J4K`, CS102 `CS102P8Q`
+- Students: `student1@unicode.test` … `student10@unicode.test` / `Password123!`
+- Classes: CS101 (6 students, 3 Python assignments), CS102 (3 students, 2
+  Python assignments, one scheduled three days out), CS201 (Java, Professor
+  Lin), CS301 (C++, Professor Ortega)
+- Join codes: CS101 `CS101J4K`, CS102 `CS102P8Q`, CS201 `CS201R7A`,
+  CS301 `CS301M2Z`
 - Demo grade state: student1 has a released Fibonacci grade, student2 has a
   private grade ready for the professor to release, student3 is ungraded
 - Demo insight data: student3 has two paste events; student2 has a matching
@@ -67,9 +69,11 @@ should pass before the demo.
 - [ ] Join class accepts a valid code (`CS102P8Q` for a student not already in
       CS102), shows the new class card, and creates its workspace folder.
 - [ ] Invalid, lowercase-with-spaces, and archived-class codes show a readable
-      error; joining twice does not duplicate enrollment.
-- [ ] **Redeem invite** accepts an admin-generated professor code, switches the
-      account to the professor dashboard, and rejects invalid/expired/used codes.
+      error; joining an already-joined class says “You are already enrolled in…”
+      and does not duplicate enrollment.
+- [ ] The **Create account** form accepts an admin-generated professor code,
+      switches the new account to the professor dashboard, and rejects
+      invalid/expired/used codes.
 - [ ] Empty class/assignment states are understandable.
 
 ## 3. Assignments and submissions
@@ -107,8 +111,8 @@ should pass before the demo.
 - [ ] Sidebar resize works; collapse animates to the icon rail and re-expands
       without moving the folder icon.
 - [ ] Opening a class from the dashboard focuses/expands that class folder.
-- [ ] Sidebar Outline shows Python symbols and syntax diagnostics; clicking a
-      symbol jumps to the line.
+- [ ] Sidebar Outline shows Python/Java/C/C++ symbols and syntax diagnostics;
+      clicking a symbol jumps to the line.
 - [ ] Files outside the workspace cannot be read by path (only via Open File
       dialog).
 
@@ -125,8 +129,18 @@ should pass before the demo.
 - [ ] Find/replace, undo/redo, cut/copy/paste, comment toggle, and select-all
       work from menu and shortcuts.
 - [ ] Command palette (`Ctrl+Shift+P`) and quick open (`Ctrl+P`) work.
-- [ ] Python diagnostics show syntax errors and an OK state; they update as you
-      type.
+- [ ] Python diagnostics show syntax errors, undefined names, and an OK state;
+      they update as you type, including in files opened from disk after the
+      editor starts.
+- [ ] Python type errors (wrong assignment, wrong argument type) appear after a
+      short pause; Pyright is bundled, so no extra install is needed.
+- [ ] Python completion after `name.` offers string methods, hover shows the
+      inferred type, and F12 jumps to a local definition.
+- [ ] Java files show syntax squiggles and a class/method outline. With a JDK
+      installed, an undefined variable is also flagged after a short pause.
+- [ ] C/C++ files show syntax squiggles and a function/class outline. With GCC
+      installed, compiler errors are added; without it, the status bar labels
+      the check as syntax-only.
 - [ ] Autocomplete/hover for local symbols and builtins works in Python.
 - [ ] Edits create snapshots; the status bar count updates.
 - [ ] Paste creates a paste event and increments the paste count.
@@ -217,8 +231,8 @@ should pass before the demo.
 - [ ] Submissions table shows grade values with a private marker until release.
 - [ ] **Diff** compares the selected snapshot with the previous one and shows
       green additions and red deletions; snapshots after the first enable it.
-- [ ] **Replay** starts at the first snapshot, advances the timeline, reveals
-      code progressively, shows progress, and Stop restores normal review.
+- [ ] The snapshot timeline scrolls horizontally when needed and keeps the
+      selected snapshot visible.
 - [ ] Clicking the **Cadence** bar opens the typing heatmap with points, median,
       longest pause, and an empty state for old submissions.
 - [ ] Student3’s flagged submission shows **Paste detected** and a cross-student
@@ -231,13 +245,16 @@ should pass before the demo.
       assignment (due, late, grade, ICS, band, comments).
 - [ ] Assignment analytics shows submitted/enrolled, late, averages, and band
       distribution.
+- [ ] Recomputing a normally typed submission gives nonzero Cadence and Focus.
+- [ ] The snapshot timeline scrolls horizontally when needed, with large
+      clickable dots and the selected snapshot kept in view.
 - [ ] Cross-student similarity shows pairs at the selected threshold, score
       bars, and Inspect opens a submission.
 - [ ] Realtime refresh updates submissions/comments/assignments without reload.
 
 ## 10. Security and data isolation
 
-- [ ] `npm run test:rls` passes 40/40.
+- [ ] `npm run test:rls` passes 41/41.
 - [ ] Student sees only their own submissions and snapshots.
 - [ ] Student view masks a private grade and reveals it only after release.
 - [ ] Student cannot read `submission_grades`, and the base submission row holds
@@ -327,6 +344,9 @@ should pass before the demo.
 - Offline queue has no inspect/retry/remove UI; capped at 5 entries.
 - Seen/unread state is per device; no cross-device sync.
 - Similarity/analytics run client-side; fine for a class, not a department.
+- Python type diagnostics come from bundled Pyright, but completion/hover are
+  still local-symbol based. Java/C++ use local compilers, not language servers
+  (no code actions, refactors, semantic tokens, or clangd inspections).
 - macOS/Linux builds are untested.
 - Installer uses the stock Electron icon.
 - C# Run file depends on .NET 10 file-based apps.

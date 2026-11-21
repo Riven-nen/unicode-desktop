@@ -10,7 +10,6 @@ import {
   FolderOpen,
   GraduationCap,
   Info,
-  KeyRound,
   LogOut,
   MessageSquare,
   RefreshCw,
@@ -23,7 +22,6 @@ import AppearancePanel from './AppearancePanel'
 import AssignmentDetailModal from './AssignmentDetailModal'
 import IntegrityDemo from './IntegrityDemo'
 import JoinClassModal from './JoinClassModal'
-import ProfessorInviteModal from './ProfessorInviteModal'
 import TitleBarControls from './TitleBarControls'
 import { useStudentFeedback } from '../hooks/useStudentFeedback'
 import { usePendingSubmissions } from '../hooks/usePendingSubmissions'
@@ -59,8 +57,6 @@ interface StudentDashboardProps {
   onJoinedClass: () => void
   onOpenWorkspace: () => void
   onOpenFeedback: () => void
-  /** Re-reads the profile role after a professor invite is redeemed. */
-  onProfessorInviteRedeemed: () => void
   onSignOut: () => void
 }
 
@@ -106,7 +102,6 @@ export default function StudentDashboard({
   onJoinedClass,
   onOpenWorkspace,
   onOpenFeedback,
-  onProfessorInviteRedeemed,
   onSignOut
 }: StudentDashboardProps): React.ReactElement {
   const feedback = useStudentFeedback(session)
@@ -123,7 +118,6 @@ export default function StudentDashboard({
   const [detailId, setDetailId] = useState<string | null>(null)
   const [demoOpen, setDemoOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
-  const [inviteOpen, setInviteOpen] = useState(false)
   // Re-renders after marking feedback or a class as seen.
   const [, bumpSeenVersion] = useState(0)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
@@ -615,9 +609,6 @@ export default function StudentDashboard({
                   <button className="btn-secondary" onClick={() => setJoinOpen(true)}>
                     <UserPlus size={13} /> Join class
                   </button>
-                  <button className="btn-secondary" onClick={() => setInviteOpen(true)}>
-                    <KeyRound size={13} /> Redeem invite
-                  </button>
                   <button className="btn-secondary" onClick={() => setDemoOpen(true)}>
                     <ShieldCheck size={13} /> ICS demo
                   </button>
@@ -825,13 +816,6 @@ export default function StudentDashboard({
 
       {joinOpen && (
         <JoinClassModal onClose={() => setJoinOpen(false)} onJoined={() => onJoinedClass()} />
-      )}
-
-      {inviteOpen && (
-        <ProfessorInviteModal
-          onClose={() => setInviteOpen(false)}
-          onRedeemed={onProfessorInviteRedeemed}
-        />
       )}
     </div>
   )

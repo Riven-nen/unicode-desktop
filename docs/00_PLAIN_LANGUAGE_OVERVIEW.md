@@ -52,8 +52,8 @@ Unicode Lab records evidence of the process:
   normal thinking pauses.
 - **Similarity checks** — whether two students’ pasted text or final code looks
   unusually alike.
-- **Replay and diff views** — a professor can watch the code evolve or compare one
-  version to the next.
+- **Timeline and diff views** — a professor can move through snapshots in order or
+  compare one version to the next.
 
 These are **review clues**, not automatic proof of cheating. The professor makes
 the final judgment.
@@ -65,6 +65,8 @@ the final judgment.
 ### Getting started
 
 - Create an account or sign in with email and password.
+- In development, a new account can enter immediately.
+- In production, the account must confirm its email address first.
 - Reset a forgotten password with a recovery link or code.
 - Join a class with a short join code from the professor.
 - Redeem a professor invitation code if an administrator issued one.
@@ -90,7 +92,9 @@ the final judgment.
 ### The editor
 
 - Monaco editor with syntax colors, themes, fonts, and ligatures.
-- Python syntax checking, an outline panel, completion, and hover help.
+- Syntax checking and an outline panel for Python, Java, and C/C++. Python also
+  gets type checking from Pyright plus completion and hover help; Java/C/C++ get
+  local compiler checks when the toolchain is installed.
 - Find/replace, command palette, and quick-open shortcuts.
 - Automatic save prompts when closing unsaved files.
 
@@ -146,9 +150,8 @@ the final judgment.
   comment count.
 - Sort and filter the table, or export it as CSV.
 - Open a submission and inspect:
-  - the student’s code at any snapshot;
+  - the student’s code at any snapshot through the timeline;
   - the **Diff** between two versions;
-  - a **Replay** of how the code evolved;
   - the integrity score breakdown;
   - a typing-rhythm chart;
   - cross-student paste matches;
@@ -209,7 +212,7 @@ grades. Their access is intentionally limited.
 3. The console generates a code such as `PROF-16B5-0C6E`.
 4. The admin shares the code directly with the new professor.
 5. The professor creates or signs in to a normal desktop account.
-6. The professor opens **Redeem invite** on the student dashboard.
+6. The professor enters the code in the **Professor invite code** field while creating their account.
 7. The account becomes a professor account and the app switches to the professor
    dashboard.
 
@@ -238,11 +241,6 @@ This is a clue, not a lie detector.
 ### Diff
 
 The **Diff** button compares two versions. Green means added; red means removed.
-
-### Replay
-
-The **Replay** button plays the snapshots back in order, so the professor can
-watch the code appear over time.
 
 ### Paste similarity
 
@@ -298,7 +296,7 @@ verdict.
 | Automatic snapshots, paste capture, typing intervals | Ready |
 | Local terminal, toolchain checks, Run file | Ready |
 | Professor class/assignment management | Ready |
-| Diff, Replay, typing heatmap, paste similarity | Ready |
+| Timeline, diff, typing heatmap, paste similarity | Ready |
 | Grade save/release, bulk release | Ready |
 | Live Lab | Ready |
 | Admin roles and professor invites | Ready |
@@ -337,14 +335,14 @@ verdict.
 3. Open CS101 → Fibonacci.
 4. Open student3’s submission.
 5. Show **Diff**, then **Cadence** heatmap, then **Paste detected**.
-6. Play **Replay**.
+6. Use the timeline to step through snapshots and show **Diff**.
 7. Show the private grade and release it.
 8. Open **Live Lab** while a student is signed in on another window.
 9. Sign in as the student and show the new-grade chip.
 10. Open the workspace, make an edit, paste something, and submit.
 11. Open the admin console and create a professor invite.
-12. Redeem the invite from a student account and show the professor dashboard.
-13. Run the automated checks and mention 59 unit tests and 40/40 RLS checks.
+12. Create a new account with the invite code and show the professor dashboard.
+13. Run the automated checks and mention 59 unit tests and 41/41 RLS checks.
 
 ---
 
@@ -365,7 +363,6 @@ verdict.
 | **Supabase** | The hosted database and login service |
 | **Service-role key** | A very powerful database key; never shipped in the app |
 | **Snapshot diff** | A side-by-side/combined view of what changed between versions |
-| **Replay** | Playing the snapshots back in order |
 | **Live Lab** | A professor’s live student-activity monitor |
 | **Token similarity** | A structural comparison of final code |
 | **pg_trgm** | A database tool for measuring text similarity |
@@ -376,7 +373,7 @@ verdict.
 
 Unicode Lab is a desktop programming classroom that saves a student’s work as it
 evolves, notices pastes and typing rhythm, and gives professors a clear review
-screen with version comparisons, playback, similarity checks, grading, and a live
+screen with version comparisons, timeline navigation, similarity checks, grading, and a live
 activity monitor. Students work in real files on their own computer, can run code
 locally, submit assignments, receive feedback, and see grades when released.
 Admins use a separate website to manage accounts and issue professor invitation

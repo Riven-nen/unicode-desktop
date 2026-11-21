@@ -9,7 +9,11 @@ import { useFont } from '../fonts/useFont'
 import { ensureFontLoaded } from '../fonts/fontLoading'
 import { readClipboardText, writeClipboardText } from '../lib/clipboard'
 import { analyzePython, PYTHON_BUILTINS, PYTHON_KEYWORDS } from '../lib/pythonAnalysis'
-import type { PythonAnalysis, PythonSymbolKind } from '../lib/pythonAnalysis'
+import type { PythonSymbolKind } from '../lib/pythonAnalysis'
+import { analyzeSource, isAnalyzedLanguage } from '../lib/sourceAnalysis'
+import type { CodeAnalysis, CodeDiagnostic } from '../lib/codeAnalysis'
+import { onPythonLspExit, startPythonLanguageServer } from '../lib/pythonLsp'
+import type { PythonLspClient } from '../lib/pythonLsp'
 import { fileDisplayName } from '../lib/workspace'
 import type { CodeTrackerApi } from '../hooks/useCodeTracker'
 import type { LabFile } from '../types/tracker'
@@ -66,8 +70,8 @@ interface EditorPaneProps {
    * editor.
    */
   onToggleWordWrap?: () => void
-  /** Receives the active Python file's live symbols and diagnostics. */
-  onAnalysisChange?: (analysis: PythonAnalysis | null) => void
+  /** Receives the active file's live symbols and diagnostics. */
+  onAnalysisChange?: (analysis: CodeAnalysis | null) => void
   /**
    * Closes a workspace tab. The last remaining file can't be closed —
    * App guards it, so the close button is hidden on single-file workspaces.
@@ -99,11 +103,25 @@ export default function EditorPane({
   const onCursorChangeRef = useRef(onCursorChange)
   const onToggleWordWrapRef = useRef(onToggleWordWrap)
   const onAnalysisChangeRef = useRef(onAnalysisChange)
-  const analysisCacheRef = useRef(new Map<string, { version: number; analysis: PythonAnalysis }>())
+  const analysisCacheRef = useRef(new Map<string, { version: number; analysis: CodeAnalysis }>())
   const analysisTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const analysisDisposersRef = useRef(new Map<string, monacoTypes.IDisposable>())
   const providerDisposablesRef = useRef<monacoTypes.IDisposable[]>([])
+  // Toolchain results (Pyright/javac/gcc) are separate from parser results:
+  // they arrive asynchronously and replace the parser diagnostics for that
+  // model version.
+  const languageCheckCacheRef = useRef(
+    new Map<string, { version: number; diagnostics: CodeDiagnostic[] }>()
+  )
+  const languageCheckTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const languageCheckRequestRef = useRef(new Map<string, number>())
+  const pythonLspRef = useRef<PythonLspClient | null>(null)
+  const filesRef = useRef(files)
+  const lspExitRegisteredRef = useRef(false)
   const publishAnalysisRef = useRef<
+    (fileName: string, model: monacoTypes.editor.ITextModel, requestLanguageCheck?: boolean) => void
+  >(() => undefined)
+  const scheduleAnalysisRef = useRef<
     (fileName: string, model: monacoTypes.editor.ITextModel) => void
   >(() => undefined)
 
@@ -117,9 +135,11 @@ export default function EditorPane({
     onToggleWordWrapRef.current = onToggleWordWrap
   })
 
-  // Keep the latest analysis callback available to model listeners.
+  // Keep the latest analysis callback and workspace files available to model
+  // listeners and the language-server glue.
   useEffect(() => {
     onAnalysisChangeRef.current = onAnalysisChange
+    filesRef.current = files
   })
 
   // Apply view toggles (minimap / word wrap / line numbers) live.
@@ -177,13 +197,27 @@ export default function EditorPane({
       if (!disposersRef.current.has(file.name)) {
         disposersRef.current.set(file.name, tracker.attachModel(file.name, model))
       }
+      if (!analysisDisposersRef.current.has(file.name)) {
+        analysisDisposersRef.current.set(
+          file.name,
+          model.onDidChangeContent(() => {
+            scheduleAnalysisRef.current(file.name, model)
+            pythonLspRef.current?.changeDocument(model)
+          })
+        )
+      }
+      if (model.getLanguageId() === 'python') {
+        pythonLspRef.current?.openDocument(model, file.path)
+      }
       added = true
     }
     if (!added) return
-    // The active file may have just gained its model — swap it in.
+    // The active file may have just gained its model — swap it in and publish
+    // diagnostics immediately so Python errors appear without another edit.
     const editor = editorRef.current
     const model = modelsRef.current.get(activeFile)
     if (editor && model && editor.getModel() !== model) editor.setModel(model)
+    if (model) publishAnalysisRef.current(activeFile, model, true)
   }, [files, activeFile, tracker])
 
   // Files removed from the workspace (tab close) get their tracker
@@ -200,29 +234,52 @@ export default function EditorPane({
       const timer = analysisTimersRef.current.get(name)
       if (timer) clearTimeout(timer)
       analysisTimersRef.current.delete(name)
+      const languageCheckTimer = languageCheckTimersRef.current.get(name)
+      if (languageCheckTimer) clearTimeout(languageCheckTimer)
+      languageCheckTimersRef.current.delete(name)
+      languageCheckRequestRef.current.delete(name)
       analysisCacheRef.current.delete(model.uri.toString())
+      languageCheckCacheRef.current.delete(model.uri.toString())
+      if (model.getLanguageId() === 'python') pythonLspRef.current?.closeDocument(model)
       modelsRef.current.delete(name)
       model.dispose()
     }
   }, [files])
 
-  const analysisFor = (model: monacoTypes.editor.ITextModel): PythonAnalysis | null => {
-    if (model.getLanguageId() !== 'python') return null
+  const analysisFor = (model: monacoTypes.editor.ITextModel): CodeAnalysis | null => {
+    const language = model.getLanguageId()
+    if (!isAnalyzedLanguage(language)) return null
     const key = model.uri.toString()
+    const version = model.getVersionId()
     const cached = analysisCacheRef.current.get(key)
-    if (cached && cached.version === model.getVersionId()) return cached.analysis
-    const analysis = analyzePython(model.getValue())
-    analysisCacheRef.current.set(key, { version: model.getVersionId(), analysis })
-    return analysis
+    const parsed =
+      cached && cached.version === version
+        ? cached.analysis
+        : analyzeSource(language, model.getValue())
+    if (!parsed) return null
+    if (!cached || cached.version !== version) {
+      analysisCacheRef.current.set(key, { version, analysis: parsed })
+    }
+
+    const checked = languageCheckCacheRef.current.get(key)
+    if (checked && checked.version === version) {
+      return { ...parsed, diagnostics: checked.diagnostics }
+    }
+    return parsed
   }
 
-  const publishAnalysis = (fileName: string, model: monacoTypes.editor.ITextModel): void => {
+  const publishAnalysis = (
+    fileName: string,
+    model: monacoTypes.editor.ITextModel,
+    requestLanguageCheck = false
+  ): void => {
     const monacoInstance = monacoRef.current
     const analysis = analysisFor(model)
 
     if (monacoInstance) {
+      const owner = 'unicode-lab'
       if (!analysis) {
-        monacoInstance.editor.setModelMarkers(model, 'python', [])
+        monacoInstance.editor.setModelMarkers(model, owner, [])
       } else {
         const markers: monacoTypes.editor.IMarkerData[] = analysis.diagnostics.map((diagnostic) => {
           const maxColumn = model.getLineMaxColumn(diagnostic.line)
@@ -234,20 +291,22 @@ export default function EditorPane({
           return {
             severity: monacoInstance.MarkerSeverity.Error,
             message: diagnostic.message,
-            source: 'python',
+            source: model.getLanguageId(),
             startLineNumber: diagnostic.line,
             startColumn,
             endLineNumber: diagnostic.endLine,
             endColumn
           }
         })
-        monacoInstance.editor.setModelMarkers(model, 'python', markers)
+        monacoInstance.editor.setModelMarkers(model, owner, markers)
       }
     }
 
     if (activeFileRef.current === fileName) {
       onAnalysisChangeRef.current?.(analysis)
     }
+
+    if (requestLanguageCheck) scheduleLanguageCheck(fileName, model)
   }
 
   const scheduleAnalysis = (fileName: string, model: monacoTypes.editor.ITextModel): void => {
@@ -257,8 +316,59 @@ export default function EditorPane({
       fileName,
       setTimeout(() => {
         analysisTimersRef.current.delete(fileName)
-        publishAnalysis(fileName, model)
+        publishAnalysis(fileName, model, true)
       }, 350)
+    )
+  }
+
+  /**
+   * Runs the local type checker/compiler after a longer pause than the parser.
+   * Results are bound to the model version, so a late reply never marks stale
+   * text. Pyright is bundled, so Python does not need a toolchain check.
+   */
+  const scheduleLanguageCheck = (fileName: string, model: monacoTypes.editor.ITextModel): void => {
+    const language = model.getLanguageId()
+    if (language !== 'python' && language !== 'java' && language !== 'c' && language !== 'cpp') {
+      return
+    }
+    const cached = languageCheckCacheRef.current.get(model.uri.toString())
+    if (cached && cached.version === model.getVersionId()) return
+
+    const existing = languageCheckTimersRef.current.get(fileName)
+    if (existing) clearTimeout(existing)
+    languageCheckTimersRef.current.set(
+      fileName,
+      setTimeout(() => {
+        languageCheckTimersRef.current.delete(fileName)
+        const version = model.getVersionId()
+        const token = (languageCheckRequestRef.current.get(fileName) ?? 0) + 1
+        languageCheckRequestRef.current.set(fileName, token)
+
+        const toolchainReady =
+          language === 'python'
+            ? Promise.resolve(true)
+            : window.api.toolchains.check(language).then((status) => status.available)
+
+        void toolchainReady
+          .then((available) => {
+            if (!available) return
+            return window.api.diagnostics
+              .check({ language, fileName, source: model.getValue() })
+              .then((result) => {
+                if (languageCheckRequestRef.current.get(fileName) !== token) return
+                if (model.isDisposed() || model.getVersionId() !== version) return
+                if (!result.available) return
+                languageCheckCacheRef.current.set(model.uri.toString(), {
+                  version,
+                  diagnostics: result.diagnostics
+                })
+                publishAnalysisRef.current(fileName, model)
+              })
+          })
+          .catch(() => {
+            // A failed checker probe should never hide parser diagnostics.
+          })
+      }, 900)
     )
   }
 
@@ -355,19 +465,72 @@ export default function EditorPane({
     providerDisposablesRef.current = [completion, hover]
   }
 
+  const registerPythonLspProviders = (
+    monacoInstance: typeof monacoTypes,
+    client: PythonLspClient
+  ): monacoTypes.IDisposable[] => [
+    monacoInstance.languages.registerCompletionItemProvider('python', {
+      triggerCharacters: ['.', '[', '"', "'"],
+      async provideCompletionItems(model, position) {
+        const suggestions = await client.completion(model, position)
+        return suggestions ? { suggestions } : { suggestions: [] }
+      }
+    }),
+    monacoInstance.languages.registerHoverProvider('python', {
+      async provideHover(model, position) {
+        return (await client.hover(model, position)) ?? undefined
+      }
+    }),
+    monacoInstance.languages.registerDefinitionProvider('python', {
+      async provideDefinition(model, position) {
+        return (await client.definition(model, position)) ?? undefined
+      }
+    })
+  ]
+
   const handleBeforeMount: BeforeMount = (monacoInstance) => {
     defineMonacoThemes(monacoInstance)
     registerPythonProviders(monacoInstance)
+
+    // Attach Pyright's language server after the local providers exist so a
+    // failed launch falls back to the Lezer completion/hover providers.
+    void startPythonLanguageServer(monacoInstance).then((client) => {
+      if (!client) return
+      pythonLspRef.current = client
+      for (const disposable of providerDisposablesRef.current) disposable.dispose()
+      providerDisposablesRef.current = registerPythonLspProviders(monacoInstance, client)
+
+      for (const [name, model] of modelsRef.current) {
+        if (model.getLanguageId() !== 'python') continue
+        const file = filesRef.current.find((item) => item.name === name)
+        client.openDocument(model, file?.path)
+      }
+    })
+
+    if (!lspExitRegisteredRef.current) {
+      lspExitRegisteredRef.current = true
+      onPythonLspExit(() => {
+        pythonLspRef.current = null
+        for (const disposable of providerDisposablesRef.current) disposable.dispose()
+        providerDisposablesRef.current = []
+        registerPythonProviders(monacoInstance)
+        const name = activeFileRef.current
+        const model = modelsRef.current.get(name)
+        if (model) scheduleAnalysisRef.current(name, model)
+      })
+    }
   }
 
-  // Keep the latest analysis function available to the tab-switch effect.
+  // Keep the latest analysis functions available to model listeners and the
+  // tab-switch effect.
   useEffect(() => {
     publishAnalysisRef.current = publishAnalysis
+    scheduleAnalysisRef.current = scheduleAnalysis
   })
 
   useEffect(() => {
     const model = modelsRef.current.get(activeFile)
-    if (model) publishAnalysisRef.current(activeFile, model)
+    if (model) publishAnalysisRef.current(activeFile, model, true)
   }, [activeFile])
 
   const handleMount: OnMount = (editor, monacoInstance) => {
@@ -389,8 +552,14 @@ export default function EditorPane({
       if (!analysisDisposersRef.current.has(file.name)) {
         analysisDisposersRef.current.set(
           file.name,
-          model.onDidChangeContent(() => scheduleAnalysis(file.name, model))
+          model.onDidChangeContent(() => {
+            scheduleAnalysis(file.name, model)
+            pythonLspRef.current?.changeDocument(model)
+          })
         )
+      }
+      if (model.getLanguageId() === 'python') {
+        pythonLspRef.current?.openDocument(model, file.path)
       }
     }
 

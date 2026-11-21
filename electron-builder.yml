@@ -11,6 +11,9 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  # Pyright runs as a Node script through Electron; keep it unpacked so the
+  # child process can load it from disk.
+  - node_modules/pyright/**
 win:
   executableName: unicode-lab
 nsis:

@@ -43,11 +43,22 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
   - class folders derived from enrollments
   - create, open, edit, and save files with `Ctrl+S` / `Ctrl+O` / `Ctrl+Shift+S`
 - Monaco editor with themes, fonts, and ligatures
-- Python editor intelligence:
-  - live syntax diagnostics with red squiggles and a status-bar count
-  - an Outline panel listing functions, methods, classes, and module-level names
-  - completion for local symbols, keywords, and builtins
-  - hover details for local definitions
+- Language intelligence:
+  - live syntax diagnostics with red squiggles and a status-bar count for
+    Python, Java, C, and C++
+  - an Outline panel listing functions, methods, classes, namespaces, fields,
+    and module-level names, with click-to-jump
+  - Python diagnostics from the bundled **Pyright** engine (the engine behind
+    Pylance): inferred types, wrong arguments, bad assignments, unknown
+    attributes, and undefined names
+  - type-aware Python completion, hover, and go-to-definition from the bundled
+    Pyright language server
+  - Java and C/C++ compile diagnostics (undefined names, type errors, missing
+    symbols) when `javac` or `gcc`/`g++` is installed
+  - JavaScript/TypeScript semantic checking through Monaco's bundled TypeScript
+    worker
+  - local Python completion/hover remains as a fallback if the language server
+    cannot start
 - Automatic snapshots with type metadata (`auto`, `paste`, `restore`) and a local sync queue
 - Offline-safe submissions: a network failure queues the submission locally and retries with an idempotent token when the app is back online
 - Paste capture through `onDidPaste` plus a typing-velocity heuristic for non-clipboard inserts
@@ -108,7 +119,7 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
   - read-only Monaco snapshot viewer
   - SVG snapshot timeline (click a node to inspect that moment)
   - **Diff mode**: compare the selected snapshot with the previous one in Monaco's inline diff
-  - **Replay**: play snapshots back in order with a typewriter reveal and progress bar
+  - horizontally scrollable timeline for navigating snapshots
   - ICS breakdown with weighted term bars and a plain-language explanation
   - clickable Cadence bar with a **typing rhythm** scatter plot, median gap, and longest pause
   - cross-student **paste similarity** (pg_trgm) with a Paste detected badge and matched student
@@ -125,7 +136,7 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
 | Desktop shell | Electron 44 |
 | UI | React 19 + TypeScript |
 | Build | electron-vite / Vite 8 |
-| Editor | Monaco Editor + Lezer Python analysis |
+| Editor | Monaco Editor + Lezer language analysis (Python, Java, C/C++) + bundled Pyright |
 | Backend | Supabase (Postgres, Auth, Row-Level Security) |
 | Visuals | Existing CSS theme tokens + plain SVG (no charting dependency) |
 | Execution | Judge0 (optional, configured in the app) |
@@ -189,6 +200,17 @@ VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
 
 The publishable key (or a legacy anon key) is safe to ship in the renderer — every table is protected by RLS. The service-role key is only needed for the seed script: keep it out of version control and out of `VITE_` variables.
 
+### Email confirmation by mode
+
+The app defaults to **no email confirmation in development** and **required email confirmation in production** (`import.meta.env.PROD`). `VITE_AUTH_EMAIL_CONFIRMATION` can override this when a project deliberately differs.
+
+The Supabase project must match the mode:
+
+- Dev project: **Authentication → Providers → Email → Confirm email OFF**
+- Production project: **Confirm email ON**, with a configured SMTP sender and Site URL
+
+If production returns a session during sign-up, the app signs the account out and shows a configuration error. Supabase’s built-in email sender is intentionally low-volume and can hit a rate limit during testing; use seed accounts or configure real SMTP for production.
+
 ### 3. Apply the database migrations
 
 The files in `supabase/migrations/` are the source of truth. Apply them to your project with the CLI:
@@ -220,11 +242,14 @@ The URL defaults to the project in this repository; override it with `SUPABASE_U
 | Role | Email | Password |
 |---|---|---|
 | Professor | `professor@unicode.test` | `Password123!` |
-| Student | `student1@unicode.test` | `Password123!` |
-| Student | `student2@unicode.test` | `Password123!` |
-| Student | `student3@unicode.test` | `Password123!` |
+| Professor | `professor2@unicode.test` | `Password123!` |
+| Professor | `professor3@unicode.test` | `Password123!` |
+| Admin | `admin@unicode.test` | `Password123!` |
+| Students | `student1@unicode.test` … `student10@unicode.test` | `Password123!` |
 
-Do not reuse these credentials for anything real.
+The seed also creates four classes: CS101 and CS102 (Professor Demo), CS201
+(Professor Lin, Java), and CS301 (Professor Ortega, C++). Do not reuse these
+credentials for anything real.
 
 ### 5. Run
 
@@ -288,7 +313,7 @@ Builds are **unsigned**, so Windows SmartScreen may ask for confirmation on firs
 - review classes, professors, join codes, student counts, and assignment counts
 - never reads submissions or code
 
-Professor invite holders create a normal account, open **Redeem invite** on the student dashboard, and enter the code. A successful redemption promotes the account to professor and re-routes the desktop app.
+Professor invite holders enter the code in the **Professor invite code** field on the **Create account** form. A successful registration redeems it immediately in development; when email confirmation is required, the code is stored in account metadata and applied automatically after the confirmed user signs in.
 
 The root `npm run dev` starts both the desktop app and this console. To run the console alone:
 
@@ -317,7 +342,7 @@ Deploy `admin-web/dist` to any static host. See [`admin-web/README.md`](admin-we
 - Hidden test cases are filtered out for students.
 - Unreleased grades live in a professor-only `submission_grades` table. `submissions.grade` holds only the released copy, and student reads go through a guarded `student_submissions` view, so a private mark cannot be read from the API or Realtime.
 - Published assignments with a future `publish_at` are invisible to enrolled students until that time.
-- Class join codes are resolved by a `SECURITY DEFINER` function; only an active class code enrolls, and repeated use is idempotent.
+- Class join codes are resolved by a `SECURITY DEFINER` function; only an active class code enrolls, and a student who is already enrolled gets a clear class-specific message instead of a silent no-op.
 - Live Lab presence rows are readable only by the student and professors of that student's classes; the heartbeat RPC always writes the caller's own row.
 - Paste similarity is a professor-only, class-scoped RPC. Typing interval arrays travel with snapshots and are hidden by the same submission policies.
 - Professor invites live in an admin-only table. Creation, revocation, and redemption are guarded RPCs; expiry and usage counts are checked while the invite row is locked, and redemption sets a transaction-local flag that the profile role guard accepts.
@@ -334,8 +359,8 @@ Detailed per-view access expectations are in [`supabase/RLS_TEST_NOTES.md`](supa
 The professor **Recompute** action runs a server-side pipeline:
 
 - **Paste (35%)** — pasted chars ÷ the larger of final content and pasted chars
-- **Cadence (25%)** — consistency of snapshot intervals, pulled toward neutral when there are few intervals
-- **Focus (20%)** — share of elapsed time covered by gaps of two minutes or less
+- **Cadence (25%)** — share of captured typing/edit gaps at or below 1.5 seconds, pulled toward neutral when there are too few samples; older captures fall back to session snapshot gaps
+- **Focus (20%)** — share of session time covered by gaps of two minutes or less, ignoring breaks longer than 30 minutes
 - **Compilation (20%)** — newest Judge0 result per test case, as a pass percentage; neutral 50 when no test-case run exists
 
 The weighted terms are stored on `ics_scores` and the band is `pass` at 80+, `review` at 60+, otherwise `flag`. Recompute works for one submission or every submission in an assignment.
@@ -344,14 +369,15 @@ The weighted terms are stored on `ics_scores` and the band is `pass` at 80+, `re
 
 - **Judge0** points at a fixed endpoint; if that instance isn't reachable, the run panel reports it.
 - **ICS** uses the documented snapshot/paste/Judge0 model above; it does not claim access to keystroke-level telemetry.
-- **Python intelligence** is parser-based (Lezer), not a full type checker. It catches syntax errors and local symbols but does not infer types or resolve imports.
+- **Python** combines the Lezer parser, the bundled **Pyright** checker, and the bundled Pyright language server. Diagnostics come from Pyright; completion, hover, and go-to-definition are type-aware. The Lezer layer still supplies instant syntax feedback and the outline fallback.
+- **Java and C/C++** use Monaco's built-in highlighting plus Lezer syntax trees for diagnostics and the outline. When a local JDK (`javac`) or GCC (`gcc`/`g++`) is installed, the app also runs a real compiler pass for semantic errors.
+- **Java/C++ parity caveat:** this is compiler-level checking, not the full language-server experience of VS Code's extensions (no completion, code actions, refactors, semantic tokens, or clangd inspections). Python's language server is bundled; C/C++ needs `g++`/`gcc` on PATH.
 - The local PowerShell terminal is pipe-based, not a full PTY. It runs commands and scripts well, but interactive stdin-heavy programs are better tested through Judge0.
 - `courses_legacy` and `enrollments_legacy` remain from the pre-migration schema.
 - **Similarity** is a token-sequence heuristic (renamed identifiers are normalized); it highlights pairs to review, not a plagiarism verdict.
 - The **ICS demo** is a simulator for students; real scores are recomputed from submission telemetry on the server.
 - **Realtime** refresh depends on Supabase Realtime; **queued submissions** retry while the app is running (or on the next launch).
 - **Typing rhythm** stores edit-burst gaps with each snapshot, not raw per-key events. It is a cadence fingerprint, not a full keystroke log.
-- **Replay** compresses long sessions into a short playback (about 3–45 seconds) and uses a prefix reveal, so mid-file rewrites appear as jumps.
 - **Live Lab** depends on the 30-second heartbeat and treats a student as offline after 90 seconds without one. Flagged means a paste was recorded in the last 15 minutes.
 - **Password recovery** uses a pasted recovery link/code rather than a deep link; join-code and professor-invite attempts are not rate-limited yet.
 - **Professor accounts** are promoted by redeeming an admin invite, through the admin console role change, or manually; class reassignment is not implemented yet. Invite codes are shared out-of-band (no email delivery) and have no per-user lock beyond the global usage count.
@@ -363,7 +389,8 @@ The weighted terms are stored on `ics_scores` and the band is `pass` at 80+, `re
 
 1. Configurable Judge0 limits and hosted-instance presets
 2. Similarity review queue
-3. Code signing and notarized macOS builds
+3. clangd and Eclipse JDT language servers for C/C++ and Java parity with VS Code
+4. Code signing and notarized macOS builds
 
 ## Why a revision?
 

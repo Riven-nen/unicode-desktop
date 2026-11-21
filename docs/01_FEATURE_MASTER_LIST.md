@@ -19,7 +19,7 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 1. **Student desktop app** — real workspace files, Monaco editor, automatic edit
    history, paste tracking, local execution, submissions, grades, and feedback.
 2. **Professor desktop dashboard** — classes, rosters, assignments, test cases,
-   submissions, integrity analytics, diff/replay/heatmap views, grading, and
+   submissions, integrity analytics, timeline/diff/heatmap views, grading, and
    Live Lab.
 3. **Admin web console** — separate React/Vite app for users, roles, classes, and
    professor invite codes. It never reads submissions or student code.
@@ -31,13 +31,13 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | ID | Feature | Description | Status |
 |---|---|---|---|
 | AUTH-01 | Email/password sign-in | Supabase Auth session; workspace opens only after authentication | Implemented |
-| AUTH-02 | Account creation | Sign-up with display name derived from email; profile row auto-created by trigger | Implemented |
+| AUTH-02 | Account creation | Sign-up with display name derived from email; profile row auto-created by trigger; dev auto-signs in, production expects email confirmation | Implemented |
 | AUTH-03 | Session restore | Persisted Supabase session routes back to the correct role surface | Implemented |
 | AUTH-04 | Sign-out | Clears the local session and returns to the sign-in screen | Implemented |
 | AUTH-05 | Password reset by link/code | Sends a Supabase reset email; accepts a pasted recovery URL or 6-digit code plus a new password | Implemented |
 | AUTH-06 | Role routing | `student`, `professor`, and `admin` profiles route to the correct desktop surface | Implemented |
 | AUTH-07 | Admin desktop notice | Admins signing into the desktop app see “Use the admin console” instead of student/professor UI | Implemented |
-| AUTH-08 | Professor invite redemption | Student dashboard **Redeem invite** accepts an admin code and promotes the account to professor | Implemented |
+| AUTH-08 | Professor invite redemption | The Create account form accepts an admin code and promotes the account to professor during registration | Implemented |
 | AUTH-09 | Invite role safety | Only student accounts can redeem invites; admins/professors are rejected | Implemented |
 | AUTH-10 | Recovery-session completion | Recovery link/code establishes a session, then updates the password | Implemented |
 
@@ -70,7 +70,6 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | STU-13 | New-grade chips | “N new grades” on class cards and “New grade” on assignment cards; clears on Details | Implemented |
 | STU-14 | Scheduled assignments | Future `publish_at` assignments are hidden until their publish time | Implemented |
 | STU-15 | Queued submission banner | Shows offline submissions waiting to retry | Implemented |
-| STU-16 | Professor invite modal | Enter code, redeem, show success, re-route to professor dashboard | Implemented |
 | STU-17 | Empty states | No classes, no assignments, no feedback, loading/error states | Implemented |
 
 ---
@@ -96,7 +95,7 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 
 ---
 
-## 5. Editor and Python intelligence
+## 5. Editor and language intelligence
 
 | ID | Feature | Description | Status |
 |---|---|---|---|
@@ -104,20 +103,33 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | ED-02 | Syntax highlighting | Python, Java, C/C++, JavaScript/TypeScript, Markdown, JSON, SQL, and more | Implemented |
 | ED-03 | Themes | App and Monaco themes, persisted | Implemented |
 | ED-04 | Fonts | Font family, size, ligatures, word wrap, minimap, line numbers | Implemented |
-| ED-05 | Python diagnostics | Live Lezer parser errors with red squiggles and status-bar count | Implemented |
-| ED-06 | Outline panel | Functions, methods, classes, module-level names; click to jump | Implemented |
-| ED-07 | Python completion | Local symbols, keywords, builtins | Implemented |
-| ED-08 | Python hover | Local definition details | Implemented |
-| ED-09 | Find/replace | Monaco find/replace and shortcuts | Implemented |
-| ED-10 | Command palette | `Ctrl+Shift+P` | Implemented |
-| ED-11 | Quick open | `Ctrl+P` | Implemented |
-| ED-12 | Standard editing | Undo/redo, cut/copy/paste, comment toggle, select-all | Implemented |
-| ED-13 | Editor IPC focus | Dashboard overlay blurs hidden Monaco focus to avoid stray edits | Implemented |
+| ED-05 | Local diagnostics | Live Lezer parser errors with red squiggles and status-bar count for Python, Java, C, and C++ | Implemented |
+| ED-06 | Outline panel | Functions, methods, classes, namespaces, fields, and module-level names; click to jump | Implemented |
+| ED-07 | Python completion | Type-aware Pyright LSP completion, with local-symbol fallback | Implemented |
+| ED-08 | Python hover | Pyright LSP type/signature hover, with local-definition fallback | Implemented |
+| ED-09 | Python name resolution | Conservative parser-level scope pass for undefined names | Implemented |
+| ED-10 | Java/C/C++ compiler diagnostics | Local `javac`/`gcc`/`g++` pass adds semantic errors when the toolchain is installed | Implemented (external toolchain) |
+| ED-16 | Python type diagnostics | Bundled Pyright reports inferred-type errors, argument/assignment mismatches, bad attributes, and undefined names | Implemented |
+| ED-17 | Python LSP features | Type-aware completion, hover, and go-to-definition from Pyright | Implemented |
+| ED-11 | Find/replace | Monaco find/replace and shortcuts | Implemented |
+| ED-12 | Command palette | `Ctrl+Shift+P` | Implemented |
+| ED-13 | Quick open | `Ctrl+P` | Implemented |
+| ED-14 | Standard editing | Undo/redo, cut/copy/paste, comment toggle, select-all | Implemented |
+| ED-15 | Editor IPC focus | Dashboard overlay blurs hidden Monaco focus to avoid stray edits | Implemented |
 
 ### Editor notes
 
-- Python intelligence is parser-based, not a full type checker or language
-  server. Imports and inferred types are not resolved.
+- Python diagnostics, completion, hover, definitions, signatures, document
+  symbols, rename, and semantic tokens come from the bundled Pyright language
+  server (the engine behind Pylance). The Lezer parser remains the instant
+  syntax/outline layer and the fallback if the server cannot start.
+- Java and C/C++ highlighting comes from Monaco's built-in tokenizers. Syntax
+  errors and the outline come from Lezer grammars; when `javac` or
+  `gcc`/`g++` is on PATH, a local compile pass adds semantic errors. There is no
+  language server, so code actions, refactors, and clangd-style inspections are
+  out of scope.
+- JavaScript/TypeScript semantic errors come from Monaco's bundled TypeScript
+  worker. Other languages still rely on local run/compile checks.
 
 ---
 
@@ -243,27 +255,24 @@ demo is a simulator; real scores are server-recomputed from telemetry.
 | REV-04 | Assignment analytics | Submitted/enrolled, late, average ICS/grade, band distribution | Implemented |
 | REV-05 | Token similarity panel | Cross-student final-snapshot token similarity with threshold | Implemented |
 | REV-06 | Submission detail | Student, assignment, class, band, ICS | Implemented |
-| REV-07 | Snapshot timeline | SVG rail; click to inspect a moment | Implemented |
+| REV-07 | Snapshot timeline | Horizontally scrollable rail with large click targets | Implemented |
 | REV-08 | Diff mode | Compare selected snapshot to previous in inline Monaco diff | Implemented |
-| REV-09 | Replay | Chronological playback with typewriter reveal and progress | Implemented |
-| REV-10 | Paste similarity | Red Paste detected badge; matched cross-student paste | Implemented |
-| REV-11 | Typing heatmap | Cadence scatter plot, median gap, longest pause | Implemented |
-| REV-12 | ICS panel | Weighted terms, score, band, explanation | Implemented |
-| REV-13 | Inline comments | Line-anchored comments with threaded replies | Implemented |
-| REV-14 | Comment navigation | Jump to snapshot/line; highlight commented lines | Implemented |
-| REV-15 | Grade save | Private grade store | Implemented |
-| REV-16 | Grade release | Release/hide one submission grade | Implemented |
-| REV-17 | Bulk grade release | Release all saved grades in an assignment | Implemented |
-| REV-18 | Judge0 test runner | Run test cases against a snapshot | External dependency |
-| REV-19 | Run history | Persisted execution history per submission | External dependency |
-| REV-20 | Recompute ICS | Single submission or all submissions | Implemented |
-| REV-21 | Live Lab | Active/idle/flagged/offline student monitor with current file | Implemented |
+| REV-09 | Paste similarity | Red Paste detected badge; matched cross-student paste | Implemented |
+| REV-10 | Typing heatmap | Cadence scatter plot, median gap, longest pause | Implemented |
+| REV-11 | ICS panel | Weighted terms, score, band, explanation | Implemented |
+| REV-12 | Inline comments | Line-anchored comments with threaded replies | Implemented |
+| REV-13 | Comment navigation | Jump to snapshot/line; highlight commented lines | Implemented |
+| REV-14 | Grade save | Private grade store | Implemented |
+| REV-15 | Grade release | Release/hide one submission grade | Implemented |
+| REV-16 | Bulk grade release | Release all saved grades in an assignment | Implemented |
+| REV-17 | Judge0 test runner | Run test cases against a snapshot | External dependency |
+| REV-18 | Run history | Persisted execution history per submission | External dependency |
+| REV-19 | Recompute ICS | Single submission or all submissions | Implemented |
+| REV-20 | Live Lab | Active/idle/flagged/offline student monitor with current file | Implemented |
 
 ### Review caveats
 
 - Diff mode is disabled for the first snapshot.
-- Replay compresses long sessions and uses a prefix reveal; mid-file rewrites may
-  appear as jumps.
 - Paste similarity is a review signal, not a plagiarism verdict.
 - Token similarity normalizes identifiers but does not prove copying.
 
@@ -318,7 +327,7 @@ demo is a simulator; real scores are server-recomputed from telemetry.
 | SEC-04 | Private grades | `submission_grades` professor-only; public grade only when released | Implemented |
 | SEC-05 | Masked student submission view | `student_submissions` exposes released grade only | Implemented |
 | SEC-06 | Scheduled visibility | Student RLS checks `publish_at <= now()` | Implemented |
-| SEC-07 | Join-code RPC | Active code only; idempotent enrollment | Implemented |
+| SEC-07 | Join-code RPC | Active code only; already-enrolled students get a clear message | Implemented |
 | SEC-08 | Professor invite RPCs | Admin-only create/revoke; student-only redeem; row lock | Implemented |
 | SEC-09 | Live Lab isolation | Presence visible to student and class professor only | Implemented |
 | SEC-10 | Paste similarity isolation | Professor-only, class-scoped RPC | Implemented |
@@ -330,7 +339,7 @@ demo is a simulator; real scores are server-recomputed from telemetry.
 | SEC-16 | Judge0 token handling | Main-process only; stored in userData | Implemented |
 | SEC-17 | External link handling | Opens only http(s) through OS browser | Implemented |
 | SEC-18 | Password privacy | Password never logged or persisted by app | Implemented |
-| SEC-19 | RLS regression coverage | `npm run test:rls` — 40 checks | Implemented |
+| SEC-19 | RLS regression coverage | `npm run test:rls` - 41 checks | Implemented |
 
 ---
 
@@ -388,6 +397,6 @@ The shortest convincing demo path uses these features:
 4. TRK-01–TRK-16 — snapshots, paste capture, typing intervals.
 5. ICS-01–ICS-09 — score, bands, heatmap, live demo.
 6. PRO-01–PRO-16 — class/assignment management and scheduling.
-7. REV-01–REV-21 — table, diff, replay, paste similarity, grades, Live Lab.
+7. REV-01-REV-20 - table, diff, timeline, paste similarity, grades, Live Lab.
 8. ADM-01–ADM-15 — admin console, roles, professor invites.
 9. SEC-01–SEC-19 — RLS and privacy evidence.

@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type { AssignmentFileResult, CloseChoice, WorkspaceListing } from '../shared/workspace'
+import type { LanguageCheckInput, LanguageCheckResult } from '../shared/diagnostics'
+import type { LspMessage, LspStartResult } from '../shared/lsp'
 import type {
   Judge0PublicConfig,
   Judge0RawResult,
@@ -87,7 +89,7 @@ const api = {
       return ipcRenderer.invoke('fs:delete-file', filePath)
     }
   },
-  // Native confirmation for destructive actions (submit, delete).
+  // Native confirmation for destructive file actions.
   ui: {
     confirm(options: {
       title: string
@@ -103,6 +105,42 @@ const api = {
   toolchains: {
     check(language: string, refresh = false): Promise<ToolchainStatus> {
       return ipcRenderer.invoke('toolchains:check', language, refresh)
+    }
+  },
+  // Local language checks: Pyright for Python, javac/gcc/g++ for Java/C/C++.
+  // They run in main with the bundled checker or installed toolchain; nothing
+  // is uploaded.
+  diagnostics: {
+    check(input: LanguageCheckInput): Promise<LanguageCheckResult> {
+      return ipcRenderer.invoke('diagnostics:check', input)
+    }
+  },
+  // Bundled Pyright language server. The renderer exchanges JSON-RPC messages
+  // through main; the server process has no network or renderer privileges.
+  lsp: {
+    start(): Promise<LspStartResult> {
+      return ipcRenderer.invoke('lsp:python-start')
+    },
+    send(message: LspMessage): void {
+      ipcRenderer.send('lsp:python-send', message)
+    },
+    stop(): void {
+      ipcRenderer.send('lsp:python-stop')
+    },
+    onMessage(callback: (message: LspMessage) => void): () => void {
+      const listener = (_event: IpcRendererEvent, message: LspMessage): void => callback(message)
+      ipcRenderer.on('lsp:python-message', listener)
+      return () => {
+        ipcRenderer.removeListener('lsp:python-message', listener)
+      }
+    },
+    onExit(callback: (event: { code: number | null }) => void): () => void {
+      const listener = (_event: IpcRendererEvent, payload: { code: number | null }): void =>
+        callback(payload)
+      ipcRenderer.on('lsp:python-exit', listener)
+      return () => {
+        ipcRenderer.removeListener('lsp:python-exit', listener)
+      }
     }
   },
   // Judge0 execution + local configuration. The token never reaches the

@@ -25,25 +25,46 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   visible assignments.
 - Admin-generated professor invite codes with a configurable lifespan
   (hours/days) and usage limit, plus copy/revoke actions in the admin console.
-- Student dashboard **Redeem invite** flow: a valid code promotes the account
-  to professor and re-routes the desktop app.
+- **Professor invite code** field on the Create account form: a valid code
+  promotes the new account to professor and re-routes the desktop app.
 - Snapshot **Diff mode** in submission review, comparing the selected snapshot
   with the previous one in Monaco's inline diff editor.
 - **Typing rhythm heatmap** behind the Cadence bar: edit gaps per snapshot with
   median and longest-pause stats.
+- Cadence now uses captured typing intervals with a snapshot-gap fallback, and
+  long overnight breaks no longer force Cadence/Focus to zero.
+- Snapshot timeline is now a compact horizontally scrollable rail with larger
+  click targets and automatic scrolling to the selected snapshot.
+- Replay was removed; the snapshot timeline is the sole navigation surface for
+  review history.
+- Fixed Python diagnostics for files loaded after the editor mounted; editing a
+  disk-loaded `.py` file now updates squiggles, the outline badge, and the
+  status bar immediately.
+- Java and C/C++ language support: Monaco highlighting plus Lezer syntax
+  diagnostics and an outline of classes, namespaces, methods, fields, and
+  functions.
+- Python intelligence from the bundled **Pyright language server**: type-aware
+  completion, hover, and go-to-definition. The server runs in the main process
+  and is bridged to Monaco over IPC; type diagnostics come from the bundled
+  Pyright CLI, and local completion/hover remain as fallbacks.
+- Optional local compiler diagnostics for Java and C/C++: `javac` and
+  `gcc`/`g++` run in the main process and replace parser diagnostics with real
+  compile errors when the toolchain is installed.
+- Expanded demo data: three professors, ten students, four classes, and Java
+  and C++ assignments with test cases.
 - Cross-student **paste similarity** panel using `pg_trgm`, with a red
   Paste detected badge and matched student.
 - **Live Lab** page showing student presence heartbeats as active, idle,
   flagged, or offline.
-- Submission **Replay** that plays snapshots back in chronological order with
-  a progress bar and typewriter reveal.
 - Inline file rename and delete in the workspace sidebar.
-- Native confirmation and success toast for submissions.
+- Themed in-app confirmation for submissions (replaces the native OS prompt).
 - Offline submission queue with idempotent client tokens and automatic retry.
 - Supabase Realtime refresh for student and professor dashboards.
 - Compiler/runtime check when a file becomes active, with a status-bar and terminal chip, plus a **Run file** action that is gated on the local toolchain for Python, JavaScript/TypeScript, Java, C/C++, C#, Go, Rust, Ruby, PHP, Swift, Kotlin, and PowerShell.
 - Password reset from the sign-in screen using a recovery link or code.
 - Class join codes: students self-enroll with a code, professors copy or rotate it.
+- Re-joining an already-joined class now returns a clear class-specific
+  “already enrolled” message instead of silently succeeding.
 - Separate `admin-web` Node project with an admin role, user search, role management, and class/join-code review.
 - Error boundary for renderer crashes.
 - Unit tests (Vitest) and an RLS regression script (`npm run test:rls`).
@@ -60,6 +81,9 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   to the student (or releases all saved grades for an assignment at once).
 - Assignments can be scheduled with a publish time instead of only draft or
   published.
+- Sign-up now defaults to immediate access in development and required email
+  confirmation in production builds; production signs out and reports a
+  configuration error if Supabase returns a session unexpectedly.
 
 ### Security
 

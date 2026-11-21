@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { SnapshotEntry } from '../../types/professor'
 
 const TYPE_LABEL: Record<SnapshotEntry['type'], string> = {
@@ -31,26 +31,26 @@ export default function SnapshotTimeline({
   selectedId,
   onSelect
 }: SnapshotTimelineProps): React.ReactElement {
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
-  const nodes = useMemo(() => {
-    if (snapshots.length === 0) return []
-    const times = snapshots.map((snapshot) => Date.parse(snapshot.createdAt))
-    const min = Math.min(...times)
-    const span = Math.max(...times) - min || 1
-
-    return snapshots.map((snapshot, index) => {
-      const pct = snapshots.length === 1 ? 0.5 : (Date.parse(snapshot.createdAt) - min) / span
-      return {
+  const nodes = useMemo(
+    () =>
+      snapshots.map((snapshot, index) => ({
         snapshot,
-        x: 40 + pct * 720,
         delta:
           index === 0 ? snapshot.charCount : snapshot.charCount - snapshots[index - 1].charCount
-      }
-    })
-  }, [snapshots])
+      })),
+    [snapshots]
+  )
 
-  const hovered = nodes.find((node) => node.snapshot.id === hoveredId)
+  // Keep the selected stop visible without forcing the whole window to scroll.
+  useEffect(() => {
+    const container = scrollRef.current
+    const selected = container?.querySelector<HTMLElement>('.snapshot-node.selected')
+    if (!container || !selected) return
+    const target = selected.offsetLeft + selected.offsetWidth / 2 - container.clientWidth / 2
+    container.scrollTo({ left: Math.max(0, target), behavior: 'smooth' })
+  }, [selectedId])
 
   return (
     <section className="snapshot-panel">
@@ -63,65 +63,41 @@ export default function SnapshotTimeline({
         <div className="professor-empty">No snapshots recorded.</div>
       ) : (
         <div className="snapshot-rail">
-          <svg
-            viewBox="0 0 800 84"
-            className="snapshot-svg"
-            role="img"
-            aria-label="Snapshot timeline"
-          >
-            <line x1="40" y1="42" x2="760" y2="42" className="snapshot-line" />
-            {nodes.map((node) => (
-              <g
-                key={node.snapshot.id}
-                tabIndex={0}
-                role="button"
-                aria-label={`${TYPE_LABEL[node.snapshot.type]} snapshot at ${formatFull(node.snapshot.createdAt)}`}
-                className={`snapshot-node snapshot-${node.snapshot.type} ${
-                  selectedId === node.snapshot.id ? 'selected' : ''
-                }`}
-                onMouseEnter={() => setHoveredId(node.snapshot.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                onFocus={() => setHoveredId(node.snapshot.id)}
-                onBlur={() => setHoveredId(null)}
-                onClick={() => onSelect(node.snapshot.id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    onSelect(node.snapshot.id)
-                  }
-                }}
-              >
-                <circle
-                  cx={node.x}
-                  cy="42"
-                  r={selectedId === node.snapshot.id ? 9 : 6}
-                  className="snapshot-circle"
-                />
-              </g>
-            ))}
-          </svg>
+          <div className="snapshot-scroll" ref={scrollRef}>
+            <div className="snapshot-track">
+              <span className="snapshot-track-line" aria-hidden="true" />
+              {nodes.map((node) => {
+                const selected = selectedId === node.snapshot.id
+                const title = [
+                  `${TYPE_LABEL[node.snapshot.type]} · ${formatFull(node.snapshot.createdAt)}`,
+                  `${node.delta >= 0 ? '+' : ''}${node.delta} chars`,
+                  node.snapshot.pasteDetectedVia
+                    ? `Detected via ${node.snapshot.pasteDetectedVia} · ${node.snapshot.pasteChars} pasted`
+                    : null
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
 
-          {hovered && (
-            <div
-              className="snapshot-tooltip"
-              style={{ left: `${(hovered.x / 800) * 100}%` }}
-              role="status"
-            >
-              <strong>
-                {TYPE_LABEL[hovered.snapshot.type]} · {formatFull(hovered.snapshot.createdAt)}
-              </strong>
-              <span>
-                {hovered.delta >= 0 ? '+' : ''}
-                {hovered.delta} chars
-              </span>
-              {hovered.snapshot.pasteDetectedVia && (
-                <span>
-                  Detected via {hovered.snapshot.pasteDetectedVia} · {hovered.snapshot.pasteChars}{' '}
-                  pasted
-                </span>
-              )}
+                return (
+                  <button
+                    key={node.snapshot.id}
+                    type="button"
+                    className={`snapshot-node snapshot-${node.snapshot.type} ${
+                      selected ? 'selected' : ''
+                    }`}
+                    title={title}
+                    aria-label={`${TYPE_LABEL[node.snapshot.type]} snapshot at ${formatFull(
+                      node.snapshot.createdAt
+                    )}, ${node.delta >= 0 ? 'plus' : 'minus'} ${Math.abs(node.delta)} characters`}
+                    aria-pressed={selected}
+                    onClick={() => onSelect(node.snapshot.id)}
+                  >
+                    <span className="snapshot-circle" aria-hidden="true" />
+                  </button>
+                )
+              })}
             </div>
-          )}
+          </div>
 
           <div className="snapshot-foot">
             <span>{formatTime(snapshots[0].createdAt)}</span>

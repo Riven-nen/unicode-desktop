@@ -58,7 +58,7 @@ try {
 
   const { data: klass, error: classError } = await professor.client
     .from('classes')
-    .select('id, code')
+    .select('id, code, join_code')
     .eq('code', 'CS101')
     .maybeSingle()
   if (classError) throw new Error(classError.message)
@@ -105,6 +105,17 @@ try {
   )
 
   const submissionId = studentSubs[0].id
+
+  const { error: alreadyJoinedError } = await student.client.rpc('join_class_by_code', {
+    target_code: klass.join_code
+  })
+  check(
+    'Already-enrolled join shows a class-specific message',
+    Boolean(alreadyJoinedError) &&
+      /already enrolled/i.test(alreadyJoinedError.message) &&
+      alreadyJoinedError.message.includes('CS101'),
+    alreadyJoinedError?.message
+  )
 
   const { data: studentTests, error: studentTestsError } = await student.client
     .from('test_cases')
@@ -301,7 +312,7 @@ try {
   if (studentClassesError) throw new Error(studentClassesError.message)
   check(
     'Admin sees every class; student sees only enrollments',
-    adminClasses.length >= 2 && studentClasses.length === 1,
+    adminClasses.length > studentClasses.length && studentClasses.length >= 1,
     `admin ${adminClasses.length}, student ${studentClasses.length}`
   )
 

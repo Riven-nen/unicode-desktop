@@ -1,4 +1,6 @@
 import type { AssignmentFileResult, CloseChoice, WorkspaceListing } from '../shared/workspace'
+import type { LanguageCheckInput, LanguageCheckResult } from '../shared/diagnostics'
+import type { LspMessage, LspStartResult } from '../shared/lsp'
 import type {
   Judge0PublicConfig,
   Judge0RawResult,
@@ -51,7 +53,7 @@ export interface FsApi {
 }
 
 export interface UiApi {
-  /** Native OK/Cancel prompt used before submitting or deleting. */
+  /** Native OK/Cancel prompt used before deleting a workspace file. */
   confirm(options: {
     title: string
     message: string
@@ -64,6 +66,21 @@ export interface UiApi {
 export interface ToolchainsApi {
   /** Detects compiler/runtime availability for a Monaco language id. */
   check(language: string, refresh?: boolean): Promise<ToolchainStatus>
+}
+
+export interface DiagnosticsApi {
+  /** Runs the local Python type checker or Java/C/C++ compiler in main. */
+  check(input: LanguageCheckInput): Promise<LanguageCheckResult>
+}
+
+export interface LspApi {
+  /** Starts the bundled Pyright language server in the main process. */
+  start(): Promise<LspStartResult>
+  /** Sends one JSON-RPC/LSP message to the server. */
+  send(message: LspMessage): void
+  stop(): void
+  onMessage(callback: (message: LspMessage) => void): () => void
+  onExit(callback: (event: { code: number | null }) => void): () => void
 }
 
 export interface Judge0Api {
@@ -93,6 +110,8 @@ export interface UnicodeApi {
   fs: FsApi
   ui: UiApi
   toolchains: ToolchainsApi
+  diagnostics: DiagnosticsApi
+  lsp: LspApi
   judge0: Judge0Api
   terminal: TerminalApi
 }

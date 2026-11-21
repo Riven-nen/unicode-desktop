@@ -1103,10 +1103,10 @@ input:focus-visible,
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-.status-python.is-error {
+.status-analysis.is-error {
   color: var(--error);
 }
-.status-python.is-ok {
+.status-analysis.is-ok {
   color: var(--success);
 }
 /* Unsaved-changes marker in the tab strip. */
@@ -2994,76 +2994,115 @@ input:focus-visible,
   border-left: 3px solid var(--accent);
 }
 
+.detail-right > .snapshot-panel {
+  padding: 10px 12px;
+}
 .snapshot-rail {
   position: relative;
-  padding-top: 44px;
+  padding-top: 1px;
 }
-.snapshot-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
+.snapshot-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0 0;
+  overscroll-behavior-x: contain;
 }
-.snapshot-line {
-  stroke: var(--border);
-  stroke-width: 2;
+.snapshot-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.snapshot-scroll::-webkit-scrollbar-button,
+.snapshot-scroll::-webkit-scrollbar-button:horizontal {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.snapshot-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.snapshot-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
+}
+.snapshot-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-muted) 58%, transparent);
+}
+.snapshot-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  width: max-content;
+  min-width: 100%;
+  height: 44px;
+  padding: 0 22px;
+}
+.snapshot-track-line {
+  position: absolute;
+  top: 50%;
+  left: 22px;
+  right: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--border);
 }
 .snapshot-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  outline: none;
+}
+.snapshot-node:hover {
+  background: var(--hover);
+}
+.snapshot-node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .snapshot-circle {
-  transition: stroke-width 0.12s ease;
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
 .snapshot-node:hover .snapshot-circle,
 .snapshot-node:focus-visible .snapshot-circle {
-  stroke: var(--text-main);
-  stroke-width: 2;
+  transform: scale(1.3);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-main) 14%, transparent);
 }
 .snapshot-node.selected .snapshot-circle {
-  stroke: var(--text-main);
-  stroke-width: 2.5;
+  transform: scale(1.55);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 38%, transparent);
 }
 .snapshot-auto .snapshot-circle {
-  fill: var(--text-muted);
+  background: var(--text-muted);
 }
 .snapshot-paste .snapshot-circle {
-  fill: var(--paste);
+  background: var(--paste);
 }
 .snapshot-manual .snapshot-circle {
-  fill: var(--accent);
+  background: var(--accent);
 }
 .snapshot-restore .snapshot-circle {
-  fill: var(--restore);
-}
-.snapshot-tooltip {
-  position: absolute;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-header);
-  color: var(--text-muted);
-  font-size: 10px;
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translateX(-50%);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-  z-index: 5;
-}
-.snapshot-tooltip strong {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--text-main);
+  background: var(--restore);
 }
 .snapshot-foot {
   display: flex;
   justify-content: space-between;
-  margin-top: 2px;
-  font-size: 9.5px;
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 1.2;
   color: var(--text-muted);
 }
 
@@ -3811,12 +3850,6 @@ input:focus-visible,
   letter-spacing: 2px;
   font-family: var(--code-font);
   font-size: 16px;
-}
-.professor-invite-done {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
 }
 .student-queued-note {
   display: flex;
@@ -6547,34 +6580,6 @@ input:focus-visible,
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
-.replay-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  font-size: 10px;
-  color: var(--text-muted);
-}
-.replay-status > span:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-.replay-track {
-  flex: 1;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--hover);
-}
-.replay-track > span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
-  transition: width 0.15s linear;
-}
 .ics-term.is-clickable {
   padding: 3px 5px;
   margin: -3px -5px;
@@ -6919,4 +6924,59 @@ input:focus-visible,
 .live-lab-empty p {
   margin: 0;
   font-size: 11px;
+}
+
+/* --- Themed confirm dialog --- */
+.confirm-modal {
+  width: min(470px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+}
+.confirm-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.confirm-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.confirm-icon.is-danger {
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  color: var(--error);
+}
+.confirm-copy {
+  min-width: 0;
+  padding-top: 2px;
+}
+.confirm-copy h3 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.confirm-copy p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 2px;
+}
+.btn-primary.is-danger {
+  background: var(--error);
+  color: #fff;
 }

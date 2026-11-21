@@ -45,13 +45,28 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const PASSWORD = 'Password123!'
 
-const PROFESSOR = { email: 'professor@unicode.test', name: 'Professor Demo' }
+const PROFESSORS = [
+  { key: 'p1', email: 'professor@unicode.test', name: 'Professor Demo' },
+  { key: 'p2', email: 'professor2@unicode.test', name: 'Professor Lin' },
+  { key: 'p3', email: 'professor3@unicode.test', name: 'Professor Ortega' }
+]
 const ADMIN = { email: 'admin@unicode.test', name: 'Admin Demo' }
 const STUDENTS = [
   { key: 's1', email: 'student1@unicode.test', name: 'Student One' },
   { key: 's2', email: 'student2@unicode.test', name: 'Student Two' },
-  { key: 's3', email: 'student3@unicode.test', name: 'Student Three' }
+  { key: 's3', email: 'student3@unicode.test', name: 'Student Three' },
+  { key: 's4', email: 'student4@unicode.test', name: 'Student Four' },
+  { key: 's5', email: 'student5@unicode.test', name: 'Student Five' },
+  { key: 's6', email: 'student6@unicode.test', name: 'Student Six' },
+  { key: 's7', email: 'student7@unicode.test', name: 'Student Seven' },
+  { key: 's8', email: 'student8@unicode.test', name: 'Student Eight' },
+  { key: 's9', email: 'student9@unicode.test', name: 'Student Nine' },
+  { key: 's10', email: 'student10@unicode.test', name: 'Student Ten' }
 ]
+
+// Only the first three students get the full Fibonacci history, so the
+// professor analytics stay focused and the seed remains quick.
+const SUBMISSION_STUDENTS = STUDENTS.slice(0, 3)
 
 // ---------------------------------------------------------------------------
 // Deterministic ids (valid UUID v4 shape) so re-runs upsert instead of insert.
@@ -59,7 +74,9 @@ const STUDENTS = [
 
 const CLASS_IDS = {
   cs101: 'c1a55000-0000-4000-8000-000000000101',
-  cs102: 'c1a55000-0000-4000-8000-000000000102'
+  cs102: 'c1a55000-0000-4000-8000-000000000102',
+  cs201: 'c1a55000-0000-4000-8000-000000000201',
+  cs301: 'c1a55000-0000-4000-8000-000000000301'
 }
 
 const ASSIGNMENT_IDS = {
@@ -67,7 +84,9 @@ const ASSIGNMENT_IDS = {
   loops: 'a5510000-0000-4000-8000-000000000102',
   fibonacci: 'a5510000-0000-4000-8000-000000000103',
   linkedList: 'a5510000-0000-4000-8000-000000000201',
-  scheduled: 'a5510000-0000-4000-8000-000000000202'
+  scheduled: 'a5510000-0000-4000-8000-000000000202',
+  javaShapes: 'a5510000-0000-4000-8000-000000000301',
+  cppVectors: 'a5510000-0000-4000-8000-000000000401'
 }
 
 const TEST_CASE_IDS = {
@@ -78,7 +97,9 @@ const TEST_CASE_IDS = {
     '7e570000-0000-4000-8000-000000000302',
     '7e570000-0000-4000-8000-000000000303'
   ],
-  linkedList: ['7e570000-0000-4000-8000-000000000401', '7e570000-0000-4000-8000-000000000402']
+  linkedList: ['7e570000-0000-4000-8000-000000000401', '7e570000-0000-4000-8000-000000000402'],
+  javaShapes: ['7e570000-0000-4000-8000-000000000501', '7e570000-0000-4000-8000-000000000502'],
+  cppVectors: ['7e570000-0000-4000-8000-000000000601', '7e570000-0000-4000-8000-000000000602']
 }
 
 const SUBMISSION_IDS = {
@@ -241,7 +262,11 @@ async function main() {
     existingUsers.filter((user) => user.email).map((user) => [user.email.toLowerCase(), user])
   )
 
-  const professorId = await ensureUser(PROFESSOR, byEmail)
+  const professorIds = {}
+  for (const professor of PROFESSORS) {
+    professorIds[professor.key] = await ensureUser(professor, byEmail)
+  }
+  const professorId = professorIds.p1
   const adminId = await ensureUser(ADMIN, byEmail)
   const studentIds = {}
   for (const student of STUDENTS) {
@@ -251,12 +276,12 @@ async function main() {
   await upsert(
     'profiles',
     [
-      {
-        id: professorId,
-        email: PROFESSOR.email,
-        display_name: PROFESSOR.name,
+      ...PROFESSORS.map((professor) => ({
+        id: professorIds[professor.key],
+        email: professor.email,
+        display_name: professor.name,
         role: 'professor'
-      },
+      })),
       {
         id: adminId,
         email: ADMIN.email,
@@ -293,6 +318,24 @@ async function main() {
         academic_year: '2026-2027',
         join_code: 'CS102P8Q',
         professor_id: professorId
+      },
+      {
+        id: CLASS_IDS.cs201,
+        name: 'CS201 - Object-Oriented Programming',
+        code: 'CS201',
+        year_section: '2 - A',
+        academic_year: '2026-2027',
+        join_code: 'CS201R7A',
+        professor_id: professorIds.p2
+      },
+      {
+        id: CLASS_IDS.cs301,
+        name: 'CS301 - Systems Programming',
+        code: 'CS301',
+        year_section: '3 - A',
+        academic_year: '2026-2027',
+        join_code: 'CS301M2Z',
+        professor_id: professorIds.p3
       }
     ],
     'id'
@@ -304,8 +347,19 @@ async function main() {
       { class_id: CLASS_IDS.cs101, student_id: studentIds.s1 },
       { class_id: CLASS_IDS.cs101, student_id: studentIds.s2 },
       { class_id: CLASS_IDS.cs101, student_id: studentIds.s3 },
+      { class_id: CLASS_IDS.cs101, student_id: studentIds.s4 },
+      { class_id: CLASS_IDS.cs101, student_id: studentIds.s5 },
+      { class_id: CLASS_IDS.cs101, student_id: studentIds.s6 },
       { class_id: CLASS_IDS.cs102, student_id: studentIds.s1 },
-      { class_id: CLASS_IDS.cs102, student_id: studentIds.s2 }
+      { class_id: CLASS_IDS.cs102, student_id: studentIds.s2 },
+      { class_id: CLASS_IDS.cs102, student_id: studentIds.s4 },
+      { class_id: CLASS_IDS.cs201, student_id: studentIds.s3 },
+      { class_id: CLASS_IDS.cs201, student_id: studentIds.s5 },
+      { class_id: CLASS_IDS.cs201, student_id: studentIds.s6 },
+      { class_id: CLASS_IDS.cs201, student_id: studentIds.s7 },
+      { class_id: CLASS_IDS.cs301, student_id: studentIds.s8 },
+      { class_id: CLASS_IDS.cs301, student_id: studentIds.s9 },
+      { class_id: CLASS_IDS.cs301, student_id: studentIds.s10 }
     ],
     'class_id,student_id'
   )
@@ -378,6 +432,34 @@ async function main() {
         auto_test_enabled: false,
         due_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
         starter_code: 'def total(values):\n    # add the values recursively\n    pass\n'
+      },
+      {
+        id: ASSIGNMENT_IDS.javaShapes,
+        class_id: CLASS_IDS.cs201,
+        title: 'Shapes in Java',
+        description: 'Read a side length and print the square area as "Area: <value>".',
+        language: 'java',
+        file_name: 'Shapes.java',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: true,
+        due_at: '2026-11-27T23:59:00.000Z',
+        starter_code:
+          'import java.util.Scanner;\n\npublic class Shapes {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        int side = scanner.nextInt();\n        // print the square area as "Area: <value>"\n    }\n}\n'
+      },
+      {
+        id: ASSIGNMENT_IDS.cppVectors,
+        class_id: CLASS_IDS.cs301,
+        title: 'Vector Sum in C++',
+        description: 'Read n followed by n integers and print their sum.',
+        language: 'cpp',
+        file_name: 'vector_sum.cpp',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: true,
+        due_at: '2026-11-28T23:59:00.000Z',
+        starter_code:
+          '#include <iostream>\n#include <vector>\n\nint main() {\n    int count = 0;\n    std::cin >> count;\n    std::vector<int> values(count);\n    // read the values and print their sum\n    return 0;\n}\n'
       }
     ],
     'id'
@@ -457,6 +539,38 @@ async function main() {
         expected_stdout: '5\n',
         ordinal: 1,
         is_hidden: true
+      },
+      {
+        id: TEST_CASE_IDS.javaShapes[0],
+        assignment_id: ASSIGNMENT_IDS.javaShapes,
+        stdin: '5',
+        expected_stdout: 'Area: 25\n',
+        ordinal: 0,
+        is_hidden: false
+      },
+      {
+        id: TEST_CASE_IDS.javaShapes[1],
+        assignment_id: ASSIGNMENT_IDS.javaShapes,
+        stdin: '3',
+        expected_stdout: 'Area: 9\n',
+        ordinal: 1,
+        is_hidden: true
+      },
+      {
+        id: TEST_CASE_IDS.cppVectors[0],
+        assignment_id: ASSIGNMENT_IDS.cppVectors,
+        stdin: '5\n1 2 3 4 5\n',
+        expected_stdout: '15\n',
+        ordinal: 0,
+        is_hidden: false
+      },
+      {
+        id: TEST_CASE_IDS.cppVectors[1],
+        assignment_id: ASSIGNMENT_IDS.cppVectors,
+        stdin: '0\n',
+        expected_stdout: '0\n',
+        ordinal: 1,
+        is_hidden: true
       }
     ],
     'id'
@@ -467,7 +581,7 @@ async function main() {
   // Student 1 has a released grade, student 2 has a private grade waiting for
   // the professor to release it, and student 3 is ungraded.
   const demoGrades = [92, 78, null]
-  const submissionRows = STUDENTS.map((student, index) => {
+  const submissionRows = SUBMISSION_STUDENTS.map((student, index) => {
     const grade = demoGrades[index]
     const gradedAt = grade === null ? null : iso(studentDay(index + 1), studentHour(index + 1), 50)
     return {
@@ -491,7 +605,7 @@ async function main() {
   // Private marks are stored in the professor-only grade table.
   await upsert(
     'submission_grades',
-    STUDENTS.flatMap((student, index) => {
+    SUBMISSION_STUDENTS.flatMap((student, index) => {
       const grade = demoGrades[index]
       if (grade === null) return []
       return [
@@ -507,7 +621,7 @@ async function main() {
   )
 
   const snapshotRows = []
-  for (const [index, student] of STUDENTS.entries()) {
+  for (const [index, student] of SUBMISSION_STUDENTS.entries()) {
     const day = studentDay(index + 1)
     const hour = studentHour(index + 1)
     snapshotContentsFor(student.key).forEach((content, snapIndex) => {
@@ -531,7 +645,7 @@ async function main() {
 
   await upsert('code_snapshots', snapshotRows, 'id')
 
-  for (const [index, student] of STUDENTS.entries()) {
+  for (const [index, student] of SUBMISSION_STUDENTS.entries()) {
     const { error } = await db
       .from('submissions')
       .update({ final_snapshot_id: snapshotId(index + 1, SNAPSHOT_CONTENTS.length) })
@@ -640,17 +754,21 @@ async function main() {
   // Report (never prints the service-role key)
   // -------------------------------------------------------------------------
   console.log('Seed complete.\n')
-  console.log('Professor:')
-  console.log(`  ${PROFESSOR.email}  ${PASSWORD}  (role=professor)\n`)
-  console.log('Admin:')
+  console.log('Professors:')
+  for (const professor of PROFESSORS) {
+    console.log(`  ${professor.email}  ${PASSWORD}  (role=professor)`)
+  }
+  console.log('\nAdmin:')
   console.log(`  ${ADMIN.email}  ${PASSWORD}  (role=admin)\n`)
   console.log('Students:')
   for (const student of STUDENTS) {
     console.log(`  ${student.email}  ${PASSWORD}`)
   }
   console.log('\nClasses:')
-  console.log('  CS101 - Intro to Programming  (all three students)')
-  console.log('  CS102 - Data Structures        (student1, student2)')
+  console.log('  CS101 - Intro to Programming  (student1-student6)')
+  console.log('  CS102 - Data Structures        (student1, student2, student4)')
+  console.log('  CS201 - Object-Oriented Programming  (student3, student5-student7)')
+  console.log('  CS301 - Systems Programming    (student8-student10)')
   console.log('\nICS:')
   for (const row of scoreRows) {
     console.log(

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Editor, { DiffEditor } from '@monaco-editor/react'
 import type { BeforeMount, OnMount } from '@monaco-editor/react'
 import type * as monacoTypes from 'monaco-editor'
-import { AlertTriangle, ChevronLeft, GitCompareArrows, Play, Square } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, GitCompareArrows } from 'lucide-react'
 import { useTheme } from '../../themes/useTheme'
 import { defineMonacoThemes } from '../../themes/themes'
 import { useFont } from '../../fonts/useFont'
@@ -68,10 +68,6 @@ export default function SubmissionDetail({
   const [icsError, setIcsError] = useState<string | null>(null)
   const [runsVersion, setRunsVersion] = useState(0)
   const [diffMode, setDiffMode] = useState(false)
-  const [replaying, setReplaying] = useState(false)
-  const [replayContent, setReplayContent] = useState<string | null>(null)
-  const [replayLabel, setReplayLabel] = useState<string | null>(null)
-  const [replayProgress, setReplayProgress] = useState(0)
   const [pasteMatches, setPasteMatches] = useState<PasteSimilarityMatch[]>([])
   const [pasteLoading, setPasteLoading] = useState(true)
   const [pasteError, setPasteError] = useState<string | null>(null)
@@ -98,24 +94,7 @@ export default function SubmissionDetail({
   )
   const previousSnapshot = selectedIndex > 0 ? detail.snapshots[selectedIndex - 1] : null
 
-  const stopReplay = (): void => {
-    setReplaying(false)
-    setReplayContent(null)
-    setReplayLabel(null)
-    setReplayProgress(0)
-  }
-
-  const startReplay = (): void => {
-    if (detail.snapshots.length === 0) return
-    setDiffMode(false)
-    setReplayContent('')
-    setReplayProgress(0)
-    setSelectedSnapshotId(detail.snapshots[0].id)
-    setReplaying(true)
-  }
-
   const selectSnapshot = (snapshotId: string): void => {
-    if (replaying) stopReplay()
     setSelectedSnapshotId(snapshotId)
   }
 
@@ -138,68 +117,6 @@ export default function SubmissionDetail({
       cancelled = true
     }
   }, [detail.summary.id])
-
-  useEffect(() => {
-    if (!replaying) return
-    const frames = detail.snapshots
-    if (frames.length === 0) return
-
-    const firstAt = Date.parse(frames[0].createdAt)
-    const lastAt = Date.parse(frames[frames.length - 1].createdAt)
-    const sourceSpan = Math.max(1, lastAt - firstAt)
-    const duration = Math.min(45_000, Math.max(3_000, sourceSpan))
-    const starts = frames.map(
-      (frame) => ((Date.parse(frame.createdAt) - firstAt) / sourceSpan) * duration
-    )
-    const startedAt = Date.now()
-    let currentIndex = -1
-
-    const tick = (): void => {
-      const elapsed = Math.min(Date.now() - startedAt, duration)
-      let index = 0
-      while (index + 1 < frames.length && starts[index + 1] <= elapsed) index += 1
-
-      if (index !== currentIndex) {
-        currentIndex = index
-        setSelectedSnapshotId(frames[index].id)
-      }
-
-      const frameStart = starts[index]
-      const frameEnd = index + 1 < frames.length ? starts[index + 1] : duration
-      const progress =
-        frameEnd > frameStart
-          ? Math.max(0, Math.min(1, (elapsed - frameStart) / (frameEnd - frameStart)))
-          : 1
-      const previous = index === 0 ? '' : frames[index - 1].content
-      const current = frames[index].content
-      let display = current
-      if (current.length > previous.length) {
-        const reveal = Math.max(
-          0,
-          Math.min(
-            current.length,
-            Math.floor(previous.length + (current.length - previous.length) * progress)
-          )
-        )
-        display = current.slice(0, reveal)
-      }
-
-      setReplayContent(display)
-      setReplayLabel(`${index + 1}/${frames.length}`)
-      setReplayProgress(duration === 0 ? 100 : Math.round((elapsed / duration) * 100))
-
-      if (elapsed >= duration) {
-        setReplayContent(null)
-        setReplayLabel(null)
-        setReplayProgress(0)
-        setReplaying(false)
-      }
-    }
-
-    tick()
-    const timer = window.setInterval(tick, 100)
-    return () => window.clearInterval(timer)
-  }, [replaying, detail.snapshots])
 
   const openComposer = (line: number = cursorLine, parentId: string | null = null): void => {
     setComposer({ line: Math.max(1, line), parentId })
@@ -335,20 +252,8 @@ export default function SubmissionDetail({
               <h3>Submission</h3>
               <div className="detail-editor-actions">
                 <button
-                  className="icon-text-btn"
-                  onClick={replaying ? stopReplay : startReplay}
-                  disabled={detail.snapshots.length === 0}
-                  title={replaying ? 'Stop replay' : 'Replay this submission'}
-                >
-                  {replaying ? <Square size={11} /> : <Play size={11} />}
-                  {replaying ? 'Stop' : 'Replay'}
-                </button>
-                <button
                   className={`icon-text-btn ${diffMode && previousSnapshot ? 'is-active' : ''}`}
-                  onClick={() => {
-                    stopReplay()
-                    setDiffMode((current) => !current)
-                  }}
+                  onClick={() => setDiffMode((current) => !current)}
                   disabled={!previousSnapshot}
                   title="Compare with the previous snapshot"
                 >
@@ -356,37 +261,14 @@ export default function SubmissionDetail({
                   {diffMode && previousSnapshot ? 'Single' : 'Diff'}
                 </button>
                 <span className="panel-meta">
-                  {replaying
-                    ? `Replay ${replayLabel ?? ''}`
-                    : selectedSnapshot
-                      ? `${selectedSnapshot.type} · ${formatDate(selectedSnapshot.createdAt)}`
-                      : 'No snapshot'}
+                  {selectedSnapshot
+                    ? `${selectedSnapshot.type} · ${formatDate(selectedSnapshot.createdAt)}`
+                    : 'No snapshot'}
                 </span>
               </div>
             </header>
             <div className="detail-monaco">
-              {replaying ? (
-                <Editor
-                  height="100%"
-                  theme={monacoTheme}
-                  value={replayContent ?? ''}
-                  language={detail.language ?? 'plaintext'}
-                  beforeMount={handleBeforeMount}
-                  options={{
-                    readOnly: true,
-                    domReadOnly: true,
-                    minimap: { enabled: false },
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    wordWrap: 'off',
-                    fontSize,
-                    fontFamily: font.family,
-                    fontLigatures: ligatures,
-                    padding: { top: 12 },
-                    automaticLayout: true
-                  }}
-                />
-              ) : diffMode && previousSnapshot && selectedSnapshot ? (
+              {diffMode && previousSnapshot && selectedSnapshot ? (
                 <DiffEditor
                   height="100%"
                   theme={monacoTheme}
@@ -436,16 +318,6 @@ export default function SubmissionDetail({
                 />
               )}
             </div>
-            {replaying && (
-              <div className="replay-status">
-                <span>
-                  <Play size={10} /> Replaying {replayLabel ?? '…'} · {replayProgress}%
-                </span>
-                <span className="replay-track">
-                  <span style={{ width: `${replayProgress}%` }} />
-                </span>
-              </div>
-            )}
           </section>
 
           <div className="detail-comments">

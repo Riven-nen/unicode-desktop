@@ -66,7 +66,10 @@ depend on Supabase or Judge0.
 | UI | React 19, TypeScript |
 | Bundling/dev | electron-vite, Vite 8 |
 | Editor | Monaco Editor (`@monaco-editor/react`) |
-| Python analysis | `@lezer/python` |
+| Language analysis | `@lezer/python`, `@lezer/java`, `@lezer/cpp` |
+| Python language server | Bundled Pyright (`pyright-langserver`) bridged through main-process IPC |
+| Python fallback checking | Pyright CLI, executed through Electron in Node mode |
+| Local compiler checks | `javac` (Java), `gcc`/`g++` (C/C++), run in the main process |
 | Icons | `lucide-react` |
 | Backend | Supabase Postgres, Auth, Realtime |
 | Similarity | Postgres `pg_trgm`, local token-sequence similarity |
@@ -87,6 +90,9 @@ src/
     fs.ts             Workspace-scoped filesystem bridge
     terminal.ts       Inline PowerShell session
     toolchains.ts     Compiler/runtime detection and run planning
+    diagnostics.ts    Local javac/gcc/g++ syntax + semantic diagnostics
+    pythonLsp.ts      JSON-RPC bridge to the bundled Pyright language server
+    bundledTools.ts   Resolves bundled tools in dev and asar-packaged builds
     judge0.ts         Judge0 HTTP client and token storage
   preload/
     index.ts          contextBridge APIs
@@ -145,6 +151,11 @@ src/
         notifications.ts
         judge0.ts
         runCommand.ts
+        codeAnalysis.ts
+        sourceAnalysis.ts
+        pythonAnalysis.ts
+        javaAnalysis.ts
+        cppAnalysis.ts
   shared/             Main/preload/renderer shared types
 supabase/
   migrations/         Database source of truth
@@ -165,6 +176,11 @@ docs/                 Paper and QA documentation
 - Supabase Auth handles email/password sign-in, sign-up, session persistence,
   recovery, and token refresh.
 - The renderer uses only the publishable/anon key.
+- Development defaults to **no email confirmation**; production builds default
+  to **confirmation required**. `VITE_AUTH_EMAIL_CONFIRMATION` can override this.
+- The Supabase project must match: disable **Confirm email** in the dev project
+  and enable it in production. If production returns a sign-up session, the app
+  signs out and reports the mismatch.
 - `profiles.role` is one of `student`, `professor`, `admin`.
 - A trigger on `auth.users` creates the matching `profiles` row.
 - Desktop routing:
@@ -192,6 +208,12 @@ docs/                 Paper and QA documentation
   - lifespan in hours (1–8760);
   - maximum uses (1–1000);
   - optional note.
+- The desktop **Create account** form has an optional **Professor invite code**
+  field.
+- When sign-up returns a session (development), the app redeems the code
+  immediately, clears it from user metadata, and reloads the role.
+- When confirmation is required (production), the code is stored in metadata and
+  a one-time App effect redeems it after the confirmed user signs in.
 - Redemption (`redeem_professor_invite`):
   - requires signed-in student;
   - locks the invite row;
@@ -403,7 +425,7 @@ Major UI regions:
 
 ---
 
-## 10. Editor and Python intelligence
+## 10. Editor and language intelligence
 
 ### 10.1 Monaco
 
@@ -414,15 +436,38 @@ Major UI regions:
 - Find/replace, command palette, quick open.
 - Read-only snapshot viewer and DiffEditor.
 
-### 10.2 Python analysis
+### 10.2 Local language analysis
 
-- Lezer parser produces syntax diagnostics.
-- Status bar shows diagnostic count.
-- Outline extracts functions, methods, classes, and module names.
-- Completion covers local symbols, keywords, and builtins.
-- Hover shows local definition details.
+- Monaco's bundled Monarch definitions provide highlighting for Python, Java,
+  C/C++, and the other supported file types. Java and C/C++ highlighting is the
+  same grammar family VS Code uses for built-in language support.
+- Lezer grammars (`@lezer/python`, `@lezer/java`, `@lezer/cpp`) produce syntax
+  diagnostics for Python, Java, C, and C++.
+- The status bar shows the diagnostic count for the active analyzed language.
+- The outline extracts functions, methods, classes, namespaces, fields, and
+  module-level names; clicking an entry jumps to its definition.
+- Python has a conservative parser-level undefined-name pass covering params,
+  imports, assignments, loops, `with`/`except` targets, comprehensions,
+  lambdas, class methods, `self`, and builtins. A star import suppresses it.
+- Python runs the bundled **Pyright language server** in the main process and
+  bridges JSON-RPC over IPC to a small renderer-side LSP client. The client
+  synchronizes open Python models and supplies type-aware completion, hover,
+  and go-to-definition. Diagnostics continue to come from the Pyright CLI
+  pipeline so there is only one marker owner and a predictable debounce.
+- If the language server cannot start, the renderer falls back to the Lezer
+  completion/hover providers and the Pyright CLI checker (also bundled). That
+  path still provides full type diagnostics but not type-aware editor help.
+- For Java and C/C++, the renderer debounces a request to the main process,
+  which writes a temporary file and runs `javac` or `gcc`/`g++ -fsyntax-only`.
+  Compiler diagnostics replace the parser diagnostics for the same model
+  version. A missing toolchain leaves parser-only diagnostics and the status bar
+  labels them as syntax checks.
+- JavaScript/TypeScript diagnostics are provided by Monaco's bundled TypeScript
+  worker; no extra process is involved.
 
-This is not a full language server: imports and inferred types are out of scope.
+Python get type checking without a language server; Java/C++ get compile-level
+checking. Code actions, refactors, semantic tokens, and clangd-style
+inspections remain out of scope.
 
 ---
 
@@ -514,12 +559,13 @@ the same token when possible.
 ```text
 P = pasted_chars / greatest(final_chars, pasted_chars, 1)
 Cadence:
-    100 × max(0, 1 − stddev(snapshot gaps) / mean(snapshot gaps))
-    shrunk toward 50 when fewer than four gaps
+    primary: 100 × share(typing gaps ≤ 1500 ms)
+    fallback: 100 × max(0, 1 − stddev(session gaps) / mean(session gaps))
+    shrunk toward 50 when there are too few samples
 Focus:
-    100 × active_seconds / elapsed_seconds
+    100 × active_seconds / session_seconds
     active = gaps ≤ 120 seconds
-    shrunk toward 50 when fewer than four gaps
+    session ignores gaps > 30 minutes
 Compilation:
     100 × latest_passed_cases / latest_tested_cases
     neutral 50 when no Judge0 result exists
@@ -548,8 +594,9 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 
 ### 14.1 Snapshot timeline
 
-- SVG rail with nodes colored by snapshot type.
-- Clicking selects a snapshot; hover shows timestamp, character delta, paste info.
+- Horizontally scrollable rail with nodes colored by snapshot type.
+- Each node has a 36 px click target; the selected node scrolls into view.
+- Hover/`title` shows timestamp, character delta, and paste info.
 - Comments with line anchors can jump to the relevant snapshot/line.
 
 ### 14.2 Diff mode
@@ -560,16 +607,7 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 - Disabled for the first snapshot.
 - Diff models are retained to avoid model-disposal warnings during mode changes.
 
-### 14.3 Replay
-
-- Playback starts at the first snapshot.
-- Replay duration is compressed to 3–45 seconds based on the real session span.
-- Snapshot selection follows playback.
-- Content is revealed progressively (prefix reveal).
-- Progress bar and Stop control are shown.
-- Long sessions are intentionally compressed for demo usability.
-
-### 14.4 Typing-rhythm heatmap
+### 14.3 Typing-rhythm heatmap
 
 - Points are reconstructed by walking each snapshot’s `typing_intervals`
   backwards from the snapshot timestamp.
@@ -577,7 +615,7 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 - Median line and longest-pause statistic.
 - Points above 2× median are visually emphasized as pauses.
 
-### 14.5 Paste similarity
+### 14.4 Paste similarity
 
 - `pg_trgm` compares the target submission’s pastes with other students in the
   same class.
@@ -586,21 +624,21 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 - Returns the best match per target paste with matched student and timestamp.
 - RPC verifies the caller is the class professor.
 
-### 14.6 Token similarity
+### 14.5 Token similarity
 
 - Separate from paste similarity.
 - Compares final snapshot token sequences across students.
 - Configurable threshold (60/75/90%).
 - Normalizes identifiers; highlights review candidates, not verdicts.
 
-### 14.7 Grading
+### 14.6 Grading
 
 - Save writes to `submission_grades` and clears public grade.
 - Release copies to `submissions.grade` and sets `grade_released_at`.
 - Hide removes the public copy.
 - Bulk release operates on all saved unreleased grades in an assignment.
 
-### 14.8 Live Lab
+### 14.7 Live Lab
 
 - Student heartbeat every 30 seconds through `touch_student_presence`.
 - Client status:
@@ -669,7 +707,7 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 | Typecheck | `npm run typecheck` |
 | Lint | `npm run lint` |
 | Unit tests | `npm test` (Vitest, 59 tests) |
-| RLS regression | `npm run test:rls` (40 checks) |
+| RLS regression | `npm run test:rls` (41 checks) |
 | Production build | `npm run build` |
 | Windows installer | `npm run build:win` |
 | Admin build | `npm --prefix admin-web run build` |
@@ -691,12 +729,14 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 
 | Item | Value |
 |---|---|
-| Professor | `professor@unicode.test` / `Password123!` |
+| Professors | `professor@unicode.test`, `professor2@unicode.test`, `professor3@unicode.test` / `Password123!` |
 | Admin | `admin@unicode.test` / `Password123!` |
-| Students | `student1@unicode.test`, `student2@unicode.test`, `student3@unicode.test` / `Password123!` |
-| CS101 | 3 students, 3 assignments |
-| CS102 | 2 students, 2 assignments (one scheduled +3 days) |
-| Join codes | `CS101J4K`, `CS102P8Q` |
+| Students | `student1@unicode.test` … `student10@unicode.test` / `Password123!` |
+| CS101 | 6 students, 3 Python assignments |
+| CS102 | 3 students, 2 Python assignments (one scheduled +3 days) |
+| CS201 | 4 students, Java assignment + Java test cases |
+| CS301 | 3 students, C++ assignment + C++ test cases |
+| Join codes | `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z` |
 | Grade state | student1 released 92; student2 private 78; student3 ungraded |
 | Paste demo | student3 has two pastes; student2 shares a 100% match |
 | Typing demo | seeded intervals produce jagged/steady/fast-flat rhythms |
@@ -713,7 +753,6 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 | Private grade table | Prevent API/Realtime leakage | Extra table and copy step on release |
 | Masked student view | Defense in depth for grade visibility | Student feedback queries need a second lookup |
 | Edit intervals, not raw keystrokes | Privacy and storage efficiency | Heatmap is a cadence approximation |
-| Prefix-reveal replay | Simple and visually effective | Mid-file rewrites appear as jumps |
 | Per-device seen state | No extra notification tables | No cross-device synchronization |
 | Token + pg_trgm similarity | Two complementary review signals | Neither proves plagiarism |
 | Separate admin web app | Keeps admin surface out of student/professor bundle | Second deployment target |
@@ -727,7 +766,6 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
   have one.
 - ICS formula accuracy is under review/paused; the score is a review aid.
 - Typing heatmap uses edit intervals, not raw key events.
-- Replay compresses long sessions and uses prefix reveal.
 - Live Lab depends on 30-second heartbeats; offline detection is client-side.
 - Notification seen state is per device.
 - Similarity panels are heuristics, not plagiarism verdicts.

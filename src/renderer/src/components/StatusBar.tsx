@@ -9,10 +9,17 @@ interface StatusBarProps {
   snapshotCount: number
   pasteCount: number
   syncStatus: SyncStatus
-  /** Python syntax diagnostics, or null for non-Python / not analyzed yet. */
-  pythonErrors?: number | null
+  /** Local diagnostics count, or null for languages without a local check. */
+  analysisErrors?: number | null
   /** Local compiler/runtime check for the active language. */
   toolchain?: ToolchainStatus | null
+}
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  python: 'Python',
+  java: 'Java',
+  c: 'C',
+  cpp: 'C++'
 }
 
 export default function StatusBar({
@@ -22,9 +29,16 @@ export default function StatusBar({
   snapshotCount,
   pasteCount,
   syncStatus,
-  pythonErrors = null,
+  analysisErrors = null,
   toolchain = null
 }: StatusBarProps): React.ReactElement {
+  const analysisLabel = LANGUAGE_LABELS[language] ?? language
+  // Java/C/C++ fall back to parser-only checks when the compiler is missing;
+  // say so instead of implying a full compile succeeded.
+  const parserOnly =
+    toolchain?.required === true &&
+    !toolchain.available &&
+    (language === 'java' || language === 'c' || language === 'cpp')
   return (
     <footer className="status-bar">
       <div className="status-bar-group">
@@ -48,15 +62,17 @@ export default function StatusBar({
             </span>
           </>
         )}
-        {pythonErrors !== null && (
+        {analysisErrors !== null && (
           <>
             <span className="status-sep" />
             <span
-              className={`status-item status-python ${pythonErrors > 0 ? 'is-error' : 'is-ok'}`}
+              className={`status-item status-analysis ${analysisErrors > 0 ? 'is-error' : 'is-ok'}`}
             >
-              {pythonErrors > 0
-                ? `${pythonErrors} syntax ${pythonErrors === 1 ? 'error' : 'errors'}`
-                : 'Python OK'}
+              {analysisErrors > 0
+                ? `${analysisErrors} ${analysisLabel}${parserOnly ? ' syntax' : ''} ${
+                    analysisErrors === 1 ? 'error' : 'errors'
+                  }`
+                : `${analysisLabel}${parserOnly ? ' syntax' : ''} OK`}
             </span>
           </>
         )}
