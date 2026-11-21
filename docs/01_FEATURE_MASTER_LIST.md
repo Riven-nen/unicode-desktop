@@ -116,6 +116,8 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | ED-13 | Quick open                      | `Ctrl+P`                                                                                                          | Implemented                      |
 | ED-14 | Standard editing                | Undo/redo, cut/copy/paste, comment toggle, select-all                                                             | Implemented                      |
 | ED-15 | Editor IPC focus                | Dashboard overlay blurs hidden Monaco focus to avoid stray edits                                                  | Implemented                      |
+| ED-18 | HTML snippets                   | `!DOCTYPE`, `html:5`, stylesheet/script/image/link/list/form/table snippets with tab stops                        | Implemented                      |
+| ED-19 | HTML typing                     | Closing-tag auto-insert for normal elements, void-tag awareness, and format-on-type/paste defaults                | Implemented                      |
 
 ### Editor notes
 
@@ -152,7 +154,7 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | TRK-13 | Sync status                        | `local-only`, `signed-out`, `queued`, `syncing`, `synced`, `offline`, `error`                    | Implemented     |
 | TRK-14 | Retry/backoff                      | Failed sync retries after a delay; online/offline events flush                                   | Implemented     |
 | TRK-15 | History hydration                  | Loads recent snapshots/pastes for the signed-in user                                             | Implemented     |
-| TRK-16 | Typing rhythm data                 | Cadence samples available to professor heatmap                                                   | Implemented     |
+| TRK-16 | Typing rhythm data                 | Edit-gap samples available to the professor heatmap                                              | Implemented     |
 | TRK-17 | Paste count                        | Submission summaries count paste events                                                          | Implemented     |
 
 ### Tracking scope note
@@ -164,24 +166,33 @@ snapshots. It is not a raw per-keystroke surveillance log.
 
 ## 7. ICS — Integrity Confidence Score
 
-| ID     | Feature             | Description                                                                                    | Status      |
-| ------ | ------------------- | ---------------------------------------------------------------------------------------------- | ----------- |
-| ICS-01 | Weighted score      | Paste 35%, Cadence 25%, Focus 20%, Compilation 20%                                             | Implemented |
-| ICS-02 | Bands               | `pass` ≥ 80, `review` ≥ 60, otherwise `flag`                                                   | Implemented |
-| ICS-03 | Server recompute    | `recompute_ics` RPC                                                                            | Implemented |
-| ICS-04 | Bulk recompute      | `recompute_ics_for_assignment` RPC                                                             | Implemented |
-| ICS-05 | Stored terms        | `ics_scores` stores each term, final score, band, timestamp                                    | Implemented |
-| ICS-06 | Professor ICS panel | Score, band, term bars, raw inputs, plain-language explanation                                 | Implemented |
-| ICS-07 | Cadence heatmap     | Clicking Cadence opens typing rhythm scatter plot                                              | Implemented |
-| ICS-08 | ICS demo            | Student-facing live Monaco playground; typing/pasting/idle update metrics                      | Implemented |
-| ICS-09 | Demo responsiveness | Gauge and active signal highlight update in real time                                          | Implemented |
-| ICS-10 | Novel paste term    | Only pasted text that did not exist in an earlier snapshot counts; internal moves are excluded | Implemented |
+| ID     | Feature             | Description                                                                                                | Status      |
+| ------ | ------------------- | ---------------------------------------------------------------------------------------------------------- | ----------- |
+| ICS-01 | Weighted score      | ICS v3 evidence ledger: 50 + 45 × (authored − negative evidence); v2 weights retained only for legacy rows | Implemented |
+| ICS-02 | Bands               | `pass` ≥ 80 with ≥300 chars, `review` ≥ 40, otherwise `flag`; low confidence or short work cannot pass     | Implemented |
+| ICS-03 | Server recompute    | `recompute_ics` RPC                                                                                        | Implemented |
+| ICS-04 | Bulk recompute      | `recompute_ics_for_assignment` RPC                                                                         | Implemented |
+| ICS-05 | Stored terms        | `ics_scores` stores score, band, confidence, evidence JSON, band reason, model, timestamp                  | Implemented |
+| ICS-06 | Professor ICS panel | Score, band, evidence ledger, confidence, band reason                                                      | Implemented |
+| ICS-07 | Typing heatmap      | Clicking Typing rhythm opens the typing-rhythm scatter plot                                                | Implemented |
+| ICS-08 | ICS demo            | Student-facing live Monaco playground; typing/pasting/idle update metrics                                  | Implemented |
+| ICS-09 | Demo responsiveness | Gauge and active signal highlight update in real time                                                      | Implemented |
+| ICS-10 | Novel paste term    | Only pasted text that did not exist in an earlier snapshot counts; internal moves are excluded             | Implemented |
+| ICS-11 | Authorship signal   | Corrections, reworks, one revisit per excursion, and line chunks; pauses are neutral                       | Implemented |
+| ICS-12 | Transcription cap   | Strong line-chunk pattern cannot pass; corroborated pattern flags                                          | Implemented |
+| ICS-13 | Confidence gate     | Volume/coverage confidence; limited evidence is held at review                                             | Implemented |
+| ICS-14 | Demo recording      | Scenario name → Start/Stop, score timeline sampled every 500 ms, saved runs                                | Implemented |
+| ICS-15 | Demo keylog         | Change events, raw keydown/keyup, cursor/selection, focus/blur, copy/cut/paste; JSON export                | Implemented |
 
 ### ICS caveat
 
-The formula and weights are implemented and functional, but the exact formula
-accuracy is intentionally treated as in review/paused for this capstone. The
-demo is a simulator; real scores are server-recomputed from telemetry.
+The formula is implemented and functional, but it remains a review heuristic.
+It combines authored evidence with paste, transcription shape, rhythm, and
+away/resume patterns; confidence gates the band, and a single signal cannot
+flag a student. Deliberate rework is still easy to fake, and the band says
+"review", not "guilty". Hand-retyping from a physical second screen or phone is
+only inferable from edit shape, never proven. Judge0 results are quality, not
+integrity.
 
 ---
 
@@ -205,28 +216,32 @@ demo is a simulator; real scores are server-recomputed from telemetry.
 
 ## 9. Assignments, submissions, and student feedback
 
-| ID     | Feature                  | Description                                                                       | Status      |
-| ------ | ------------------------ | --------------------------------------------------------------------------------- | ----------- |
-| SUB-01 | Assignment brief         | Instructions, starter code, file name, language, due date                         | Implemented |
-| SUB-02 | Submission RPC           | Verifies enrollment, creates submission, attaches snapshots                       | Implemented |
-| SUB-03 | Final snapshot           | Uses newest snapshot or captures live content                                     | Implemented |
-| SUB-04 | Idempotent retry         | `client_token` returns the original submission                                    | Implemented |
-| SUB-05 | Submission status        | Submitted/graded/queued/not submitted states                                      | Implemented |
-| SUB-06 | Latest submission        | Student card shows latest submission only                                         | Implemented |
-| SUB-07 | Grade visibility         | Released grade appears; private grade stays hidden                                | Implemented |
-| SUB-08 | Feedback modal           | Comments grouped by submission, grade shown, threaded replies                     | Implemented |
-| SUB-09 | Student replies          | Students may reply inside threads on their own submission                         | Implemented |
-| SUB-10 | Unread feedback badge    | Clears after opening Feedback                                                     | Implemented |
-| SUB-11 | Comment counts           | Shown on assignment/submission cards                                              | Implemented |
-| SUB-12 | Read-only submission API | Students cannot update their own grade/status through the client                  | Implemented |
-| SUB-13 | Online/offline submit    | Queue with automatic retry when connection returns                                | Implemented |
-| SUB-14 | Assessment tabs          | Student class page separates Assignments (take-home) from Seatworks (in-person)   | Implemented |
-| SUB-15 | Server-owned timer       | Start/deadline come from the database; the client only displays a countdown       | Implemented |
-| SUB-16 | Draft autosave           | Latest content is saved to `assessment_drafts` every 8 seconds and on window hide | Implemented |
-| SUB-17 | Crash resume             | Start/reopen returns the saved draft and the same deadline                        | Implemented |
-| SUB-18 | Deadline finalize        | Server auto-submits the latest draft after the deadline (10s grace)               | Implemented |
-| SUB-19 | Single attempt           | One active/submitted session per student per assessment in Phase 1                | Implemented |
-| SUB-20 | Timed workspace bar      | Countdown, autosave state, Open file, and Submit appear above the editor          | Implemented |
+| ID     | Feature                  | Description                                                                                                | Status      |
+| ------ | ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------- |
+| SUB-01 | Assignment brief         | Instructions, starter code, file name, language, due date                                                  | Implemented |
+| SUB-02 | Submission RPC           | Verifies enrollment, creates submission, attaches snapshots                                                | Implemented |
+| SUB-03 | Final snapshot           | Uses newest snapshot or captures live content                                                              | Implemented |
+| SUB-04 | Idempotent retry         | `client_token` returns the original submission                                                             | Implemented |
+| SUB-05 | Submission status        | Submitted/graded/queued/not submitted states                                                               | Implemented |
+| SUB-06 | Latest submission        | Student card shows latest submission only                                                                  | Implemented |
+| SUB-07 | Grade visibility         | Released grade appears; private grade stays hidden                                                         | Implemented |
+| SUB-08 | Feedback modal           | Comments grouped by submission, grade shown, threaded replies                                              | Implemented |
+| SUB-09 | Student replies          | Students may reply inside threads on their own submission                                                  | Implemented |
+| SUB-10 | Unread feedback badge    | Clears after opening Feedback                                                                              | Implemented |
+| SUB-11 | Comment counts           | Shown on assignment/submission cards                                                                       | Implemented |
+| SUB-12 | Read-only submission API | Students cannot update their own grade/status through the client                                           | Implemented |
+| SUB-13 | Online/offline submit    | Queue with automatic retry when connection returns                                                         | Implemented |
+| SUB-14 | Assessment tabs          | Student class page separates Assignments (take-home) from Seatworks (in-person)                            | Implemented |
+| SUB-15 | Server-owned timer       | Start/deadline come from the database; the client only displays a countdown                                | Implemented |
+| SUB-16 | Draft autosave           | Latest content is saved to `assessment_drafts` every 8 seconds and on window hide                          | Implemented |
+| SUB-17 | Crash resume             | Start/reopen returns the saved draft and the same deadline                                                 | Implemented |
+| SUB-18 | Deadline finalize        | Server auto-submits the latest draft after the deadline (10s grace)                                        | Implemented |
+| SUB-19 | Single attempt           | One active/submitted session per student per assessment in Phase 1                                         | Implemented |
+| SUB-20 | Timed workspace bar      | Countdown, autosave state, Open file, and Submit appear above the editor                                   | Implemented |
+| SUB-21 | HTML live preview        | HTML files open a loopback static preview that serves the class folder and overlays unsaved editor content | Implemented |
+| SUB-22 | HTML101 course           | Five HTML lessons and a profile-page project with teaching notes                                           | Implemented |
+| SUB-23 | Nested project folders   | Class tree supports project subfolders and assignment paths like `project/index.html`                      | Implemented |
+| SUB-24 | Image assets             | Add Images copies PNG/JPG/GIF/WebP/SVG/etc. into a class or project folder                                 | Implemented |
 
 ---
 
@@ -270,7 +285,7 @@ demo is a simulator; real scores are server-recomputed from telemetry.
 | REV-07 | Snapshot timeline         | Horizontally scrollable rail with large click targets                                           | Implemented                     |
 | REV-08 | Diff mode                 | Compare selected snapshot to previous in inline Monaco diff                                     | Implemented                     |
 | REV-09 | Paste similarity          | Red Paste detected badge; matched cross-student paste                                           | Implemented                     |
-| REV-10 | Typing heatmap            | Cadence scatter plot, median gap, longest pause                                                 | Implemented                     |
+| REV-10 | Typing heatmap            | Authorship scatter plot, median gap, longest pause                                              | Implemented                     |
 | REV-11 | ICS panel                 | Weighted terms, score, band, explanation                                                        | Implemented                     |
 | REV-12 | Inline comments           | Line-anchored comments with threaded replies                                                    | Implemented                     |
 | REV-13 | Comment navigation        | Jump to snapshot/line; highlight commented lines                                                | Implemented                     |
@@ -365,7 +380,7 @@ demo is a simulator; real scores are server-recomputed from telemetry.
 | ------ | -------------------- | ----------------------------------------------- | ---------------- |
 | ENG-01 | TypeScript typecheck | Main/preload/renderer and admin web             | Implemented      |
 | ENG-02 | ESLint               | Desktop and admin source                        | Implemented      |
-| ENG-03 | Unit tests           | 59 Vitest tests                                 | Implemented      |
+| ENG-03 | Unit tests           | 121 Vitest tests                                | Implemented      |
 | ENG-04 | RLS regression       | 40 live checks against Supabase                 | Implemented      |
 | ENG-05 | CI workflow          | Lint, typecheck, unit tests, build              | Implemented      |
 | ENG-06 | Seed script          | Idempotent demo data                            | Implemented      |

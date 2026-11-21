@@ -21,7 +21,7 @@ The application prioritizes:
 
 - real files on disk rather than an in-browser sandbox;
 - automatic, auditable edit history;
-- paste and typing-cadence evidence;
+- paste and authorship evidence;
 - professor review workflows that are useful without trusting a single score;
 - RLS as the primary authorization mechanism;
 - an offline-tolerant capture queue.
@@ -249,7 +249,7 @@ docs/                 Paper and QA documentation
 | `test_cases`          | `id`, `assignment_id`, `stdin`, `expected_stdout`, `ordinal`, `is_hidden`                                                                                                                                                                                   | Judge0 test definitions                               |
 | `submissions`         | `id`, `assignment_id`, `student_id`, `final_snapshot_id`, `status`, `submitted_at`, `grade`, `graded_at`, `graded_by`, `client_token`, `grade_released`, `grade_released_at`                                                                                | Submission record                                     |
 | `submission_grades`   | `submission_id` PK, `grade`, `graded_at`, `graded_by`                                                                                                                                                                                                       | Professor-only private mark                           |
-| `code_snapshots`      | `id`, `user_id`, `submission_id`, `file_name`, `content`, `snapshot_type`, `version`, `char_count`, `line_count`, `language`, `typing_intervals`, `created_at`                                                                                              | Edit history                                          |
+| `code_snapshots`      | `id`, `user_id`, `submission_id`, `file_name`, `content`, `snapshot_type`, `version`, `char_count`, `line_count`, `language`, `typing_intervals`, `edit_stats`, `focus_stats`, `created_at`                                                                 | Edit history                                          |
 | `paste_events`        | `id`, `snapshot_id`, `user_id`, `file_name`, `pasted_text`, `pasted_chars`, `paste_mode`, `detected_via`, `created_at`                                                                                                                                      | Paste audit trail                                     |
 | `ics_scores`          | `submission_id` PK, term fields, `ics`, `band`, `computed_at`                                                                                                                                                                                               | Integrity score                                       |
 | `comments`            | `id`, `submission_id`, `author_id`, `snapshot_id`, `parent_id`, `anchor_line`, `body`, `created_at`                                                                                                                                                         | Feedback threads                                      |
@@ -420,7 +420,7 @@ Major UI regions:
 - title bar / menu bar;
 - files sidebar;
 - editor pane;
-- bottom panel (terminal/test cases);
+- bottom panel (terminal/live HTML preview/test cases);
 - status bar;
 - student dashboard overlay;
 - professor dashboard;
@@ -431,14 +431,19 @@ Major UI regions:
 ## 9. Workspace and filesystem
 
 - Workspace root is fixed at `Documents/Unicode Lab`.
-- Class folders are derived from enrollments.
+- Class folders are derived from enrollments; project subfolders are user-created.
+- The tree recursively lists text/code files and image assets (PNG, JPG, GIF, WebP, SVG, etc.).
+- New File and New Folder target the selected class or project folder.
+- Add Images opens a native multi-select picker and copies assets into that folder with collision-safe names.
 - Filesystem operations are restricted to the workspace root in `src/main/fs.ts`.
+- Assignment file names may include a project path such as `profile-project/index.html`.
 - Native dialogs are the only way to open files outside the workspace.
 - Tabs track dirty state against the last disk write.
 - Closing a dirty tab prompts Save / Don’t Save / Cancel.
-- Rename updates the open tab and disk file.
+- Rename updates the open tab and disk file; images rename in the tree.
 - Delete asks for native confirmation and closes the tab.
 - External file changes appear after Refresh Workspace.
+- Image assets open in the system viewer rather than Monaco.
 
 ---
 
@@ -501,7 +506,7 @@ inspections remain out of scope.
 - The tracker retains manual/restore APIs, but the student-facing time-travel
   browser is intentionally removed.
 - Each snapshot stores content, type, version, character/line counts, language,
-  and typing intervals.
+  typing intervals, and the authorship counters in `edit_stats`.
 
 ### 11.2 Paste detection
 
@@ -595,52 +600,106 @@ blocking, fullscreen enforcement, MCQ quizzes, and exam-mode ICS changes.
 
 ---
 
-## 13. ICS — Integrity Confidence Score
+## 13. ICS — Integrity Confidence Score (v3 evidence ledger)
+
+The score is not a sum of positive-looking terms. It starts at 50 and moves only
+when there is evidence. Confidence gates the band instead of moving the score.
+The full rationale and edge-case matrix are in
+[08_ICS_EVIDENCE_MODEL.md](08_ICS_EVIDENCE_MODEL.md).
 
 ### 13.1 Inputs
 
 - Novel paste events and character counts (paste text that did not already
   exist in an earlier snapshot of the same submission).
-- Snapshot intervals.
-- Snapshot timestamps.
-- Latest Judge0 pass/fail result per test case.
+- Snapshot authorship counters (`code_snapshots.edit_stats`): corrections,
+  revisits, mid-line hesitation, line chunks, and immediate chunks after a
+  window refocus.
+- Window focus counters (`code_snapshots.focus_stats`): blurs, returns, away
+  time.
+- Typing intervals, used only for the automation check.
+- Latest Judge0 pass/fail result per test case (shown as quality, not counted
+  in integrity).
+- Optional cross-submission similarity (`S`; the similarity panel remains a
+  separate module for now).
 
 ### 13.2 Server computation
 
 ```text
-P = novel_pasted_chars / greatest(final_chars, novel_pasted_chars, 1)
-    novel = paste text not present in an earlier snapshot
-Cadence:
-    primary: 100 × share(typing gaps ≤ 1500 ms)
-    fallback: 100 × max(0, 1 − stddev(session gaps) / mean(session gaps))
-    shrunk toward 50 when there are too few samples
-Focus:
-    100 × active_seconds / session_seconds
-    active = gaps ≤ 120 seconds
-    session ignores gaps > 30 minutes
-Compilation:
-    100 × latest_passed_cases / latest_tested_cases
-    neutral 50 when no Judge0 result exists
+A = min(clamp(100 × (0.5·typo_fixes + 1.5·reworks + 1.5·revisits + 1.0·undo)
+          / inserted_chars / 2.5, 0, 1), cap)
+    × min(1, inserted_chars / 200)
+    typo fixes are capped at 5 × 0.5 weighted points
+    cap = 0.50 with fewer than two structural events (rework, revisit, undo)
+          0.75 with two
+          1.00 with three or more
+    one revisit is one excursion above the working line, not one per keystroke
 
-Paste term       = 35 × (1 − P)
-Cadence term     = 25 × (Cadence / 100)
-Focus term       = 20 × (Focus / 100)
-Compilation term = 20 × (Compilation / 100)
+P = clamp((novel_paste_ratio − allowance) / (0.60 − allowance), 0, 1)
+    allowance = 0 for seatwork, 0.10 for take-home
 
-ICS = sum of terms
-Band: pass ≥ 80, review ≥ 60, otherwise flag
+T = (chunk_chars / inserted_chars)
+  × (0.70 + 0.30 × clamp(1 − (reworks + undo) / (0.05·inserted_chars + 1), 0, 1))
+    only when inserted_chars ≥ 120
+
+R = 1 when ≥ 100 intervals and (median < 25 ms or coefficient of variation < 0.05)
+W = (immediate_chunks / max(1, returns)) × min(1, returns / 3)
+S = clamp((similarity − 0.75) / 0.25, 0, 1)      (reserved)
+
+E− = clamp(0.90·P + 0.80·T + 0.20·R + 0.30·W + 0.50·S, 0, 1)
+score = clamp(50 + 45 × (A − E−), 5, 95)
+
+confidence = 0 when inserted_chars < 120, otherwise
+             min(1, inserted_chars / 300)
+           × min(1, (inserts + fixes + reworks) / 30)
+           × coverage            (1 if ≥3 snapshots, 0.6 for one, 0.4 for final only)
 ```
 
-Stored in `ics_scores`; recompute can target one submission or an assignment.
+Band:
+
+```text
+flag   if P ≥ 0.99 and A ≤ 0.01
+flag   if T ≥ 0.7, A ≤ 0.15, and W ≥ 0.5
+flag   if S ≥ 0.9 and P ≥ 0.5
+review if P ≥ 0.8 and A ≤ 0.2
+review if T ≥ 0.7, A ≤ 0.15, and inserted_chars ≥ 120
+review if confidence < 0.30        (limited evidence never passes)
+review if score ≥ 80 and inserted_chars < 300   (short submission never passes)
+pass   if score ≥ 80
+review if score ≥ 40
+flag   otherwise
+```
+
+Line chunk = pause ≥ 1500 ms, then ≥ 20 chars from the line's first
+non-whitespace column through the end of the line, with no correction in the
+burst. Bulk edits > 30 chars (paste, select-all delete) are ignored.
+
+Pauses are never scored on their own. A long pause is neutral; the evidence is
+what happens when typing resumes.
+
+Stored in `ics_scores` with `confidence`, `evidence` (jsonb), `band_reason`, and
+`model` (`v3`, or `v2` for the legacy fallback). The four legacy term columns
+are still populated as projections for analytics: paste, authorship in
+`cadence_term`, away in `focus_term`, and Judge0 quality. They do not sum to
+`ics` in v3.
 
 ![Current ICS formula](ics-formula.png)
 
 ### 13.3 Presentation
 
-- ICS panel shows score, band, term bars, raw inputs, and explanation.
-- Cadence click opens the typing-rhythm heatmap.
-- Student-facing ICS demo is a live simulator; it does not claim to be a real
-  evidence score.
+- ICS panel shows the score, band, confidence, evidence ledger, band reason, and
+  model (`v3` or legacy `v2`).
+- The typing-rhythm heatmap is available as a diagnostic view; intervals are not
+  scored directly.
+- Student-facing ICS demo uses the same v3 evidence rules. The workflow is:
+  name a scenario → **Start recording** → type/paste → **Stop & save**. While
+  recording, the demo samples score, band, confidence, evidence, and counts twice
+  a second and plots the score timeline. The saved run includes that timeline and
+  a compact keylog (change events plus raw keydown/keyup, cursor/selection,
+  focus/blur, copy/cut/paste).
+- **Copy JSON** exports saved runs; **Copy keylog** exports the current session’s
+  event stream. Nothing is sent to the server.
+- Judge0 results appear as a quality figure and are not counted in the
+  integrity score.
 
 ---
 
@@ -760,7 +819,7 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 | Admin only        | `npm run dev:admin`                             |
 | Typecheck         | `npm run typecheck`                             |
 | Lint              | `npm run lint`                                  |
-| Unit tests        | `npm test` (Vitest, 59 tests)                   |
+| Unit tests        | `npm test` (Vitest, 121 tests)                  |
 | RLS regression    | `npm run test:rls` (41 checks)                  |
 | Production build  | `npm run build`                                 |
 | Windows installer | `npm run build:win`                             |
@@ -790,8 +849,10 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 | CS102       | 3 students, 2 Python assignments (one scheduled +3 days)                                        |
 | CS201       | 4 students, Java assignment + Java test cases                                                   |
 | CS301       | 3 students, C++ assignment + C++ test cases                                                     |
-| Join codes  | `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z`                                                  |
+| HTML101     | 6 students, 5 HTML lessons, and a profile-page project; live local preview                      |
+| Join codes  | `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z`, `HTML101L5V`                                    |
 | Grade state | student1 released 92; student2 private 78; student3 ungraded                                    |
+| ICS v3 demo | student1 pass 95.0; student2 review 79.6; student3 flag 5.0 (live `recompute_ics`)              |
 | Paste demo  | student3 has two pastes; student2 shares a 100% match                                           |
 | Typing demo | seeded intervals produce jagged/steady/fast-flat rhythms                                        |
 
@@ -806,7 +867,7 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 | Supabase + RLS                                    | Fast multi-user backend with declarative authorization           | Requires network for shared features; RLS must be maintained carefully |
 | Private grade table                               | Prevent API/Realtime leakage                                     | Extra table and copy step on release                                   |
 | Masked student view                               | Defense in depth for grade visibility                            | Student feedback queries need a second lookup                          |
-| Edit intervals, not raw keystrokes                | Privacy and storage efficiency                                   | Heatmap is a cadence approximation                                     |
+| Edit intervals, not raw keystrokes                | Privacy and storage efficiency                                   | Heatmap is a rhythm approximation; Authorship uses edit counters       |
 | Per-device seen state                             | No extra notification tables                                     | No cross-device synchronization                                        |
 | Token + pg_trgm similarity                        | Two complementary review signals                                 | Neither proves plagiarism                                              |
 | Separate admin web app                            | Keeps admin surface out of student/professor bundle              | Second deployment target                                               |

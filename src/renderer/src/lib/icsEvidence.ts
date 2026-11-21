@@ -24,6 +24,8 @@ export const EVIDENCE_WEIGHTS = {
 export const MIN_CONFIDENCE = 0.3
 export const CONFIDENCE_CHARS = 300
 export const CONFIDENCE_EDITS = 30
+/** A pass cannot be issued below this many inserted characters. */
+export const PASS_MIN_CHARS = 300
 export const PASTE_SATURATION = 0.6
 export const TRANSCRIPTION_MIN_CHARS = 120
 /** Below this many characters, authored evidence is scaled down linearly. */
@@ -271,6 +273,12 @@ export function evaluateEvidence(
     band = 'review'
     limited = true
     reason = `Limited evidence: ${input.insertedChars} chars and ${input.edits.bursts} bursts.`
+  } else if (score >= 80 && input.insertedChars < PASS_MIN_CHARS) {
+    // Volume alone should not turn a good-looking short session into a pass.
+    band = 'review'
+    limited = true
+    rules.push('short_submission')
+    reason = `Short submission: ${input.insertedChars} chars; a pass needs ${PASS_MIN_CHARS}.`
   } else if (score >= 80) {
     band = 'pass'
     reason = 'Authored evidence outweighs the negative signals.'

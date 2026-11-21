@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { ClipboardCheck, Send, Terminal } from 'lucide-react'
+import { ClipboardCheck, Eye, Send, Terminal } from 'lucide-react'
+import HtmlPreviewPanel from './HtmlPreviewPanel'
 import TerminalPanel from './TerminalPanel'
 import TestCasesPanel from './TestCasesPanel'
 import type { StudentAssignment } from '../types/student'
@@ -14,6 +15,8 @@ interface BottomPanelProps {
   onRecheckToolchain: () => void
   readSource: () => string | null
   assignment: StudentAssignment | null
+  /** Bumped after images are added so the live preview reloads. */
+  previewRefreshToken: number
   onSubmit: () => Promise<void>
   onSubmitted: () => void
 }
@@ -30,10 +33,12 @@ export default function BottomPanel({
   onRecheckToolchain,
   readSource,
   assignment,
+  previewRefreshToken,
   onSubmit,
   onSubmitted
 }: BottomPanelProps): React.ReactElement {
   const [testsOpen, setTestsOpen] = useState(false)
+  const [previewChoice, setPreviewChoice] = useState<Record<string, boolean>>({})
   const [height, setHeight] = useState(300)
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -42,6 +47,12 @@ export default function BottomPanel({
 
   const testsAvailable = assignment?.autoTestEnabled ?? false
   const showTests = testsOpen && testsAvailable && assignment !== null
+  const previewKey = filePath ?? activeFile
+  const previewAvailable = language === 'html' && filePath !== null
+  const previewOpen = previewAvailable && (previewChoice[previewKey] ?? true)
+  const togglePreview = (): void => {
+    setPreviewChoice((previous) => ({ ...previous, [previewKey]: !previewOpen }))
+  }
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>): void => {
     event.preventDefault()
@@ -89,11 +100,22 @@ export default function BottomPanel({
 
       <header className="bottom-panel-head">
         <div className="bottom-panel-title">
-          <Terminal size={13} /> Terminal
+          {previewOpen ? <Eye size={13} /> : <Terminal size={13} />}
+          {previewOpen ? 'Preview' : 'Terminal'}
           <span className="bottom-panel-file">{activeFile}</span>
         </div>
 
         <div className="bottom-panel-actions">
+          {previewAvailable && (
+            <button
+              className={`bottom-tab ${previewOpen ? 'active' : ''}`}
+              aria-pressed={previewOpen}
+              onClick={togglePreview}
+              title={previewOpen ? 'Show the terminal' : 'Show the live HTML preview'}
+            >
+              <Eye size={13} /> Preview
+            </button>
+          )}
           {testsAvailable && (
             <button
               className={`bottom-tab ${testsOpen ? 'active' : ''}`}
@@ -127,16 +149,27 @@ export default function BottomPanel({
       </header>
 
       <div className="bottom-panel-body">
-        <div className="terminal-dock">
-          <TerminalPanel
-            key={workspaceRoot ?? 'no-workspace'}
-            workspaceRoot={workspaceRoot}
-            filePath={filePath}
-            language={language}
-            toolchain={toolchain}
-            onRecheckToolchain={onRecheckToolchain}
-          />
-        </div>
+        {previewOpen && filePath ? (
+          <div className="preview-dock">
+            <HtmlPreviewPanel
+              key={filePath}
+              filePath={filePath}
+              readSource={readSource}
+              refreshToken={previewRefreshToken}
+            />
+          </div>
+        ) : (
+          <div className="terminal-dock">
+            <TerminalPanel
+              key={workspaceRoot ?? 'no-workspace'}
+              workspaceRoot={workspaceRoot}
+              filePath={filePath}
+              language={language}
+              toolchain={toolchain}
+              onRecheckToolchain={onRecheckToolchain}
+            />
+          </div>
+        )}
 
         {showTests && assignment && (
           <div className="tests-dock">

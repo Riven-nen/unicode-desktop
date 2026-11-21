@@ -4,16 +4,23 @@
  * window.api typings.
  */
 
+export type WorkspaceFileKind = 'text' | 'image'
+
 export interface WorkspaceFile {
   name: string
   path: string
+  kind: WorkspaceFileKind
 }
 
-export interface WorkspaceCourse {
+export interface WorkspaceFolder {
   name: string
   path: string
+  folders: WorkspaceFolder[]
   files: WorkspaceFile[]
 }
+
+/** A top-level class folder; same shape as any nested project folder. */
+export interface WorkspaceCourse extends WorkspaceFolder {}
 
 export interface WorkspaceListing {
   root: string

@@ -115,9 +115,9 @@ design follows five findings from the literature:
    therefore a request for review.
 
 The score starts at 50 and moves only with evidence; confidence gates the band so
-a short session cannot pass, and authored evidence is scaled by session volume so
-a 120-character snippet can reach review but not a confident pass. Judge0 results
-are reported separately as quality.
+a short session cannot pass, and a hard 300-character floor keeps
+120–299-character snippets at review even when the authored evidence is perfect.
+Judge0 results are reported separately as quality.
 
 ## 4.3.3 Backend and Data Storage
 

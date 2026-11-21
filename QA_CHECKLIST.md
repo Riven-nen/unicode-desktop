@@ -12,9 +12,10 @@ should pass before the demo.
 - Students: `student1@unicode.test` … `student10@unicode.test` / `Password123!`
 - Classes: CS101 (6 students, 3 Python assignments), CS102 (3 students, 2
   Python assignments, one scheduled three days out), CS201 (Java, Professor
-  Lin), CS301 (C++, Professor Ortega)
+  Lin), CS301 (C++, Professor Ortega), HTML101 (6 students, 5 HTML lessons and
+  a project, live local preview)
 - Join codes: CS101 `CS101J4K`, CS102 `CS102P8Q`, CS201 `CS201R7A`,
-  CS301 `CS301M2Z`
+  CS301 `CS301M2Z`, HTML101 `HTML101L5V`
 - Demo grade state: student1 has a released Fibonacci grade, student2 has a
   private grade ready for the professor to release, student3 is ungraded
 - Demo insight data: student3 has two paste events; student2 has a matching
@@ -119,6 +120,23 @@ should pass before the demo.
 - [ ] Timed submissions flow into the normal review, grading, ICS, comments,
       and similarity views.
 
+## 3B. HTML class and live preview
+
+- [ ] HTML101 appears for student1–student6 with five HTML lessons and a
+      profile-page project.
+- [ ] Opening an HTML lesson opens its file and shows the **Preview** tab.
+- [ ] The preview starts on a loopback port and updates after typing.
+- [ ] Preview and terminal toggle cleanly; closing the file stops the server.
+- [ ] A linked CSS file in the class folder loads in the preview.
+- [ ] Refresh and Browser actions work.
+- [ ] HTML/CSS assignments show no Judge0 Test cases tab.
+- [ ] The project opens `profile-project/index.html` and creates that folder.
+- [ ] New Folder creates nested project folders that persist after refresh.
+- [ ] Add Images copies images into the selected folder; duplicates get a
+      numeric suffix.
+- [ ] Images appear in the tree and open in the system viewer when clicked.
+- [ ] Project previews load linked CSS, JS, and images from the same folder.
+
 ## 4. Workspace and files
 
 - [ ] Workspace is fixed to `Documents\Unicode Lab`; no folder picker exists.
@@ -165,6 +183,10 @@ should pass before the demo.
       installed, compiler errors are added; without it, the status bar labels
       the check as syntax-only.
 - [ ] Autocomplete/hover for local symbols and builtins works in Python.
+- [ ] HTML `!` offers `!DOCTYPE` and expands to a full document skeleton.
+- [ ] HTML `<div>` auto-closes; void tags like `<br>` and `<img>` do not.
+- [ ] HTML snippets for CSS links, scripts, images, links, forms, and tables
+      appear.
 - [ ] Edits create snapshots; the status bar count updates.
 - [ ] Paste creates a paste event and increments the paste count.
 - [ ] Offline edits queue and sync when the connection/session returns.
@@ -217,7 +239,7 @@ should pass before the demo.
 - [ ] ICS demo opens from the dashboard and class page.
 - [ ] The demo editor is Monaco with Python syntax highlighting; typing and
       pasting still update the metrics.
-- [ ] Typing updates the gauge, cadence metric, and event line.
+- [ ] Typing updates the gauge, authorship metric, and event line.
 - [ ] Pasting updates the paste metric, drops the score, and highlights Paste.
 - [ ] Idling highlights Focus and lowers it.
 - [ ] Reset clears the playground, metrics, and highlight.
@@ -259,8 +281,9 @@ should pass before the demo.
       green additions and red deletions; snapshots after the first enable it.
 - [ ] The snapshot timeline scrolls horizontally when needed and keeps the
       selected snapshot visible.
-- [ ] Clicking the **Cadence** bar opens the typing heatmap with points, median,
-      longest pause, and an empty state for old submissions.
+- [ ] Clicking **Typing rhythm** opens the heatmap with points, median, longest
+      pause, and an empty state for old submissions.
+- [ ] The ICS panel shows the v3 evidence ledger, confidence, and band reason.
 - [ ] Student3’s flagged submission shows **Paste detected** and a cross-student
       paste match with student2.
 - [ ] **Live lab** opens from the dashboard/nav, shows active students with the
@@ -271,7 +294,12 @@ should pass before the demo.
       assignment (due, late, grade, ICS, band, comments).
 - [ ] Assignment analytics shows submitted/enrolled, late, averages, and band
       distribution.
-- [ ] Recomputing a normally typed submission gives nonzero Cadence and Focus.
+- [ ] Recomputing a normally typed submission gives a passing v3 score with
+      sufficient confidence.
+- [ ] A long thinking pause does not lower the score.
+- [ ] A short session shows `review — limited evidence`.
+- [ ] **P1** A stall mid-line does not raise the score.
+- [ ] Demo **Start/Stop** stores a labelled run with a score timeline; **Copy JSON** exports it and **Copy keylog** exports events.
 - [ ] The snapshot timeline scrolls horizontally when needed, with large
       clickable dots and the selected snapshot kept in view.
 - [ ] Cross-student similarity shows pairs at the selected threshold, score

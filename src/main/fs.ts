@@ -1,11 +1,13 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
-import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'fs/promises'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { copyFile, mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'fs/promises'
 import { basename, dirname, extname, join } from 'path'
 import type {
   AssignmentFileResult,
   CloseChoice,
   WorkspaceCourse,
   WorkspaceFile,
+  WorkspaceFileKind,
+  WorkspaceFolder,
   WorkspaceListing
 } from '../shared/workspace'
 
@@ -53,6 +55,19 @@ const TEXT_EXTENSIONS = new Set([
   '.yaml',
   '.toml',
   '.ini'
+])
+
+// Binary assets the file tree shows and the HTML preview can serve.
+const IMAGE_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.ico',
+  '.bmp',
+  '.avif'
 ])
 
 // Characters Windows rejects in filenames.
@@ -107,6 +122,18 @@ function assertSimpleName(name: string): void {
   }
 }
 
+/** Splits a workspace-relative path into safe segments (assignments may nest). */
+function relativePathSegments(raw: string): string[] {
+  const cleaned = raw.trim().replace(/\\/g, '/')
+  if (!cleaned || cleaned.startsWith('/') || /^[a-zA-Z]:/.test(cleaned)) {
+    throw new Error('Choose a file inside the class folder.')
+  }
+  const segments = cleaned.split('/').filter((segment) => segment.length > 0)
+  if (segments.length === 0) throw new Error('Choose a file inside the class folder.')
+  for (const segment of segments) assertSimpleName(segment)
+  return segments
+}
+
 // Windows reserves these device names in every folder.
 const RESERVED_FOLDER_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 
@@ -134,15 +161,75 @@ function isTextFile(name: string): boolean {
   return TEXT_EXTENSIONS.has(extname(name).toLowerCase())
 }
 
-async function listFilesIn(dir: string): Promise<WorkspaceFile[]> {
-  const entries = await readdir(dir, { withFileTypes: true })
-  return entries
-    .filter((entry) => entry.isFile() && !entry.name.startsWith('.') && isTextFile(entry.name))
-    .map((entry) => ({ name: entry.name, path: join(dir, entry.name) }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+function isImageFile(name: string): boolean {
+  return IMAGE_EXTENSIONS.has(extname(name).toLowerCase())
 }
 
-async function listWorkspace(root: string): Promise<WorkspaceListing> {
+function kindFor(name: string): WorkspaceFileKind | null {
+  if (isTextFile(name)) return 'text'
+  if (isImageFile(name)) return 'image'
+  return null
+}
+
+const MAX_FOLDER_DEPTH = 8
+
+/** Clean an imported asset name while preserving its extension. */
+function importedImageName(raw: string): string {
+  const extension = extname(raw).toLowerCase()
+  const stem = basename(raw, extname(raw))
+    .replace(INVALID_NAME_CHARS, '-')
+    .replace(/[.\s]+$/g, '')
+    .trim()
+  return `${stem || 'image'}${extension}`
+}
+
+/** Finds `name.png`, `name (2).png`, … so imports never overwrite work. */
+async function uniqueImageTarget(dir: string, rawName: string): Promise<string> {
+  const safeName = importedImageName(rawName)
+  const extension = extname(safeName)
+  const stem = basename(safeName, extension)
+  let candidate = safeName
+  let suffix = 2
+  for (;;) {
+    const target = join(dir, candidate)
+    try {
+      await stat(target)
+      candidate = `${stem} (${suffix})${extension}`
+      suffix += 1
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return target
+      throw error
+    }
+  }
+}
+
+async function listFolder(
+  dir: string,
+  depth = 0
+): Promise<{ folders: WorkspaceFolder[]; files: WorkspaceFile[] }> {
+  const entries = await readdir(dir, { withFileTypes: true })
+  const folders: WorkspaceFolder[] = []
+  const files: WorkspaceFile[] = []
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue
+    const fullPath = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (depth >= MAX_FOLDER_DEPTH) continue
+      const child = await listFolder(fullPath, depth + 1)
+      folders.push({ name: entry.name, path: fullPath, ...child })
+    } else if (entry.isFile()) {
+      const kind = kindFor(entry.name)
+      if (kind) files.push({ name: entry.name, path: fullPath, kind })
+    }
+  }
+
+  folders.sort((a, b) => a.name.localeCompare(b.name))
+  files.sort((a, b) => a.name.localeCompare(b.name))
+  return { folders, files }
+}
+
+export async function listWorkspace(root: string): Promise<WorkspaceListing> {
   const info = await stat(root)
   if (!info.isDirectory()) throw new Error('The workspace path is not a folder.')
 
@@ -154,13 +241,11 @@ async function listWorkspace(root: string): Promise<WorkspaceListing> {
     if (entry.name.startsWith('.')) continue
     const fullPath = join(root, entry.name)
     if (entry.isDirectory()) {
-      courses.push({
-        name: entry.name,
-        path: fullPath,
-        files: await listFilesIn(fullPath)
-      })
-    } else if (entry.isFile() && isTextFile(entry.name)) {
-      files.push({ name: entry.name, path: fullPath })
+      const contents = await listFolder(fullPath)
+      courses.push({ name: entry.name, path: fullPath, ...contents })
+    } else if (entry.isFile()) {
+      const kind = kindFor(entry.name)
+      if (kind) files.push({ name: entry.name, path: fullPath, kind })
     }
   }
 
@@ -188,7 +273,13 @@ export function registerFsHandlers(): void {
     const window = parentWindow(event)
     const options: Electron.OpenDialogOptions = {
       title: 'Open File',
-      properties: ['openFile']
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Text and code',
+          extensions: [...TEXT_EXTENSIONS].map((extension) => extension.slice(1))
+        }
+      ]
     }
     const result = window
       ? await dialog.showOpenDialog(window, options)
@@ -233,13 +324,75 @@ export function registerFsHandlers(): void {
     assertAllowed(dir)
     assertSimpleName(name)
     if (!isTextFile(name)) {
-      throw new Error('Only text and code files can be created in a course folder.')
+      throw new Error('Only text and code files can be created in a folder.')
     }
     const filePath = join(dir, name)
     // 'wx' fails when the file already exists, so we never clobber work.
     await writeFile(filePath, '', { encoding: 'utf8', flag: 'wx' })
     allowPath(filePath)
     return filePath
+  })
+
+  // Creates a project subfolder under a class or another project folder.
+  ipcMain.handle('fs:create-folder', async (_event, parentDir: string, name: string) => {
+    assertAllowed(parentDir)
+    assertSimpleName(name)
+    const safeName = name.trim()
+    if (RESERVED_FOLDER_NAMES.test(safeName)) {
+      throw new Error(`"${safeName}" is reserved by Windows. Choose another folder name.`)
+    }
+    const parent = await stat(parentDir)
+    if (!parent.isDirectory()) throw new Error('Choose a folder to create this in.')
+    const folderPath = join(parentDir, safeName)
+    await mkdir(folderPath)
+    allowPath(folderPath)
+    return folderPath
+  })
+
+  // Copies image files into the chosen class/project folder. Multi-select is
+  // supported; duplicate names get a numeric suffix instead of overwriting.
+  ipcMain.handle('fs:import-images', async (event, dir: string): Promise<WorkspaceFile[]> => {
+    assertAllowed(dir)
+    const parent = await stat(dir)
+    if (!parent.isDirectory()) throw new Error('Choose a folder for these images.')
+
+    const window = parentWindow(event)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Add Images',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        {
+          name: 'Images',
+          extensions: [...IMAGE_EXTENSIONS].map((extension) => extension.slice(1))
+        }
+      ]
+    }
+    const result = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return []
+
+    const imported: WorkspaceFile[] = []
+    for (const source of result.filePaths) {
+      if (!isImageFile(source)) continue
+      const target = await uniqueImageTarget(dir, basename(source))
+      await copyFile(source, target)
+      allowPath(target)
+      imported.push({ name: basename(target), path: target, kind: 'image' })
+    }
+    return imported
+  })
+
+  // Opens a workspace asset (usually an image) with the OS default app.
+  ipcMain.handle('fs:open-path', async (_event, filePath: string) => {
+    assertAllowed(filePath)
+    if (!isImageFile(filePath)) {
+      throw new Error('Only image assets can be opened in the system viewer.')
+    }
+    const info = await stat(filePath)
+    if (!info.isFile()) throw new Error('Only image files can be opened.')
+    const error = await shell.openPath(filePath)
+    if (error) throw new Error(error)
   })
 
   // Creates one folder per enrolled course. Idempotent: existing folders are
@@ -276,16 +429,16 @@ export function registerFsHandlers(): void {
       starterCode = ''
     ): Promise<AssignmentFileResult> => {
       assertAllowed(root)
-      const safeName = fileName.trim()
-      assertSimpleName(safeName)
-      if (!isTextFile(safeName)) {
+      const segments = relativePathSegments(fileName)
+      const baseName = segments[segments.length - 1]
+      if (!isTextFile(baseName)) {
         throw new Error('Assignments must point at a text or code file.')
       }
       const folder = sanitizeFolderName(courseName)
-      const dir = join(root, folder)
+      const dir = join(root, folder, ...segments.slice(0, -1))
       await mkdir(dir, { recursive: true })
       allowPath(dir)
-      const filePath = join(dir, safeName)
+      const filePath = join(dir, baseName)
       let created = false
       try {
         // 'wx' fails when the file already exists, so student work survives.
@@ -295,7 +448,7 @@ export function registerFsHandlers(): void {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
       }
       allowPath(filePath)
-      return { path: filePath, fileName: `${folder}/${safeName}`, created }
+      return { path: filePath, fileName: [folder, ...segments].join('/'), created }
     }
   )
 
@@ -326,8 +479,8 @@ export function registerFsHandlers(): void {
     assertAllowed(filePath)
     assertSimpleName(newName)
     const safeName = newName.trim()
-    if (!isTextFile(safeName)) {
-      throw new Error('Only text and code files can be renamed.')
+    if (!isTextFile(safeName) && !isImageFile(safeName)) {
+      throw new Error('Only text, code, and image files can be renamed.')
     }
     const target = join(dirname(filePath), safeName)
     const caseOnly = target.toLowerCase() === filePath.toLowerCase()

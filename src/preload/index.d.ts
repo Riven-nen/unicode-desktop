@@ -1,6 +1,12 @@
-import type { AssignmentFileResult, CloseChoice, WorkspaceListing } from '../shared/workspace'
+import type {
+  AssignmentFileResult,
+  CloseChoice,
+  WorkspaceFile,
+  WorkspaceListing
+} from '../shared/workspace'
 import type { LanguageCheckInput, LanguageCheckResult } from '../shared/diagnostics'
 import type { LspMessage, LspStartResult } from '../shared/lsp'
+import type { HtmlPreviewApi } from '../shared/preview'
 import type {
   Judge0PublicConfig,
   Judge0RawResult,
@@ -38,6 +44,12 @@ export interface FsApi {
   writeFile(filePath: string, content: string): Promise<string>
   saveFileAs(defaultPath: string, content: string): Promise<string | null>
   createFile(dir: string, name: string): Promise<string>
+  /** Creates a project subfolder inside a class or another project folder. */
+  createFolder(parentDir: string, name: string): Promise<string>
+  /** Copies one or more chosen images into a class/project folder. */
+  importImages(dir: string): Promise<WorkspaceFile[]>
+  /** Opens a workspace asset with the OS default application. */
+  openPath(filePath: string): Promise<void>
   /** Creates one folder per enrolled course; idempotent, sorts the batch. */
   ensureCourses(root: string, names: string[]): Promise<WorkspaceListing>
   /**
@@ -127,6 +139,7 @@ export interface UnicodeApi {
   diagnostics: DiagnosticsApi
   lsp: LspApi
   judge0: Judge0Api
+  preview: HtmlPreviewApi
   terminal: TerminalApi
   submissions: SubmissionRunsApi
 }

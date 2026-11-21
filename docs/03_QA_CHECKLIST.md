@@ -56,10 +56,11 @@ Expected demo state:
 - [ ] CS102 has 3 students and 2 Python assignments; one is scheduled +3 days.
 - [ ] CS201 belongs to Professor Lin and has a Java assignment.
 - [ ] CS301 belongs to Professor Ortega and has a C++ assignment.
-- [ ] Join codes are `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z`.
-- [ ] Student1 has a released Fibonacci grade of 92.
-- [ ] Student2 has a private Fibonacci grade of 78.
-- [ ] Student3 is ungraded and flagged.
+- [ ] HTML101 has 6 students, five HTML lessons, and a profile-page project.
+- [ ] Join codes are `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z`, `HTML101L5V`.
+- [ ] Student1 has a released Fibonacci grade of 92 and a v3 ICS pass (95.0).
+- [ ] Student2 has a private Fibonacci grade of 78 and a v3 ICS review (79.6).
+- [ ] Student3 is ungraded and has a v3 ICS flag (5.0).
 - [ ] Student3 has paste events; Student2 has a matching paste.
 - [ ] Snapshots include typing intervals.
 
@@ -79,7 +80,7 @@ Expected:
 
 - [ ] Typecheck passes.
 - [ ] Lint passes with no errors.
-- [ ] **59/59** Vitest tests pass.
+- [ ] **121/121** Vitest tests pass.
 - [ ] **41/41** RLS checks pass.
 - [ ] Admin build passes.
 
@@ -263,9 +264,55 @@ Expected:
 
 ---
 
+## 6A. HTML live preview and HTML101
+
+- [ ] **P0** `HTML101 - Web Foundations` appears for student1–student6.
+- [ ] **P0** HTML101 has five lesson assignments and a profile-page project.
+- [ ] **P0** HTML lessons open `index.html`, `links.html`, `forms.html`,
+      `styles.html`, and `interactive.html`.
+- [ ] **P0** The project opens `profile-project/index.html` and creates that
+      nested folder on first open.
+- [ ] **P0** The course tree shows nested project folders and image assets.
+- [ ] **P0** New Folder creates a folder inside the selected class/project
+      folder and survives Refresh.
+- [ ] **P0** Add Images copies one or more images into the selected folder;
+      duplicate names get a numeric suffix.
+- [ ] **P0** Clicking an image opens it in the system viewer.
+- [ ] **P0** Renaming or deleting an image updates the tree.
+- [ ] **P0** A project-level HTML preview can load `styles.css`, `script.js`,
+      and images from its own folder.
+- [ ] **P0** Relative paths outside the project folder are not served.
+- [ ] **P0** Opening an HTML file selects the **Preview** tab in the bottom panel
+      by default.
+- [ ] **P0** The preview is served from `127.0.0.1` on a random port.
+- [ ] **P0** Typing in the editor updates the preview after a short pause without
+      saving.
+- [ ] **P0** Toggling Preview off returns the bottom panel to the terminal.
+- [ ] **P0** Refresh reloads the frame; Browser opens the same preview externally.
+- [ ] **P0** A linked `style.css` in the same class folder loads and applies.
+- [ ] **P0** An image or script with a relative path in the class folder loads.
+- [ ] **P0** The class folder is served read-only; unsaved HTML remains only in
+      the preview overlay.
+- [ ] **P0** Closing the preview stops the server; no preview port remains open.
+- [ ] **P0** A file outside the workspace cannot be previewed.
+- [ ] **P0** HTML/CSS assignments disable Judge0 auto tests in the editor.
+- [ ] **P1** ICS playground HTML Preview still uses its own temporary preview.
+- [ ] **P1** The seeded HTML lessons include teaching text in their descriptions.
+
+---
+
 ## 7. Editor and language intelligence
 
 - [ ] **P0** Monaco opens with syntax highlighting for Python/Java/C/C++.
+- [ ] **P0** In an HTML file, typing `!` offers `!DOCTYPE`; accepting it inserts
+      the full document skeleton.
+- [ ] **P0** Typing `!DOCTYPE` and pressing Enter/Tab accepts the snippet.
+- [ ] **P0** Typing `<div>` inserts `</div>`; `<br>`, `<img>`, and `<input>` do not
+      get closing tags.
+- [ ] **P0** Typing after an existing closing tag does not duplicate it.
+- [ ] **P0** `link:css`, `script:src`, `img`, `a`, `form`, and `table` snippets
+      are offered in HTML files.
+- [ ] **P1** HTML and CSS respect format-on-type and format-on-paste.
 - [ ] **P0** Tabs open/close and dirty dots appear.
 - [ ] **P0** Undo/redo, cut/copy/paste, comment toggle, select-all.
 - [ ] **P0** Find/replace works.
@@ -349,24 +396,37 @@ Expected:
 
 ## 10. ICS and student demo
 
-- [ ] **P0** Professor ICS panel shows score, band, term bars.
-- [ ] **P0** Raw inputs P/C/F/K are visible.
+- [ ] **P0** Professor ICS panel shows score, band, confidence, evidence ledger, band reason.
 - [ ] **P0** Recompute updates a submission.
 - [ ] **P0** Bulk recompute updates an assignment.
-- [ ] **P0** Band thresholds: pass ≥80, review ≥60, flag below 60.
-- [ ] **P0** Cadence click opens typing-rhythm heatmap.
+- [ ] **P0** Band thresholds: pass ≥80, review ≥40, flag below 40, with a confidence gate.
+- [ ] **P0** Typing rhythm opens the heatmap.
 - [ ] **P0** Heatmap shows points and median/longest-pause stats.
-- [ ] **P1** A normally typed submission gets a nonzero Cadence/Focus score after recompute.
-- [ ] **P1** Overnight/long idle gaps do not force Cadence or Focus to zero.
+- [ ] **P1** A normally typed submission gets a passing v3 score with sufficient confidence.
+- [ ] **P1** A long thinking pause (2–5 min) does not lower the score.
+- [ ] **P1** Corrections and revisits raise the authorships value.
+- [ ] **P1** A single revisit (move up, change something) does not push a run to pass; it needs two structural events.
+- [ ] **P1** Moving up and typing several characters counts one revisit, not one per keystroke.
+- [ ] **P1** A hand-copied block is held at review; corroborated refocus copying can flag.
+- [ ] **P1** A short session shows `review — limited evidence`, not pass.
+- [ ] **P1** A 120–299-char authored run stays `review — short submission` even with perfect evidence.
+- [ ] **P1** Judge0 results appear as quality, not in the integrity score.
+- [ ] **P1** Overnight/long idle gaps do not force the score to zero.
 - [ ] **P1** Timeline scrolls horizontally when snapshots exceed the card width;
       every snapshot is reachable and the selected dot stays visible.
 - [ ] **P1** Heatmap empty state is readable for old/no-interval data.
 - [ ] **P1** Student ICS demo opens from dashboard.
 - [ ] **P1** Demo editor uses Monaco Python highlighting.
-- [ ] **P1** Typing updates gauge/cadence.
-- [ ] **P1** Pasting drops paste term and highlights Paste.
-- [ ] **P1** Idling highlights Focus.
-- [ ] **P1** Reset restores starter and clears metrics.
+- [ ] **P1** Typing updates gauge/authored evidence.
+- [ ] **P1** Pasting drops paste evidence and highlights Paste.
+- [ ] **P1** Leaving and returning to the window updates the Away signal.
+- [ ] **P1** Scenario input + Start recording runs a timer; Stop & save stores score, band, confidence, counts, and the score timeline.
+- [ ] **P1** The score timeline updates while recording and marks the final band.
+- [ ] **P1** Keylog records change events plus keydown/keyup, cursor, focus, and paste; Copy keylog exports it.
+- [ ] **P1** Stalling mid-line does not raise the score.
+- [ ] **P1** Saved runs survive closing/reopening the demo.
+- [ ] **P1** Copy JSON exports the tracked runs.
+- [ ] **P1** Reset clears the playground and metrics.
 - [ ] **P2** Demo copy states it is a simulator.
 
 ---
@@ -409,7 +469,7 @@ Expected:
 - [ ] **P0** Diff shows green additions and red deletions.
 - [ ] **P0** Diff disabled on first snapshot.
 - [ ] **P0** No Replay control is present.
-- [ ] **P0** Cadence heatmap opens with points.
+- [ ] **P0** Authorship heatmap opens with points.
 - [ ] **P0** Paste detected badge appears for student3.
 - [ ] **P0** Paste panel shows matched student and similarity.
 - [ ] **P1** Assignment analytics shows submitted/enrolled, late, averages, bands.
@@ -547,7 +607,7 @@ Expected:
 - [ ] **P0** Installer hash recorded in `dist/SHA256SUMS.txt`.
 - [ ] **P0** README/QA/CHANGELOG describe the current build.
 - [ ] **P0** Packaged app signs in and opens workspace files.
-- [ ] **P0** Packaged app shows Diff/Cadence/Paste/Live Lab controls and the timeline.
+- [ ] **P0** Packaged app shows Diff/Authorship/Paste/Live Lab controls and the timeline.
 - [ ] **P1** Admin `dist/` builds from a clean install.
 - [ ] **P1** CI workflow runs lint/typecheck/tests/build.
 - [ ] **P2** Unsigned-build warning is included in release notes.
@@ -568,7 +628,7 @@ Expected:
 4. Open student3’s submission:
    - show the scrollable snapshot timeline;
    - toggle **Diff**;
-   - click **Cadence** and show typing rhythm;
+   - click **Authorship** and show typing rhythm;
    - show **Paste detected** and 100% student2 match;
    - show grade box is private and release a grade.
 5. Open **Live Lab** with a student signed in on another window.

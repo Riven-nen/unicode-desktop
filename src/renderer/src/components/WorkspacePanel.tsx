@@ -6,11 +6,19 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  FolderPlus,
+  Image,
+  ImagePlus,
   Pencil,
   RefreshCw,
   Trash2
 } from 'lucide-react'
-import type { WorkspaceListing } from '../../../shared/workspace'
+import type {
+  WorkspaceCourse,
+  WorkspaceFile,
+  WorkspaceFolder,
+  WorkspaceListing
+} from '../../../shared/workspace'
 import { fileDisplayName } from '../lib/workspace'
 import type { CodeAnalysis } from '../lib/codeAnalysis'
 
@@ -28,8 +36,14 @@ interface WorkspacePanelProps {
   error: string | null
   activeFile: string
   onOpenFile: (filePath: string) => void
-  /** Opens the New File dialog targeting this course folder. */
-  onNewFileInCourse: (coursePath: string) => void
+  /** Opens an image with the OS viewer rather than the text editor. */
+  onOpenImage: (filePath: string) => void
+  /** Opens the New File dialog targeting this folder. */
+  onNewFileInFolder: (folderPath: string) => void
+  /** Opens the New Folder dialog targeting this folder. */
+  onNewFolder: (parentPath: string) => void
+  /** Opens the image picker and copies assets into this folder. */
+  onAddImages: (folderPath: string) => void
   /** Renames a workspace file; the parent keeps any open tab in sync. */
   onRenameFile: (filePath: string, newName: string) => Promise<void>
   /** Confirms and permanently deletes a workspace file. */
@@ -60,7 +74,10 @@ export default function WorkspacePanel({
   error,
   activeFile,
   onOpenFile,
-  onNewFileInCourse,
+  onOpenImage,
+  onNewFileInFolder,
+  onNewFolder,
+  onAddImages,
   onRenameFile,
   onDeleteFile,
   onRefresh,
@@ -69,7 +86,7 @@ export default function WorkspacePanel({
   outline,
   onRevealSymbol
 }: WorkspacePanelProps): React.ReactElement {
-  const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(() => new Set())
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set())
   const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null)
   // Enter commits and removes the input, which can fire blur too; the refs
   // keep that from renaming twice or ignoring Escape.
@@ -78,8 +95,8 @@ export default function WorkspacePanel({
 
   const rootLabel = useMemo(() => (root ? fileDisplayName(root) : 'Workspace'), [root])
 
-  const toggleCourse = (path: string): void => {
-    setCollapsedCourses((previous) => {
+  const toggleFolder = (path: string): void => {
+    setCollapsedFolders((previous) => {
       const next = new Set(previous)
       if (next.has(path)) next.delete(path)
       else next.add(path)
@@ -105,66 +122,141 @@ export default function WorkspacePanel({
     })
   }
 
-  const renderFile = (key: string, path: string, name: string): React.ReactElement => {
-    const isRenaming = renaming?.path === path
+  const renderFile = (key: string, file: WorkspaceFile, depth: number): React.ReactElement => {
+    const isRenaming = renaming?.path === file.path
     return (
       <div
-        key={path}
+        key={file.path}
         className={`file-item ${activeFile === key ? 'active' : ''} ${
           isRenaming ? 'is-renaming' : ''
         }`}
+        style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => {
-          if (!isRenaming) onOpenFile(path)
+          if (isRenaming) return
+          if (file.kind === 'image') onOpenImage(file.path)
+          else onOpenFile(file.path)
         }}
-        title={path}
+        title={file.path}
       >
-        <FileText size={13} />
+        {file.kind === 'image' ? <Image size={13} /> : <FileText size={13} />}
         {isRenaming ? (
           <input
             className="file-rename-input"
             autoFocus
             value={renaming.value}
-            aria-label={`Rename ${name}`}
-            onChange={(event) => setRenaming({ path, value: event.target.value })}
+            aria-label={`Rename ${file.name}`}
+            onChange={(event) => setRenaming({ path: file.path, value: event.target.value })}
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
-                commitRename(path, event.currentTarget.value)
+                commitRename(file.path, event.currentTarget.value)
               } else if (event.key === 'Escape') {
                 event.preventDefault()
                 skipCommitRef.current = true
                 setRenaming(null)
               }
             }}
-            onBlur={(event) => commitRename(path, event.currentTarget.value)}
+            onBlur={(event) => commitRename(file.path, event.currentTarget.value)}
           />
         ) : (
           <>
-            <span className="file-item-name">{name}</span>
+            <span className="file-item-name">{file.name}</span>
             <span className="file-item-actions">
               <button
                 className="file-action"
-                title={`Rename ${name}`}
+                title={`Rename ${file.name}`}
                 onClick={(event) => {
                   event.stopPropagation()
-                  setRenaming({ path, value: name })
+                  setRenaming({ path: file.path, value: file.name })
                 }}
               >
                 <Pencil size={11} />
               </button>
               <button
                 className="file-action is-danger"
-                title={`Delete ${name}`}
+                title={`Delete ${file.name}`}
                 onClick={(event) => {
                   event.stopPropagation()
-                  void onDeleteFile(path)
+                  void onDeleteFile(file.path)
                 }}
               >
                 <Trash2 size={11} />
               </button>
             </span>
           </>
+        )}
+      </div>
+    )
+  }
+
+  const renderFolderActions = (folderPath: string, label: string): React.ReactElement => (
+    <span className="workspace-course-actions">
+      <button
+        className="workspace-icon-btn"
+        title={`New file in ${label}`}
+        onClick={(event) => {
+          event.stopPropagation()
+          onNewFileInFolder(folderPath)
+        }}
+      >
+        <FilePlus2 size={12} />
+      </button>
+      <button
+        className="workspace-icon-btn"
+        title={`New folder in ${label}`}
+        onClick={(event) => {
+          event.stopPropagation()
+          onNewFolder(folderPath)
+        }}
+      >
+        <FolderPlus size={12} />
+      </button>
+      <button
+        className="workspace-icon-btn"
+        title={`Add images to ${label}`}
+        onClick={(event) => {
+          event.stopPropagation()
+          onAddImages(folderPath)
+        }}
+      >
+        <ImagePlus size={12} />
+      </button>
+    </span>
+  )
+
+  const renderFolder = (
+    folder: WorkspaceFolder,
+    prefix: string,
+    depth: number,
+    isCourse = false
+  ): React.ReactElement => {
+    const folderKey = prefix ? `${prefix}/${folder.name}` : folder.name
+    const isFocused =
+      isCourse && focusCourse !== null && folder.name.toLowerCase() === focusCourse.toLowerCase()
+    const isCollapsed = collapsedFolders.has(folder.path) && !isFocused
+    const empty = folder.folders.length === 0 && folder.files.length === 0
+    return (
+      <div key={folder.path} className="workspace-course">
+        <div
+          className="workspace-course-header"
+          style={{ paddingLeft: 6 + depth * 14 }}
+          onClick={() => toggleFolder(folder.path)}
+          title={folder.path}
+        >
+          {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          {isCollapsed ? <Folder size={13} /> : <FolderOpen size={13} />}
+          <span className="workspace-course-name">{folder.name}</span>
+          {renderFolderActions(folder.path, folder.name)}
+        </div>
+        {!isCollapsed && (
+          <div className="file-list workspace-course-files">
+            {empty && (
+              <div className="workspace-hint">{isCourse ? 'No files yet' : 'Empty folder'}</div>
+            )}
+            {folder.folders.map((child) => renderFolder(child, folderKey, depth + 1))}
+            {folder.files.map((file) => renderFile(`${folderKey}/${file.name}`, file, depth + 1))}
+          </div>
         )}
       </div>
     )
@@ -225,48 +317,11 @@ export default function WorkspacePanel({
           <>
             {listing.files.length > 0 && (
               <div className="file-list">
-                {listing.files.map((file) => renderFile(file.name, file.path, file.name))}
+                {listing.files.map((file) => renderFile(file.name, file, 0))}
               </div>
             )}
 
-            {listing.courses.map((course) => {
-              const isFocused =
-                focusCourse !== null && course.name.toLowerCase() === focusCourse.toLowerCase()
-              const isCollapsed = collapsedCourses.has(course.path) && !isFocused
-              return (
-                <div key={course.path} className="workspace-course">
-                  <div
-                    className="workspace-course-header"
-                    onClick={() => toggleCourse(course.path)}
-                    title={course.path}
-                  >
-                    {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                    <Folder size={13} />
-                    <span className="workspace-course-name">{course.name}</span>
-                    <button
-                      className="workspace-icon-btn workspace-course-add"
-                      title={`New File in ${course.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onNewFileInCourse(course.path)
-                      }}
-                    >
-                      <FilePlus2 size={12} />
-                    </button>
-                  </div>
-                  {!isCollapsed && (
-                    <div className="file-list workspace-course-files">
-                      {course.files.length === 0 && (
-                        <div className="workspace-hint">No files yet</div>
-                      )}
-                      {course.files.map((file) =>
-                        renderFile(`${course.name}/${file.name}`, file.path, file.name)
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {listing.courses.map((course: WorkspaceCourse) => renderFolder(course, '', 0, true))}
 
             {listing.courses.length === 0 && listing.files.length === 0 && (
               <div className="workspace-empty">

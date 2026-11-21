@@ -7,6 +7,23 @@ All notable changes to Unicode Lab are recorded here. The format is based on
 
 ### Added
 
+- **HTML101 - Web Foundations:** five seeded HTML lessons plus a profile-page
+  project, with teaching notes in each assignment description.
+- **Live HTML preview in the workspace:** HTML files automatically open a
+  bottom-panel preview backed by a loopback-only static server. The project
+  folder is served as-is so relative CSS, JS, and images work, while the active
+  HTML file is overlaid with unsaved editor content.
+- **Multi-file projects:** class tree now supports nested project folders, a
+  New Folder action, image import into any folder, image files in the tree, and
+  assignment paths such as `profile-project/index.html`.
+- ICS demo language dropdown with Python, Java, C/C++, C#, JavaScript,
+  TypeScript, Go, Rust, Ruby, PHP, Swift, Kotlin, HTML, and plain text, plus an
+  HTML preview using the same preview server.
+- HTML typing help: `!DOCTYPE`/`html:5` document skeleton, CSS/script/image/
+  link/form/table snippets, automatic closing tags for normal elements, and
+  format-on-type/paste with Tab-accepted suggestions.
+- Seed now computes demo ICS rows through the live v3 `recompute_ics` RPC using
+  synthetic `edit_stats`/`focus_stats`, so the demo matches the shipped model.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a
@@ -89,6 +106,21 @@ All notable changes to Unicode Lab are recorded here. The format is based on
 
 ### Changed
 
+- **ICS v3 evidence ledger:** the integrity score now starts at 50 and moves
+  only with evidence. Authored behaviour (fixes, reworks, revisits, undo) raises
+  it; novel paste, line-chunk transcription, robotic rhythm, and away/resume
+  patterns lower it. Confidence gates the band, so limited evidence cannot pass,
+  and Judge0 is shown as quality rather than integrity. A single revisit counts
+  as one excursion and cannot unlock a pass; authored evidence is volume-scaled
+  below 200 characters. The demo gains a scenario input, a **Track** button, a
+  local run log, and JSON export. See
+  [docs/changelog/2026-11-22-ics-evidence-v3.md](docs/changelog/2026-11-22-ics-evidence-v3.md).
+- **ICS authorship term:** the 25-point typing term now scores edit behaviour
+  instead of typing speed. Corrections, revisits, and mid-line hesitation raise
+  it; complete uncorrected lines after a pause lower it. Pauses are neutral, a
+  2–5 minute think no longer hurts Focus, and a strong line-chunk pattern is
+  capped at review. The weight and `cadence_term` column are unchanged. See
+  [docs/changelog/2026-11-22-ics-authorship.md](docs/changelog/2026-11-22-ics-authorship.md).
 - Student workspace is fixed at `Documents/Unicode Lab`; the workspace picker was removed.
 - Sidebar is Files-only, with an animated collapse into an icon rail.
 - Renderer runs with the Chromium sandbox; clipboard and external links go through main-process IPC.

@@ -19,6 +19,8 @@ const LANGUAGES = [
   'php',
   'swift',
   'kotlin',
+  'html',
+  'css',
   'plaintext'
 ]
 
@@ -79,6 +81,12 @@ export default function AssignmentModal({
 
   const resolvedFileName = fileName.trim() || defaultAssignmentFileName(title, language)
   const timed = timingMode !== 'none'
+  const autoTestsSupported = language !== 'html' && language !== 'css'
+
+  const changeLanguage = (next: string): void => {
+    setLanguage(next)
+    if (next === 'html' || next === 'css') setAutoTestEnabled(false)
+  }
 
   const changeKind = (next: AssessmentKind): void => {
     setKind(next)
@@ -137,7 +145,7 @@ export default function AssignmentModal({
           published,
           publishAt: publishAt ? new Date(publishAt).toISOString() : null,
           dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-          autoTestEnabled
+          autoTestEnabled: autoTestsSupported ? autoTestEnabled : false
         })
         onSaved(initial.id)
       } else {
@@ -152,7 +160,7 @@ export default function AssignmentModal({
           published,
           publishAt: publishAt ? new Date(publishAt).toISOString() : null,
           dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-          autoTestEnabled
+          autoTestEnabled: autoTestsSupported ? autoTestEnabled : false
         })
         onSaved(assignmentId)
       }
@@ -197,7 +205,7 @@ export default function AssignmentModal({
           <select
             id="assignment-language"
             value={language}
-            onChange={(event) => setLanguage(event.target.value)}
+            onChange={(event) => changeLanguage(event.target.value)}
           >
             {LANGUAGES.map((option) => (
               <option key={option} value={option}>
@@ -326,7 +334,8 @@ export default function AssignmentModal({
             onChange={(event) => setFileName(event.target.value)}
           />
           <span className="form-hint">
-            Students open this file inside the class folder. Blank uses the title above.
+            Students open this file inside the class folder. Use a project path such as
+            portfolio/index.html for a multi-file project. Blank uses the title above.
           </span>
         </div>
         <div className="form-row">
@@ -373,13 +382,16 @@ export default function AssignmentModal({
             <input
               id="assignment-auto-tests"
               type="checkbox"
-              checked={autoTestEnabled}
+              checked={autoTestsSupported && autoTestEnabled}
+              disabled={!autoTestsSupported}
               onChange={(event) => setAutoTestEnabled(event.target.checked)}
             />
             <span>Enable Judge0 auto tests</span>
           </label>
           <span className="form-hint">
-            Students get a Test cases tab and a Run tests button when this is on.
+            {autoTestsSupported
+              ? 'Students get a Test cases tab and a Run tests button when this is on.'
+              : 'HTML and CSS use the local live preview instead of Judge0 tests.'}
           </span>
         </div>
         <div className="form-field">

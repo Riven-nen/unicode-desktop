@@ -75,8 +75,8 @@
   <rect x="720" y="550" width="630" height="210" rx="10" fill="#f8f9fa" stroke="#dadce0" stroke-width="1.5"/>
   <text x="742" y="582" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="21" font-weight="600" fill="#202124">4. Band rules</text>
   <g font-family="Segoe UI, Inter, Arial, sans-serif" font-size="13" fill="#3c4043">
-    <text x="742" y="618">• pass: score ≥ 80</text>
-    <text x="742" y="640">• review: score ≥ 40, or confidence &lt; 0.30</text>
+    <text x="742" y="618">• pass: score ≥ 80 and chars ≥ 300</text>
+    <text x="742" y="640">• review: score ≥ 40, confidence &lt; 0.30, or chars &lt; 300</text>
     <text x="742" y="662">• flag: score &lt; 40, or a corroborated hard rule</text>
   </g>
   <g font-family="Cascadia Code, Consolas, monospace" font-size="11.5" fill="#3c4043">

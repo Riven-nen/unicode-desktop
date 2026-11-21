@@ -121,7 +121,7 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
   - **Diff mode**: compare the selected snapshot with the previous one in Monaco's inline diff
   - horizontally scrollable timeline for navigating snapshots
   - ICS breakdown with weighted term bars and a plain-language explanation
-  - clickable Cadence bar with a **typing rhythm** scatter plot, median gap, and longest pause
+  - clickable Authorship bar with a **typing rhythm** scatter plot, median gap, and longest pause
   - cross-student **paste similarity** (pg_trgm) with a Paste detected badge and matched student
   - **Recompute ICS** for one submission or all submissions in an assignment
   - inline comments anchored to line numbers, with threaded replies
@@ -132,16 +132,16 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
 
 ## Tech stack
 
-| Layer | Choice |
-|---|---|
-| Desktop shell | Electron 44 |
-| UI | React 19 + TypeScript |
-| Build | electron-vite / Vite 8 |
-| Editor | Monaco Editor + Lezer language analysis (Python, Java, C/C++) + bundled Pyright |
-| Backend | Supabase (Postgres, Auth, Row-Level Security) |
-| Visuals | Existing CSS theme tokens + plain SVG (no charting dependency) |
-| Execution | Judge0 (optional, configured in the app) |
-| Packaging | electron-builder |
+| Layer         | Choice                                                                          |
+| ------------- | ------------------------------------------------------------------------------- |
+| Desktop shell | Electron 44                                                                     |
+| UI            | React 19 + TypeScript                                                           |
+| Build         | electron-vite / Vite 8                                                          |
+| Editor        | Monaco Editor + Lezer language analysis (Python, Java, C/C++) + bundled Pyright |
+| Backend       | Supabase (Postgres, Auth, Row-Level Security)                                   |
+| Visuals       | Existing CSS theme tokens + plain SVG (no charting dependency)                  |
+| Execution     | Judge0 (optional, configured in the app)                                        |
+| Packaging     | electron-builder                                                                |
 
 ## Repository layout
 
@@ -228,29 +228,31 @@ Or run the migration SQL in the Supabase SQL editor in timestamp order.
 
 ### 4. Seed demo data (optional)
 
-The seed creates the demo professor, students, classes, assignments, test cases, submissions, snapshots, paste events, ICS rows, and comments. It is idempotent.
+The seed creates the demo professor, students, classes, assignments, test cases, submissions, snapshots, paste events, ICS rows, and comments. It is idempotent. ICS rows are produced by the live v3 `recompute_ics` RPC, so the seed signs in as the demo professor using the public key.
 
 ```bash
-# PowerShell
-$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role key>"
-node scripts/seed.mjs
+# .env must contain:
+#   SUPABASE_SERVICE_ROLE_KEY
+#   VITE_SUPABASE_PUBLISHABLE_KEY
+node --env-file=.env scripts/seed.mjs
 ```
 
 The URL defaults to the project in this repository; override it with `SUPABASE_URL` if needed. The script never prints or stores the service-role key.
 
 **Development-only accounts created by the seed:**
 
-| Role | Email | Password |
-|---|---|---|
-| Professor | `professor@unicode.test` | `Password123!` |
-| Professor | `professor2@unicode.test` | `Password123!` |
-| Professor | `professor3@unicode.test` | `Password123!` |
-| Admin | `admin@unicode.test` | `Password123!` |
-| Students | `student1@unicode.test` … `student10@unicode.test` | `Password123!` |
+| Role      | Email                                              | Password       |
+| --------- | -------------------------------------------------- | -------------- |
+| Professor | `professor@unicode.test`                           | `Password123!` |
+| Professor | `professor2@unicode.test`                          | `Password123!` |
+| Professor | `professor3@unicode.test`                          | `Password123!` |
+| Admin     | `admin@unicode.test`                               | `Password123!` |
+| Students  | `student1@unicode.test` … `student10@unicode.test` | `Password123!` |
 
-The seed also creates four classes: CS101 and CS102 (Professor Demo), CS201
-(Professor Lin, Java), and CS301 (Professor Ortega, C++). Do not reuse these
-credentials for anything real.
+The seed also creates five classes: CS101 and CS102 (Professor Demo), CS201
+(Professor Lin, Java), CS301 (Professor Ortega, C++), and HTML101 (Professor
+Demo, HTML lessons with a live local preview). Do not reuse these credentials
+for anything real.
 
 ### 5. Run
 
@@ -278,20 +280,20 @@ Free options: self-host Judge0 with Docker (default and private), or use a hoste
 
 ## Scripts
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Desktop app + admin web console together |
-| `npm run dev:desktop` | Desktop app only |
-| `npm run dev:admin` | Admin web console only (port 5174) |
-| `npm run build` | Typecheck and build |
-| `npm run build:win` / `build:mac` / `build:linux` | Package installers |
-| `npm run build:unpack` | Build an unpacked app folder (no installer) |
-| `npm run typecheck` | TypeScript checks (main + renderer) |
-| `npm test` | Unit tests (Vitest) |
-| `npm run test:rls` | Live RLS regression checks (uses `.env`) |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
-| `node scripts/seed.mjs` | Seed demo data (requires service-role key) |
+| Command                                           | Purpose                                     |
+| ------------------------------------------------- | ------------------------------------------- |
+| `npm run dev`                                     | Desktop app + admin web console together    |
+| `npm run dev:desktop`                             | Desktop app only                            |
+| `npm run dev:admin`                               | Admin web console only (port 5174)          |
+| `npm run build`                                   | Typecheck and build                         |
+| `npm run build:win` / `build:mac` / `build:linux` | Package installers                          |
+| `npm run build:unpack`                            | Build an unpacked app folder (no installer) |
+| `npm run typecheck`                               | TypeScript checks (main + renderer)         |
+| `npm test`                                        | Unit tests (Vitest)                         |
+| `npm run test:rls`                                | Live RLS regression checks (uses `.env`)    |
+| `npm run lint`                                    | ESLint                                      |
+| `npm run format`                                  | Prettier                                    |
+| `node scripts/seed.mjs`                           | Seed demo data (requires service-role key)  |
 
 CI runs lint, typecheck, unit tests, and a production bundle build on every push and pull request.
 
@@ -357,19 +359,34 @@ Detailed per-view access expectations are in [`supabase/RLS_TEST_NOTES.md`](supa
 
 ## Integrity score (ICS)
 
-The professor **Recompute** action runs a server-side pipeline:
+The professor **Recompute** action runs a server-side pipeline. ICS v3 is an
+**evidence ledger**, not a weighted sum of positive terms:
 
-- **Paste (35%)** — pasted chars ÷ the larger of final content and pasted chars
-- **Cadence (25%)** — share of captured typing/edit gaps at or below 1.5 seconds, pulled toward neutral when there are too few samples; older captures fall back to session snapshot gaps
-- **Focus (20%)** — share of session time covered by gaps of two minutes or less, ignoring breaks longer than 30 minutes
-- **Compilation (20%)** — newest Judge0 result per test case, as a pass percentage; neutral 50 when no test-case run exists
+- **Start at 50.** The score only moves when there is evidence.
+- **Authorship (+)** — corrections, revisits to earlier lines, and hesitation
+  inside a line raise the score. Pauses themselves are neutral.
+- **Paste (−)** — novel pasted text above the allowance (0 for seatwork, 10%
+  for take-home) lowers the score.
+- **Transcription (−)** — pause → complete uncorrected line chunks, plus an
+  append-only shape with no deletions.
+- **Rhythm (−)** — only for machine-regular or impossibly fast input. Never
+  enough to flag by itself.
+- **Away (−)** — returning to the window and immediately typing a line chunk.
+- **Confidence** — short sessions or thin telemetry are held at `review`; they
+  cannot pass.
+- **Judge0** — shown as a quality figure, not counted in integrity.
 
-The weighted terms are stored on `ics_scores` and the band is `pass` at 80+, `review` at 60+, otherwise `flag`. Recompute works for one submission or every submission in an assignment.
+The band is `pass` at 80+, `review` at 40+, otherwise `flag`, with hard rules for
+dominant paste and transcription. Rows store `confidence`, `evidence`,
+`band_reason`, and `model`; submissions captured before the authorship counters
+fall back to the v2 score. Recompute works for one submission or every
+submission in an assignment. See
+[docs/08_ICS_EVIDENCE_MODEL.md](docs/08_ICS_EVIDENCE_MODEL.md).
 
 ## Known limitations / in development
 
 - **Judge0** points at a fixed endpoint; if that instance isn't reachable, the run panel reports it.
-- **ICS** uses the documented snapshot/paste/Judge0 model above; it does not claim access to keystroke-level telemetry.
+- **ICS** uses the v3 evidence ledger (authored behaviour, paste, transcription shape, rhythm, away/resume, confidence); it is a review aid, not proof of authorship.
 - **Python** combines the Lezer parser, the bundled **Pyright** checker, and the bundled Pyright language server. Diagnostics come from Pyright; completion, hover, and go-to-definition are type-aware. The Lezer layer still supplies instant syntax feedback and the outline fallback.
 - **Java and C/C++** use Monaco's built-in highlighting plus Lezer syntax trees for diagnostics and the outline. When a local JDK (`javac`) or GCC (`gcc`/`g++`) is installed, the app also runs a real compiler pass for semantic errors.
 - **Java/C++ parity caveat:** this is compiler-level checking, not the full language-server experience of VS Code's extensions (no completion, code actions, refactors, semantic tokens, or clangd inspections). Python's language server is bundled; C/C++ needs `g++`/`gcc` on PATH.
@@ -378,7 +395,7 @@ The weighted terms are stored on `ics_scores` and the band is `pass` at 80+, `re
 - **Similarity** is a token-sequence heuristic (renamed identifiers are normalized); it highlights pairs to review, not a plagiarism verdict.
 - The **ICS demo** is a simulator for students; real scores are recomputed from submission telemetry on the server.
 - **Realtime** refresh depends on Supabase Realtime; **queued submissions** retry while the app is running (or on the next launch).
-- **Typing rhythm** stores edit-burst gaps with each snapshot, not raw per-key events. It is a cadence fingerprint, not a full keystroke log.
+- **Typing rhythm** stores edit-burst gaps with each snapshot, not raw per-key events. It is a rhythm approximation used by the heatmap; the scored Authorship term uses separate edit counters.
 - **Live Lab** depends on the 30-second heartbeat and treats a student as offline after 90 seconds without one. Flagged means a paste was recorded in the last 15 minutes.
 - **Password recovery** uses a pasted recovery link/code rather than a deep link; join-code and professor-invite attempts are not rate-limited yet.
 - **Professor accounts** are promoted by redeeming an admin invite, through the admin console role change, or manually; class reassignment is not implemented yet. Invite codes are shared out-of-band (no email delivery) and have no per-user lock beyond the global usage count.

@@ -1,8 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AssignmentFileResult, CloseChoice, WorkspaceListing } from '../shared/workspace'
+import type {
+  AssignmentFileResult,
+  CloseChoice,
+  WorkspaceFile,
+  WorkspaceListing
+} from '../shared/workspace'
 import type { LanguageCheckInput, LanguageCheckResult } from '../shared/diagnostics'
 import type { LspMessage, LspStartResult } from '../shared/lsp'
+import type { HtmlPreviewFileInput, HtmlPreviewSession } from '../shared/preview'
 import type {
   Judge0PublicConfig,
   Judge0RawResult,
@@ -66,6 +72,15 @@ const api = {
     },
     createFile(dir: string, name: string): Promise<string> {
       return ipcRenderer.invoke('fs:create-file', dir, name)
+    },
+    createFolder(parentDir: string, name: string): Promise<string> {
+      return ipcRenderer.invoke('fs:create-folder', parentDir, name)
+    },
+    importImages(dir: string): Promise<WorkspaceFile[]> {
+      return ipcRenderer.invoke('fs:import-images', dir)
+    },
+    openPath(filePath: string): Promise<void> {
+      return ipcRenderer.invoke('fs:open-path', filePath)
     },
     ensureCourses(root: string, names: string[]): Promise<WorkspaceListing> {
       return ipcRenderer.invoke('fs:ensure-courses', root, names)
@@ -162,6 +177,21 @@ const api = {
     },
     status(): Promise<Judge0Status> {
       return ipcRenderer.invoke('judge0:status')
+    }
+  },
+  // Loopback static preview for HTML coursework and the ICS playground.
+  preview: {
+    start(html: string): Promise<HtmlPreviewSession> {
+      return ipcRenderer.invoke('preview:start', html)
+    },
+    startFile(input: HtmlPreviewFileInput): Promise<HtmlPreviewSession> {
+      return ipcRenderer.invoke('preview:start-file', input)
+    },
+    update(id: string, html: string): Promise<HtmlPreviewSession> {
+      return ipcRenderer.invoke('preview:update', id, html)
+    },
+    stop(id: string): void {
+      ipcRenderer.send('preview:stop', id)
     }
   },
   // Local PowerShell session for the student terminal.

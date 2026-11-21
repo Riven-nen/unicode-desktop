@@ -101,7 +101,8 @@ confidence = 0 when chars < 120, otherwise
   transcription or paste corroboration to flag.
 
 Band: hard rules for dominant paste and transcription; `confidence < 0.30` →
-review; score ≥80 → pass; ≥40 → review; otherwise flag.
+review; `score ≥ 80` with fewer than 300 inserted chars → review (short
+submission); score ≥80 → pass; ≥40 → review; otherwise flag.
 
 ### Telemetry
 
@@ -169,21 +170,23 @@ honest coders, so it is weak evidence and easy to game. The revised rule:
 - two events raise the cap to 0.75, three to 1.0;
 - `A` is multiplied by `min(1, chars/200)`.
 
-With the new rule the 197-char run falls to review (~76) and the HTML run stays a
-narrow pass (~82) because it also contains a rework and several distinct
-excursions. The 416-char copy stays at review (~61). Re-record runs after
-updating the build to see the new numbers; saved runs keep their original score.
+With the new rule the 197-char run falls to review (~76) and the HTML run is also
+review (~82): its authored evidence is good, but at 143 characters it is below
+the 300-character pass floor. The 416-char copy stays at review (~61). Re-record
+runs after updating the build to see the new numbers; saved runs keep their
+original score.
 
 ## Expected effect
 
 | Scenario                             | v3 result                                      |
 | ------------------------------------ | ---------------------------------------------- |
 | Normal authored 300+ chars, with reworks   | pass, confidence ≈ 100%                        |
+| 120–299 chars, perfect evidence          | review — short submission floor                |
 | 300 chars, typo fixes + one revisit only  | review — one excursion cannot lift the cap     |
 | Hand-copied indented block, no fixes | review (transcription pattern)                 |
 | Refocus → immediate line chunks ×3+  | flag (transcription + away)                    |
 | Dominant novel paste                 | flag                                           |
-| Short session (<120 chars)           | review — no confidence                         |
+| Short session (<300 chars)           | review — no pass below the floor               |
 | Refactor with deletions/revisits     | pass                                           |
 | IME/voice with irregular rhythm      | authored behaviour decides; rhythm cannot flag |
 

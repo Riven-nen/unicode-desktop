@@ -25,6 +25,7 @@ import EditorPane from './components/EditorPane'
 import MenuBar from './components/MenuBar'
 import HelpModal from './components/HelpModal'
 import NewFileModal from './components/NewFileModal'
+import NewFolderModal from './components/NewFolderModal'
 import BottomPanel from './components/BottomPanel'
 import SearchBar from './components/SearchBar'
 import SignInScreen from './components/SignInScreen'
@@ -354,8 +355,10 @@ export default function App(): React.ReactElement {
 
   useStudentPresence(session, profileRole, activeFile, lastPasteAt, studentView === 'workspace')
   const [newFileOpen, setNewFileOpen] = useState(false)
-  // Course folder the pending New File dialog targets (null = untitled tab).
+  // Course/project folder the pending New File dialog targets (null = untitled tab).
   const [newFileDir, setNewFileDir] = useState<string | null>(null)
+  const [newFolderParent, setNewFolderParent] = useState<string | null>(null)
+  const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
   const [helpModal, setHelpModal] = useState<'shortcuts' | 'about' | null>(null)
   const [cursor, setCursor] = useState<{ lineNumber: number; column: number } | null>(null)
   const [activeAnalysis, setActiveAnalysis] = useState<CodeAnalysis | null>(null)
@@ -803,6 +806,10 @@ export default function App(): React.ReactElement {
     setNewFileOpen(true)
   }
 
+  const openNewFolderDialog = (parent: string): void => {
+    setNewFolderParent(parent)
+  }
+
   // Renaming keeps the tab open: the model is rebuilt from its live content
   // under the new key, and its on-disk path is replaced.
   const handleRenameFile = async (filePath: string, nextName: string): Promise<void> => {
@@ -888,7 +895,7 @@ export default function App(): React.ReactElement {
         return null
       } catch (error) {
         const message = fsErrorMessage(error)
-        if (/exist/i.test(message)) return `"${name}" already exists in that course folder.`
+        if (/exist/i.test(message)) return `"${name}" already exists in that folder.`
         return message
       }
     }
@@ -898,6 +905,45 @@ export default function App(): React.ReactElement {
     setNewFileOpen(false)
     handleSelectFile(key)
     return null
+  }
+
+  const handleCreateFolder = async (name: string): Promise<string | null> => {
+    if (!newFolderParent) return null
+    try {
+      await window.api.fs.createFolder(newFolderParent, name)
+      setNewFolderParent(null)
+      await refreshWorkspace()
+      setWorkspaceError(null)
+      showToast(`Created folder ${name.trim()}.`)
+      return null
+    } catch (error) {
+      const message = fsErrorMessage(error)
+      if (/exist/i.test(message)) return `"${name.trim()}" already exists here.`
+      return message
+    }
+  }
+
+  const handleAddImages = async (dir: string): Promise<void> => {
+    try {
+      const imported = await window.api.fs.importImages(dir)
+      if (imported.length === 0) return
+      await refreshWorkspace()
+      setPreviewRefreshToken((token) => token + 1)
+      setWorkspaceError(null)
+      showToast(
+        imported.length === 1 ? `Added ${imported[0].name}.` : `Added ${imported.length} images.`
+      )
+    } catch (error) {
+      setWorkspaceError(fsErrorMessage(error))
+    }
+  }
+
+  const handleOpenImage = async (filePath: string): Promise<void> => {
+    try {
+      await window.api.fs.openPath(filePath)
+    } catch (error) {
+      setWorkspaceError(fsErrorMessage(error))
+    }
   }
 
   const handleExportFile = (): void => {
@@ -1229,7 +1275,10 @@ export default function App(): React.ReactElement {
                   error={workspaceError}
                   activeFile={activeFile}
                   onOpenFile={(filePath) => void openFileFromDisk(filePath)}
-                  onNewFileInCourse={(coursePath) => openNewFileDialog(coursePath)}
+                  onOpenImage={(filePath) => void handleOpenImage(filePath)}
+                  onNewFileInFolder={(folderPath) => openNewFileDialog(folderPath)}
+                  onNewFolder={openNewFolderDialog}
+                  onAddImages={(folderPath) => void handleAddImages(folderPath)}
                   onRenameFile={handleRenameFile}
                   onDeleteFile={handleDeleteFile}
                   onRefresh={() => void refreshWorkspace()}
@@ -1299,6 +1348,7 @@ export default function App(): React.ReactElement {
                     onRecheckToolchain={toolchain.recheck}
                     readSource={() => tracker.getModelValue(activeFile)}
                     assignment={activeAssignment}
+                    previewRefreshToken={previewRefreshToken}
                     onSubmit={async () => {
                       if (!activeAssignment) return
                       if (activeAssignment.timingMode !== 'none') {
@@ -1336,6 +1386,14 @@ export default function App(): React.ReactElement {
                     setNewFileDir(null)
                   }}
                   onCreate={handleCreateFile}
+                />
+              )}
+
+              {newFolderParent && (
+                <NewFolderModal
+                  parentLabel={fileDisplayName(newFolderParent)}
+                  onClose={() => setNewFolderParent(null)}
+                  onCreate={handleCreateFolder}
                 />
               )}
 

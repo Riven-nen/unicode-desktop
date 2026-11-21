@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import type { BeforeMount, OnMount } from '@monaco-editor/react'
 import { X } from 'lucide-react'
@@ -12,6 +12,8 @@ import { analyzePython, PYTHON_BUILTINS, PYTHON_KEYWORDS } from '../lib/pythonAn
 import type { PythonSymbolKind } from '../lib/pythonAnalysis'
 import { analyzeSource, isAnalyzedLanguage } from '../lib/sourceAnalysis'
 import type { CodeAnalysis, CodeDiagnostic } from '../lib/codeAnalysis'
+import { closingTagForHtml, registerHtmlCompletions } from '../lib/htmlCompletions'
+import { EDITOR_TYPING_OPTIONS } from '../lib/editorOptions'
 import { onPythonLspExit, startPythonLanguageServer } from '../lib/pythonLsp'
 import type { PythonLspClient } from '../lib/pythonLsp'
 import { fileDisplayName } from '../lib/workspace'
@@ -118,6 +120,52 @@ export default function EditorPane({
   const pythonLspRef = useRef<PythonLspClient | null>(null)
   const filesRef = useRef(files)
   const lspExitRegisteredRef = useRef(false)
+  const htmlAutoCloseGuardRef = useRef(false)
+
+  /**
+   * Monaco does not implement VS Code's HTML `autoClosingTags` option. When a
+   * complete opening tag is finished with `>`, append its closing tag unless
+   * it is void, self-closing, or already followed by a closing tag.
+   */
+  const autoCloseHtmlTag = useCallback(
+    (model: monacoTypes.editor.ITextModel, event: monacoTypes.editor.IModelContentChangedEvent) => {
+      if (model.getLanguageId() !== 'html' || event.isFlush || htmlAutoCloseGuardRef.current) {
+        return
+      }
+      if (event.changes.length !== 1) return
+      const change = event.changes[0]
+      if (change.text !== '>' || change.rangeLength !== 0) return
+
+      const position = model.getPositionAt(change.rangeOffset + change.text.length)
+      const line = model.getLineContent(position.lineNumber)
+      const closingTag = closingTagForHtml(line, position.column)
+      if (!closingTag) return
+
+      const editor = editorRef.current
+      const monacoInstance = monacoRef.current
+      if (!editor || !monacoInstance || editor.getModel() !== model) return
+
+      htmlAutoCloseGuardRef.current = true
+      try {
+        editor.executeEdits('html-auto-close-tag', [
+          {
+            range: new monacoInstance.Range(
+              position.lineNumber,
+              position.column,
+              position.lineNumber,
+              position.column
+            ),
+            text: closingTag,
+            forceMoveMarkers: true
+          }
+        ])
+        editor.setPosition(position)
+      } finally {
+        htmlAutoCloseGuardRef.current = false
+      }
+    },
+    []
+  )
   const publishAnalysisRef = useRef<
     (fileName: string, model: monacoTypes.editor.ITextModel, requestLanguageCheck?: boolean) => void
   >(() => undefined)
@@ -200,9 +248,10 @@ export default function EditorPane({
       if (!analysisDisposersRef.current.has(file.name)) {
         analysisDisposersRef.current.set(
           file.name,
-          model.onDidChangeContent(() => {
+          model.onDidChangeContent((event) => {
             scheduleAnalysisRef.current(file.name, model)
             pythonLspRef.current?.changeDocument(model)
+            autoCloseHtmlTag(model, event)
           })
         )
       }
@@ -218,7 +267,7 @@ export default function EditorPane({
     const model = modelsRef.current.get(activeFile)
     if (editor && model && editor.getModel() !== model) editor.setModel(model)
     if (model) publishAnalysisRef.current(activeFile, model, true)
-  }, [files, activeFile, tracker])
+  }, [files, activeFile, tracker, autoCloseHtmlTag])
 
   // Files removed from the workspace (tab close) get their tracker
   // listener and model released. Declared after the model-swap effects
@@ -491,6 +540,7 @@ export default function EditorPane({
   const handleBeforeMount: BeforeMount = (monacoInstance) => {
     defineMonacoThemes(monacoInstance)
     registerPythonProviders(monacoInstance)
+    registerHtmlCompletions(monacoInstance)
 
     // Attach Pyright's language server after the local providers exist so a
     // failed launch falls back to the Lezer completion/hover providers.
@@ -552,9 +602,10 @@ export default function EditorPane({
       if (!analysisDisposersRef.current.has(file.name)) {
         analysisDisposersRef.current.set(
           file.name,
-          model.onDidChangeContent(() => {
+          model.onDidChangeContent((event) => {
             scheduleAnalysis(file.name, model)
             pythonLspRef.current?.changeDocument(model)
+            autoCloseHtmlTag(model, event)
           })
         )
       }
@@ -711,6 +762,7 @@ export default function EditorPane({
           beforeMount={handleBeforeMount}
           onMount={handleMount}
           options={{
+            ...EDITOR_TYPING_OPTIONS,
             minimap: { enabled: viewOptions.minimap },
             wordWrap: viewOptions.wordWrap ? 'on' : 'off',
             lineNumbers: viewOptions.lineNumbers ? 'on' : 'off',

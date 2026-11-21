@@ -204,7 +204,8 @@ begin
     -- A single return to an earlier line is weak, cheap-to-produce evidence and
     -- is common in honest work, so it cannot unlock full authorship credit on
     -- its own. The cap lifts gradually across independent structural events,
-    -- and short sessions are scaled down so they cannot reach the pass band.
+    -- and short sessions are scaled down. A separate 300-character floor below
+    -- prevents a short submission from passing at all.
     weighted_edits :=
       0.5 * least(stats_fixes, 5)
       + 1.5 * stats_reworks
@@ -320,6 +321,12 @@ begin
         'Limited evidence: %s chars and %s bursts.',
         stats_inserted,
         stats_bursts
+      );
+    elsif score >= 80 and stats_inserted < 300 then
+      band := 'review';
+      band_reason := format(
+        'Short submission: %s chars; a pass needs 300.',
+        stats_inserted
       );
     elsif score >= 80 then
       band := 'pass';

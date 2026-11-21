@@ -9,7 +9,7 @@ interface NewFileModalProps {
    * success (App closes the dialog itself).
    */
   onCreate: (name: string, language: string) => Promise<string | null>
-  /** Course folder the file will be created in, when known. */
+  /** Folder the file will be created in, when known. */
   folderLabel?: string
 }
 

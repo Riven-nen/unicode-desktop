@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerDiagnosticsHandlers } from './diagnostics'
 import { registerFsHandlers } from './fs'
+import { registerHtmlPreviewHandlers, stopAllPreviews } from './htmlPreview'
 import { registerJudge0Handlers } from './judge0'
 import { registerPythonLspHandlers, stopPythonLsp } from './pythonLsp'
 import { cleanupSubmissionRuns, registerTerminalHandlers, stopAllTerminals } from './terminal'
@@ -77,6 +78,9 @@ app.whenReady().then(() => {
   // Workspace file access (open/save course files on disk).
   registerFsHandlers()
 
+  // Loopback static server for the HTML playground preview.
+  registerHtmlPreviewHandlers()
+
   // Clipboard + external links. Kept in main so the renderer/preload can run
   // with the Chromium sandbox enabled.
   ipcMain.handle('clipboard:read-text', () => clipboard.readText())
@@ -142,6 +146,7 @@ app.on('before-quit', () => {
   stopAllTerminals()
   cleanupSubmissionRuns()
   stopPythonLsp()
+  stopAllPreviews()
 })
 
 // In this file you can include the rest of your app's specific main process

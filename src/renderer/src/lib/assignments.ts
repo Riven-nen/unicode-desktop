@@ -18,6 +18,8 @@ const LANGUAGE_EXTENSIONS: Record<string, string> = {
   php: '.php',
   swift: '.swift',
   kotlin: '.kt',
+  html: '.html',
+  css: '.css',
   plaintext: '.txt'
 }
 

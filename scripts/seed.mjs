@@ -11,9 +11,12 @@
  * updates the same rows instead of duplicating them.
  *
  * IMPORTANT
- *   - Run the Step 2 migration first (grade / is_hidden / parent_id).
+ *   - Run the migrations first (including the ICS evidence model).
  *   - The service-role key is read from the environment and never written to
  *     disk or printed. Never commit it.
+ *   - The public key (VITE_SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY) is
+ *     also required: the seed signs in as the demo professor so the live
+ *     security-definer `recompute_ics` RPC produces the v3 demo scores.
  *
  * Usage (PowerShell, from the repo root):
  *   $env:SUPABASE_SERVICE_ROLE_KEY = "<service role key from Project Settings > API>"
@@ -30,6 +33,10 @@ import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://ythiuchtlbfnvzcvgioa.supabase.co'
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const PUBLIC_KEY =
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.VITE_SUPABASE_ANON_KEY ??
+  process.env.SUPABASE_ANON_KEY
 
 if (!SERVICE_ROLE_KEY) {
   console.error(
@@ -38,8 +45,21 @@ if (!SERVICE_ROLE_KEY) {
   )
   process.exit(1)
 }
+if (!PUBLIC_KEY) {
+  console.error(
+    'Missing VITE_SUPABASE_PUBLISHABLE_KEY.\n' +
+      'The seed signs in as the demo professor to recompute ICS scores with the live v3 function.'
+  )
+  process.exit(1)
+}
 
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+})
+
+// The public-key client signs in as the demo professor so seeded ICS rows are
+// produced by the same security-definer RPC students' submissions use.
+const professorClient = createClient(SUPABASE_URL, PUBLIC_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
 })
 
@@ -76,7 +96,8 @@ const CLASS_IDS = {
   cs101: 'c1a55000-0000-4000-8000-000000000101',
   cs102: 'c1a55000-0000-4000-8000-000000000102',
   cs201: 'c1a55000-0000-4000-8000-000000000201',
-  cs301: 'c1a55000-0000-4000-8000-000000000301'
+  cs301: 'c1a55000-0000-4000-8000-000000000301',
+  html101: 'c1a55000-0000-4000-8000-000000000401'
 }
 
 const ASSIGNMENT_IDS = {
@@ -86,7 +107,13 @@ const ASSIGNMENT_IDS = {
   linkedList: 'a5510000-0000-4000-8000-000000000201',
   scheduled: 'a5510000-0000-4000-8000-000000000202',
   javaShapes: 'a5510000-0000-4000-8000-000000000301',
-  cppVectors: 'a5510000-0000-4000-8000-000000000401'
+  cppVectors: 'a5510000-0000-4000-8000-000000000401',
+  htmlFirstPage: 'a5510000-0000-4000-8000-000000000501',
+  htmlLinks: 'a5510000-0000-4000-8000-000000000502',
+  htmlForms: 'a5510000-0000-4000-8000-000000000503',
+  htmlCss: 'a5510000-0000-4000-8000-000000000504',
+  htmlScript: 'a5510000-0000-4000-8000-000000000505',
+  htmlProject: 'a5510000-0000-4000-8000-000000000506'
 }
 
 const TEST_CASE_IDS = {
@@ -175,12 +202,69 @@ const typingSamplesFor = (studentKey, snapshotIndex) => {
   )
 }
 
-// Raw formula inputs. One deliberate pass, one review, one flag.
-const ICS_INPUTS = [
-  { key: 's1', label: 'Student One', P: 0.1, C: 90, F: 88, K: 92, expected: 'pass' },
-  { key: 's2', label: 'Student Two', P: 0.45, C: 68, F: 72, K: 65, expected: 'review' },
-  { key: 's3', label: 'Student Three', P: 0.78, C: 42, F: 35, K: 30, expected: 'flag' }
-]
+// Synthetic authorship counters. The live professor RPC recomputes ICS v3 from
+// these, so the seeded rows exercise the same evidence model as real work.
+// Student One is a normal authored session (pass), Two is mixed/short (review),
+// and Three is a line-chunk + paste profile (flag).
+const EDIT_STATS = {
+  s1: {
+    insertedChars: 120,
+    inserts: 40,
+    deletes: 2,
+    reworks: 2,
+    revisits: 1,
+    midLinePauses: 0,
+    undoRedo: 0,
+    pauses: 4,
+    chunkBursts: 0,
+    chunkChars: 0,
+    immediateChunks: 0,
+    bursts: 5
+  },
+  s2: {
+    insertedChars: 60,
+    inserts: 20,
+    deletes: 1,
+    reworks: 1,
+    revisits: 0,
+    midLinePauses: 1,
+    undoRedo: 0,
+    pauses: 3,
+    chunkBursts: 1,
+    chunkChars: 30,
+    immediateChunks: 0,
+    bursts: 3
+  },
+  s3: {
+    insertedChars: 20,
+    inserts: 5,
+    deletes: 0,
+    reworks: 0,
+    revisits: 0,
+    midLinePauses: 2,
+    undoRedo: 0,
+    pauses: 4,
+    chunkBursts: 1,
+    chunkChars: 20,
+    immediateChunks: 1,
+    bursts: 2
+  }
+}
+
+const editStatsFor = (studentKey, snapshotIndex) => {
+  const profile = EDIT_STATS[studentKey] ?? EDIT_STATS.s2
+  return {
+    ...profile,
+    insertedChars: profile.insertedChars + snapshotIndex * 2,
+    inserts: profile.inserts + (snapshotIndex % 2)
+  }
+}
+
+const focusStatsFor = (studentKey) => ({
+  blurs: studentKey === 's3' ? 1 : 0,
+  returns: studentKey === 's3' ? 1 : 0,
+  awayMs: studentKey === 's3' ? 5000 : 0
+})
 
 // Fixed dates keep re-runs byte-for-byte stable.
 const iso = (day, hour, minute, second = 0) =>
@@ -189,24 +273,6 @@ const iso = (day, hour, minute, second = 0) =>
 const studentDay = (index) => 10 + index // 11, 12, 13
 const studentHour = (index) => 13 + index // 14, 15, 16
 const snapshotMinutes = [5, 12, 20, 31, 42]
-
-const round2 = (value) => Math.round((value + Number.EPSILON) * 100) / 100
-
-function computeIcs({ P, C, F, K }) {
-  // C, F and K are provided on a 0-100 scale; normalize them to 0-1 so the
-  // weighted sum lands on the 0-100 ICS scale.
-  const terms = {
-    paste_term: round2(100 * 0.35 * (1 - P)),
-    cadence_term: round2(100 * 0.25 * (C / 100)),
-    focus_term: round2(100 * 0.2 * (F / 100)),
-    compilation_term: round2(100 * 0.2 * (K / 100))
-  }
-  const ics = round2(
-    terms.paste_term + terms.cadence_term + terms.focus_term + terms.compilation_term
-  )
-  const band = ics >= 80 ? 'pass' : ics >= 60 ? 'review' : 'flag'
-  return { terms, ics, band }
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -336,6 +402,15 @@ async function main() {
         academic_year: '2026-2027',
         join_code: 'CS301M2Z',
         professor_id: professorIds.p3
+      },
+      {
+        id: CLASS_IDS.html101,
+        name: 'HTML101 - Web Foundations',
+        code: 'HTML101',
+        year_section: '1 - C',
+        academic_year: '2026-2027',
+        join_code: 'HTML101L5V',
+        professor_id: professorId
       }
     ],
     'id'
@@ -359,7 +434,13 @@ async function main() {
       { class_id: CLASS_IDS.cs201, student_id: studentIds.s7 },
       { class_id: CLASS_IDS.cs301, student_id: studentIds.s8 },
       { class_id: CLASS_IDS.cs301, student_id: studentIds.s9 },
-      { class_id: CLASS_IDS.cs301, student_id: studentIds.s10 }
+      { class_id: CLASS_IDS.cs301, student_id: studentIds.s10 },
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s1 },
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s2 },
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s3 },
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s4 },
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s5 },
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s6 }
     ],
     'class_id,student_id'
   )
@@ -460,6 +541,288 @@ async function main() {
         due_at: '2026-11-28T23:59:00.000Z',
         starter_code:
           '#include <iostream>\n#include <vector>\n\nint main() {\n    int count = 0;\n    std::cin >> count;\n    std::vector<int> values(count);\n    // read the values and print their sum\n    return 0;\n}\n'
+      },
+      {
+        id: ASSIGNMENT_IDS.htmlFirstPage,
+        class_id: CLASS_IDS.html101,
+        title: 'Lesson 1: Your First Page',
+        description: `A web page is a text file made of elements. In this lesson you will build your first page and see it render live.
+
+1. The doctype tells the browser this is HTML5.
+2. The html element wraps the page.
+3. The head holds information about the page; the title appears in the browser tab.
+4. The body holds everything people see.
+
+Add an h1 heading, a p paragraph, and a ul list with at least two li items. The preview below the editor updates as you type.`,
+        language: 'html',
+        file_name: 'index.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-05T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My First Page</title>
+  </head>
+  <body>
+    <!-- Add an h1, a p, and a ul with two li items. -->
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.htmlLinks,
+        class_id: CLASS_IDS.html101,
+        title: 'Lesson 2: Links, Images, and Structure',
+        description: `Pages become useful when they connect and when their structure is meaningful.
+
+- Use a with href to link to another page or site.
+- Use img with src and alt. Alt text describes the image for screen readers and when the image fails.
+- Use header, nav, main, section, and footer to describe page regions instead of generic divs.
+
+Build a short "About me" page with a header, a main section, one link, one image, and a footer. Add a second link back to index.html once that file exists.`,
+        language: 'html',
+        file_name: 'links.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-08T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About me</title>
+  </head>
+  <body>
+    <header>
+      <h1>About me</h1>
+      <nav>
+        <!-- Add a link to index.html -->
+      </nav>
+    </header>
+
+    <main>
+      <section>
+        <h2>Who I am</h2>
+        <p>Introduce yourself in a short paragraph.</p>
+        <!-- Add an img with src and alt text. -->
+      </section>
+    </main>
+
+    <footer>
+      <!-- Add a link to a site you like. -->
+    </footer>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.htmlForms,
+        class_id: CLASS_IDS.html101,
+        title: 'Lesson 3: Tables and Forms',
+        description: `Forms collect information. Every input needs a label so the control has a readable name.
+
+- form groups the controls.
+- label with for links to an input id.
+- input type can be text, email, number, or password.
+- select and option create a drop-down.
+- button submits the form.
+
+Build a sign-up form with a name, email, a number input, a select, and a submit button. Put a small table underneath that lists three example users with a header row.`,
+        language: 'html',
+        file_name: 'forms.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-11T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign up</title>
+  </head>
+  <body>
+    <h1>Join the club</h1>
+
+    <form>
+      <!-- Add labeled name, email, and number inputs. -->
+      <!-- Add a select with at least two options. -->
+      <!-- Add a submit button. -->
+    </form>
+
+    <h2>Members</h2>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Year</th></tr>
+      </thead>
+      <tbody>
+        <!-- Add three rows. -->
+      </tbody>
+    </table>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.htmlCss,
+        class_id: CLASS_IDS.html101,
+        title: 'Lesson 4: Style with CSS',
+        description: `CSS controls presentation. A rule has a selector and a declaration block.
+
+- Select elements with a tag, a class like .card, or an id like #hero.
+- The box model is content, padding, border, and margin.
+- Use color, background, font-family, and line-height for readable text.
+- Use display: flex and gap to lay out a row or column.
+
+Style the page in the starter: add a card class, set a readable font, add padding and a border, and use flexbox for the button row.`,
+        language: 'html',
+        file_name: 'styles.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-14T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Styled card</title>
+    <style>
+      body {
+        margin: 2rem;
+        font-family: system-ui, sans-serif;
+      }
+
+      /* Style .card: padding, border, border-radius, background. */
+      /* Style .card h2: color and margin. */
+      /* Style .actions: display flex and gap. */
+    </style>
+  </head>
+  <body>
+    <main>
+      <article class="card">
+        <h2>HTML + CSS</h2>
+        <p>Structure is HTML. Presentation is CSS.</p>
+        <div class="actions">
+          <button>Primary</button>
+          <button>Secondary</button>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.htmlScript,
+        class_id: CLASS_IDS.html101,
+        title: 'Lesson 5: Interactivity with JavaScript',
+        description: `JavaScript lets a page respond to people. In this lesson you will select elements, listen for a click, and change the page.
+
+- document.querySelector selects the first matching element.
+- addEventListener attaches a function to an event.
+- textContent changes visible text.
+- classList.toggle changes styling without editing CSS values directly.
+
+Build a counter or a greeting. The starter has a button and a paragraph; make the button update the paragraph and toggle a class.`,
+        language: 'html',
+        file_name: 'interactive.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-17T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive page</title>
+    <style>
+      body { margin: 2rem; font-family: system-ui, sans-serif; }
+      .is-on { color: #0f766e; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>Mini interaction</h1>
+    <p id="message">The button has not been clicked yet.</p>
+    <button id="action">Click me</button>
+
+    <script>
+      // Select #message and #action, then listen for a click.
+      // Update the message and toggle the is-on class.
+    </script>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.htmlProject,
+        class_id: CLASS_IDS.html101,
+        title: 'Project: Personal Profile Page',
+        description: `Combine the lessons into one polished multi-file project that introduces you.
+
+This project lives in the profile-project folder. Use New File and Add Images in the class file tree to create the supporting assets.
+
+Requirements:
+- A semantic page with header, nav, main, and footer.
+- A heading, at least two paragraphs, and a list.
+- One image with meaningful alt text, added with Add Images.
+- At least two working links.
+- A styles.css file linked from the page.
+- A script.js file linked from the page with one interaction, such as a button that reveals a fun fact or toggles a theme.
+
+Preview often, keep the markup readable, and make sure the page still makes sense without CSS.`,
+        language: 'html',
+        file_name: 'profile-project/index.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-20T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My profile</title>
+    <!-- Create styles.css in this folder, then link it here. -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Your name</h1>
+      <nav>
+        <!-- Add links. -->
+      </nav>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>About me</h2>
+        <p>Write an introduction.</p>
+        <!-- Add an image with alt text and a list. -->
+      </section>
+
+      <section class="card">
+        <h2>Fun fact</h2>
+        <p id="fact">Press the button to reveal a fact.</p>
+        <button id="reveal">Reveal</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>Built in HTML101.</p>
+    </footer>
+
+    <!-- Create script.js in this folder, then link it here. -->
+    <script src="script.js"></script>
+  </body>
+</html>
+`
       }
     ],
     'id'
@@ -638,7 +1001,9 @@ async function main() {
         line_count: content.split('\n').length,
         language: 'python',
         created_at: iso(day, hour, snapshotMinutes[snapIndex]),
-        typing_intervals: typingSamplesFor(student.key, snapIndex)
+        typing_intervals: typingSamplesFor(student.key, snapIndex),
+        edit_stats: editStatsFor(student.key, snapIndex),
+        focus_stats: focusStatsFor(student.key)
       })
     })
   }
@@ -688,23 +1053,42 @@ async function main() {
     'id'
   )
 
-  const scoreRows = ICS_INPUTS.map((input, index) => {
-    const { terms, ics, band } = computeIcs(input)
-    if (band !== input.expected) {
+  // Recompute through the real professor RPC so the seeded rows use the live
+  // ICS v3 evidence model rather than a copy of the formula in this script.
+  const login = await professorClient.auth.signInWithPassword({
+    email: 'professor@unicode.test',
+    password: PASSWORD
+  })
+  if (login.error) throw new Error(`professor sign-in for ICS: ${login.error.message}`)
+
+  const expectedBands = { s1: 'pass', s2: 'review', s3: 'flag' }
+  for (const student of SUBMISSION_STUDENTS) {
+    const { error } = await professorClient.rpc('recompute_ics', {
+      target_submission: SUBMISSION_IDS[student.key]
+    })
+    if (error) throw new Error(`recompute_ics ${student.key}: ${error.message}`)
+  }
+
+  const { data: seededScores, error: scoreError } = await db
+    .from('ics_scores')
+    .select('*')
+    .in(
+      'submission_id',
+      SUBMISSION_STUDENTS.map((student) => SUBMISSION_IDS[student.key])
+    )
+  if (scoreError) throw new Error(`ics_scores: ${scoreError.message}`)
+
+  const scoreRows = SUBMISSION_STUDENTS.map((student) => {
+    const row = seededScores?.find((score) => score.submission_id === SUBMISSION_IDS[student.key])
+    if (!row) throw new Error(`ICS row missing for ${student.key}`)
+    const expected = expectedBands[student.key]
+    if (row.band !== expected || row.model !== 'v3') {
       throw new Error(
-        `ICS sanity check failed for ${input.key}: expected ${input.expected}, computed ${band} (${ics})`
+        `ICS sanity check failed for ${student.key}: expected ${expected}/v3, got ${row.band}/${row.model} (${row.ics})`
       )
     }
-    return {
-      submission_id: SUBMISSION_IDS[input.key],
-      ...terms,
-      ics,
-      band,
-      computed_at: iso(studentDay(index + 1), studentHour(index + 1), 47)
-    }
+    return row
   })
-
-  await upsert('ics_scores', scoreRows, 'submission_id')
 
   // Comments: a professor note, a professor follow-up, and a student reply.
   await upsert(
@@ -769,10 +1153,11 @@ async function main() {
   console.log('  CS102 - Data Structures        (student1, student2, student4)')
   console.log('  CS201 - Object-Oriented Programming  (student3, student5-student7)')
   console.log('  CS301 - Systems Programming    (student8-student10)')
+  console.log('  HTML101 - Web Foundations      (student1-student6, HTML lessons + project)')
   console.log('\nICS:')
   for (const row of scoreRows) {
     console.log(
-      `  ${row.submission_id}  ${row.ics.toFixed(2)}  ${row.band}  (paste ${row.paste_term}, cadence ${row.cadence_term}, focus ${row.focus_term}, compilation ${row.compilation_term})`
+      `  ${row.submission_id}  ${Number(row.ics).toFixed(2)}  ${row.band}/${row.model}  confidence ${Number(row.confidence ?? 0).toFixed(2)}  ${row.band_reason}`
     )
   }
   console.log('\nDone.')

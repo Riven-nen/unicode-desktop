@@ -220,6 +220,26 @@ describe('evaluateEvidence', () => {
     expect(short.values.authored).toBeLessThanOrEqual(0.5)
   })
 
+  it('never passes below 300 characters even with perfect authorship', () => {
+    const result = evaluateEvidence(
+      input({
+        insertedChars: 250,
+        edits: baseEdits({
+          inserts: 200,
+          fixes: 5,
+          reworks: 3,
+          revisits: 3,
+          pauses: 6,
+          bursts: 6
+        })
+      })
+    )
+    expect(result.score).toBeGreaterThanOrEqual(80)
+    expect(result.band).toBe('review')
+    expect(result.limited).toBe(true)
+    expect(result.rules).toContain('short_submission')
+  })
+
   it('does not raise the score when a pause is added', () => {
     const edits = baseEdits({
       inserts: 280,

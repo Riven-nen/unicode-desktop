@@ -7,7 +7,7 @@ Unicode Lab build.
 | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | [system-flow.svg](system-flow.svg) · [PNG](system-flow.png)                            | One-page system flow graphic: student environment → telemetry → storage → ICS/Judge0 → instructor review                 |
 | [data-flow.svg](data-flow.svg) · [PNG](data-flow.png)                                  | Level 1 data flow diagram: external entities, processes, data stores, and the RLS persistence boundary                   |
-| [ics-formula.svg](ics-formula.svg) · [PNG](ics-formula.png)                            | Current ICS formula diagram: paste, cadence, focus, compilation, rounding, and review bands                              |
+| [ics-formula.svg](ics-formula.svg) · [PNG](ics-formula.png)                            | Current ICS v3 formula diagram: authored evidence, negative evidence, confidence, and band rules                         |
 | [ics-equation.png](ics-equation.png) · [full](ics-equation-full.png)                   | LaTeX-typeset ICS equation (main equation and full term definitions)                                                     |
 | [survey-item-means.svg](survey-item-means.svg) · [PNG](survey-item-means.png)          | Preliminary survey item means grouped into current workflow and integrated-workspace preference                          |
 | [survey-group-summary.svg](survey-group-summary.svg) · [PNG](survey-group-summary.png) | Group means and response distributions for the preliminary survey                                                        |
@@ -19,6 +19,7 @@ Unicode Lab build.
 | [05_DEVELOPMENT_STATUS.md](05_DEVELOPMENT_STATUS.md)                                   | Filled Table 2 (development status) with current verification evidence                                                   |
 | [06_PAPER_SECTION_4_3.md](06_PAPER_SECTION_4_3.md)                                     | Revised paper section 4.3 with implemented features, telemetry limits, storage/RLS, professor dashboard, and cross-links |
 | [07_PRELIMINARY_SURVEY_RESULTS.md](07_PRELIMINARY_SURVEY_RESULTS.md)                   | Updated preliminary survey means, grouped results, distributions, and chart links                                        |
+| [08_ICS_EVIDENCE_MODEL.md](08_ICS_EVIDENCE_MODEL.md)                                   | Research proposal for the v3 ICS: evidence ledger, confidence gating, hard rules, and edge-case matrix                   |
 | [changelog/](changelog/README.md)                                                      | Dated change log entries; each begins with an overall summary of the batch                                               |
 
 ## System flow
@@ -68,7 +69,9 @@ external, so execution can also use the locally installed toolchain.
   (Phase 1).
 - Remote execution: Judge0 integration exists; a live endpoint is an external
   dependency and is not guaranteed in the demo environment.
-- Automated checks: 74 Vitest tests and 41 live RLS regression checks.
+- HTML coursework: HTML101 lessons and project with a loopback live preview that serves the class folder and overlays unsaved editor content.
+- Workspace tree: nested project folders, class folders, and image assets, with in-tree folder and image import actions.
+- Automated checks: 121 Vitest tests and 41 live RLS regression checks.
 - Windows installer: `dist/unicode-desktop-1.0.0-setup.exe` (126.16 MB).
 - Installer SHA-256:
   `3106491895F542977C47A87D0876BE1E47775468DB24506247D0AA64FA905A81`.

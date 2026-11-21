@@ -76,17 +76,24 @@ coverage = 1.0  ≥3 snapshots or ≥2 files
 
 `C` does **not** move the score. It controls the band:
 
-| Condition              | Band                        |
-| ---------------------- | --------------------------- |
-| hard rule corroborated | `flag`                      |
-| `C < 0.30`             | `review` — limited evidence |
-| `score ≥ 80`           | `pass`                      |
-| `score ≥ 40`           | `review`                    |
-| otherwise              | `flag`                      |
+| Condition                         | Band                         |
+| --------------------------------- | ---------------------------- |
+| hard rule corroborated            | `flag`                       |
+| `C < 0.30`                        | `review` — limited evidence  |
+| `score ≥ 80` and `chars < 300`    | `review` — short submission  |
+| `score ≥ 80`                      | `pass`                       |
+| `score ≥ 40`                      | `review`                     |
+| otherwise                         | `flag`                       |
 
-A short but perfectly authored snippet therefore cannot pass: it is `review —
-limited evidence`. That is honest, and it removes the "one burst = 69" artefact
-from v2.
+A short but perfectly authored snippet therefore cannot pass. Below 120
+characters there is no confidence at all; between 120 and 299 characters the
+best possible band is `review — short submission`. This removes the v2 "one
+burst = 69" artefact and stops a few correct-looking lines from being treated as
+proof of authorship.
+
+The 300-character floor is deliberately not a time threshold. A student can sit
+idle, and a fast typist can produce 300 characters quickly. The gate is evidence
+volume: characters, operations, bursts, and snapshots.
 
 ### 3.3 Authored evidence `A`
 
@@ -120,8 +127,9 @@ perform and very common in honest work, so one excursion cannot lift the cap at
 all: a run whose only structural evidence is one revisit stays at `A ≤ 0.50`,
 which caps the score at 72.5 and therefore cannot pass. Two independent
 structural events raise the cap to 0.75; three raise it to 1.0. The `200`-char
-volume factor means a short session is scaled down as well, so a 120-char
-snippet can reach review, never a confident pass, no matter how busy it looks.
+volume factor scales the score down further, and the band gate blocks a pass
+below 300 inserted characters. A 120-char snippet can therefore reach review but
+never a confident pass, no matter how busy it looks.
 
 Mid-line pauses are recorded but **not scored**, because a stall must not raise
 the score.
@@ -219,6 +227,7 @@ until it repeats alongside a rework or an undo.
 | Scenario                                       | A    | P    | T    | W    | Score | Band                       |
 | ---------------------------------------------- | ---- | ---- | ---- | ---- | ----- | -------------------------- |
 | Authored 320 chars, 4 fixes, 2 reworks, 2 revisits | 1.00 | 0    | 0.10 | 0    | 95.0  | pass (C=1)                 |
+| Authored 250 chars, perfect evidence           | 1.00 | 0    | 0    | 0    | 95.0  | review (short submission)  |
 | Authored 300 chars, 4 fixes, 2 revisits only   | 0.67 | 0    | 0.10 | 0    | 76.4  | review                     |
 | Short honest 100 chars, 1 fix                  | 0.10 | 0    | 0    | 0    | 54.5  | review (C=0)               |
 | Hand-copy 160 chars, no fixes, 1 chunk         | 0    | 0    | 0.70 | 0    | 24.8  | review (floor)             |
@@ -243,7 +252,7 @@ until it repeats alongside a rework or an undo.
 | Pair programming / group work          | Assignment policy disables `A` penalty and `S`; display "collaboration allowed".                                                  |
 | Timed seatwork                         | Paste allowance 0; rhythm weight raised slightly; blur weight raised.                                                             |
 | Take-home / open book                  | Paste allowance 0.15; `W` weight lowered.                                                                                         |
-| Very short submission (<120 chars)     | `C < 0.30` → review (limited evidence), never pass/flag.                                                                          |
+| Very short submission (<300 chars)     | `<120` → review (no confidence); `120–299` → review (short submission), never pass.                                              |
 | Multi-file submission                  | Aggregate counts; cap each file's contribution so one large file cannot dominate.                                                 |
 | Offline / clock skew                   | Server clamps timestamps; queued events keep monotonic ordering.                                                                  |
 | Snapshot gaps (app closed)             | Gaps >30 min start a new session; no focus penalty.                                                                               |
