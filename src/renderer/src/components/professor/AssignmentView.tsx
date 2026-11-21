@@ -25,6 +25,8 @@ interface AssignmentViewProps {
   rosterCount: number
   loading: boolean
   error: string | null
+  /** Bumped by Realtime when sessions/events change. */
+  monitorVersion: number
   onBack: () => void
   onEdit: () => void
   onManageTests: () => void
@@ -49,6 +51,7 @@ export default function AssignmentView({
   rosterCount,
   loading,
   error,
+  monitorVersion,
   onBack,
   onEdit,
   onManageTests,
@@ -228,6 +231,7 @@ export default function AssignmentView({
         <AssessmentMonitor
           assignmentId={assignment.id}
           rosterCount={rosterCount}
+          refreshSignal={monitorVersion}
           onOpenSubmission={onOpenSubmission}
         />
       )}

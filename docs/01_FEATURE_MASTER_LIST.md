@@ -273,6 +273,9 @@ integrity.
 | PRO-22 | Exam event monitor          | Tab-outs, fullscreen exits, blocked pastes, interruption counts, override state      | Implemented |
 | PRO-23 | Professor override          | Authenticated +5-minute extension or interruption excuse with audit trail            | Implemented |
 | PRO-24 | Exam-mode ICS               | Seatwork scores mark paste as N/A and keep the remaining evidence score              | Implemented |
+| PRO-25 | Realtime exam monitor       | Sessions and events refresh the monitor without a manual reload                      | Implemented |
+| PRO-26 | Event timeline/export       | Per-session audit timeline with CSV export                                           | Implemented |
+| PRO-27 | Reopen attempt              | Terminal session can be reopened with a fresh deadline and audit entry               | Implemented |
 
 ---
 

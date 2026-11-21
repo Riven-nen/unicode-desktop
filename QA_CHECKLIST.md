@@ -136,6 +136,11 @@ should pass before the demo.
 - [ ] Paste and drag-drop are blocked during a seatwork.
 - [ ] Run-only terminal disables shell input but keeps Run file.
 - [ ] Professor +5m and Excuse actions update the student and leave an audit note.
+- [ ] Monitor updates over Realtime without pressing Refresh.
+- [ ] Events opens the session timeline and CSV export works.
+- [ ] Override modal supports extend, excuse, and reopen with a reason.
+- [ ] Reopening a submitted attempt gives a new deadline and allows another
+      submission.
 - [ ] Seatwork ICS marks paste N/A.
 - [ ] The project opens `profile-project/index.html` and creates that folder.
 - [ ] New Folder creates nested project folders that persist after refresh.

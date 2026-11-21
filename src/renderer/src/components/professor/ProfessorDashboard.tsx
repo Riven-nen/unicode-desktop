@@ -73,7 +73,13 @@ interface ProfessorDashboardProps {
   onSignOut: () => void
 }
 
-const PROFESSOR_REALTIME_TABLES = ['submissions', 'comments', 'assignments'] as const
+const PROFESSOR_REALTIME_TABLES = [
+  'submissions',
+  'comments',
+  'assignments',
+  'assessment_sessions',
+  'assessment_events'
+] as const
 
 interface ClassState {
   userId: string
@@ -157,6 +163,7 @@ export default function ProfessorDashboard({
   const [replyEvents, setReplyEvents] = useState<StudentReplyEvent[]>([])
   const [submissionEvents, setSubmissionEvents] = useState<SubmissionEvent[]>([])
   const [replyVersion, setReplyVersion] = useState(0)
+  const [monitorVersion, setMonitorVersion] = useState(0)
   const [, refreshSeenReplies] = useState(0)
 
   useRealtimeRefresh(session, PROFESSOR_REALTIME_TABLES, () => {
@@ -165,6 +172,7 @@ export default function ProfessorDashboard({
     setSubmissionVersion((version) => version + 1)
     setDetailVersion((version) => version + 1)
     setReplyVersion((version) => version + 1)
+    setMonitorVersion((version) => version + 1)
   })
 
   useEffect(() => {
@@ -692,6 +700,7 @@ export default function ProfessorDashboard({
             rosterCount={rosterItems.length}
             loading={submissionsLoading}
             error={submissionError}
+            monitorVersion={monitorVersion}
             onBack={backToClassOverview}
             onEdit={() =>
               setAssignmentModal({

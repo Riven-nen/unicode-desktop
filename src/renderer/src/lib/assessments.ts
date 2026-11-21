@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import type {
   AssessmentDraftResult,
+  AssessmentEventEntry,
+  AssessmentEventKind,
   AssessmentEventResult,
   AssessmentEventType,
   AssessmentExamState,
@@ -219,9 +221,25 @@ export async function recordAssessmentEvent(input: {
   }
 }
 
+export async function fetchAssessmentEvents(sessionId: string): Promise<AssessmentEventEntry[]> {
+  const { data, error } = await client()
+    .from('assessment_events')
+    .select('id, student_id, event_type, metadata, occurred_at')
+    .eq('session_id', sessionId)
+    .order('occurred_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    studentId: row.student_id as string,
+    eventType: row.event_type as AssessmentEventKind,
+    metadata: (row.metadata ?? {}) as Record<string, unknown>,
+    occurredAt: row.occurred_at as string
+  }))
+}
+
 export async function applyAssessmentOverride(input: {
   sessionId: string
-  action: 'extend_time' | 'excuse_interruption'
+  action: 'extend_time' | 'excuse_interruption' | 'reopen'
   minutes?: number
   reason?: string
 }): Promise<AssessmentOverrideResult> {

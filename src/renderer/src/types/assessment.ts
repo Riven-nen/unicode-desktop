@@ -57,6 +57,16 @@ export interface AssessmentExamState {
 export type AssessmentEventType =
   'tab_out' | 'fullscreen_exit' | 'paste_blocked' | 'warning' | 'focus_return'
 
+export type AssessmentEventKind = AssessmentEventType | 'override' | 'auto_submit'
+
+export interface AssessmentEventEntry {
+  id: string
+  studentId: string
+  eventType: AssessmentEventKind
+  metadata: Record<string, unknown>
+  occurredAt: string
+}
+
 export interface AssessmentEventResult {
   action: 'logged' | 'warning' | 'auto_submit'
   status: AssessmentSessionStatus

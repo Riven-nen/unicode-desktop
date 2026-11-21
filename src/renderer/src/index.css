@@ -7955,3 +7955,86 @@ input:focus-visible,
   color: var(--paste);
   font-size: 9.5px;
 }
+
+/* Exam operations: override + event timeline ------------------------------- */
+
+.assessment-override-modal,
+.assessment-event-modal {
+  width: min(620px, 94vw);
+  max-height: 82vh;
+  overflow-y: auto;
+}
+
+.assessment-event-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.assessment-event-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 4px 0 0;
+  padding: 0 0 0 10px;
+  list-style: none;
+  border-left: 1px solid var(--border);
+}
+
+.assessment-event {
+  position: relative;
+  padding: 7px 10px 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.assessment-event:last-child {
+  border-bottom: none;
+}
+
+.assessment-event-dot {
+  position: absolute;
+  left: -15px;
+  top: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.assessment-event.is-tab_out .assessment-event-dot,
+.assessment-event.is-fullscreen_exit .assessment-event-dot {
+  background: var(--error);
+}
+
+.assessment-event.is-paste_blocked .assessment-event-dot {
+  background: var(--paste);
+}
+
+.assessment-event.is-override .assessment-event-dot {
+  background: var(--success);
+}
+
+.assessment-event > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.assessment-event strong {
+  font-size: 11.5px;
+}
+
+.assessment-event time {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.assessment-event code {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

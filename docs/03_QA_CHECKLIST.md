@@ -319,6 +319,15 @@ Expected:
 - [ ] **P1** A submitted session cannot be extended.
 - [ ] **P1** An override is visible in `assessment_overrides` and the event audit.
 - [ ] **P1** A student cannot read another student’s exam events or apply overrides.
+- [ ] **P0** The monitor refreshes over Realtime when a session or event changes.
+- [ ] **P0** Events opens a timeline of tab-outs, fullscreen exits, blocked
+      pastes, warnings, overrides, and auto-submits.
+- [ ] **P0** Export CSV downloads the selected session’s event trail.
+- [ ] **P0** Override modal collects action, minutes, and reason.
+- [ ] **P0** A terminal session can be reopened with a fresh deadline.
+- [ ] **P0** Reopening clears the final submission link, resets counters, and
+      allows a second submission.
+- [ ] **P0** Reopen increments `reopen_count` and writes override/audit rows.
 
 ---
 

@@ -11,11 +11,15 @@ import {
 import { applyAssessmentOverride, fetchAssessmentSessions } from '../../lib/assessments'
 import { initialsOf } from '../../lib/initials'
 import { sessionStatusLabel, type AssessmentSessionSummary } from '../../types/assessment'
+import AssessmentEventLog from './AssessmentEventLog'
+import AssessmentOverrideModal from './AssessmentOverrideModal'
 
 interface AssessmentMonitorProps {
   assignmentId: string
   /** Enrolled students, used to show who has not started yet. */
   rosterCount: number
+  /** Bumped by Realtime so the monitor reloads without waiting for the poll. */
+  refreshSignal: number
   onOpenSubmission: (submissionId: string) => void
 }
 
@@ -41,12 +45,15 @@ const formatRemaining = (ms: number): string => {
 export default function AssessmentMonitor({
   assignmentId,
   rosterCount,
+  refreshSignal,
   onOpenSubmission
 }: AssessmentMonitorProps): React.ReactElement {
   const [items, setItems] = useState<AssessmentSessionSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [overrideBusy, setOverrideBusy] = useState<string | null>(null)
+  const [overrideSession, setOverrideSession] = useState<AssessmentSessionSummary | null>(null)
+  const [eventSession, setEventSession] = useState<AssessmentSessionSummary | null>(null)
   const [version, setVersion] = useState(0)
   const [clock, setClock] = useState(() => Date.now())
 
@@ -70,7 +77,7 @@ export default function AssessmentMonitor({
     return () => {
       cancelled = true
     }
-  }, [assignmentId, version])
+  }, [assignmentId, version, refreshSignal])
 
   // The monitor is live-ish: expiry runs on every fetch, and the refresh keeps
   // last-saved times current without hammering the database.
@@ -250,30 +257,33 @@ export default function AssessmentMonitor({
                             <AlertTriangle size={12} /> Pending
                           </span>
                         ) : null}
+                        {session.examMode && (
+                          <button
+                            className="icon-text-btn"
+                            onClick={() => setEventSession(session)}
+                            title="Show the exam event timeline"
+                          >
+                            Events
+                          </button>
+                        )}
                         {running && session.examMode && (
-                          <>
-                            <button
-                              className="icon-text-btn"
-                              disabled={overrideBusy === session.sessionId}
-                              onClick={() => void applyOverride(session.sessionId, 'extend_time')}
-                              title="Extend this session by 5 minutes"
-                            >
-                              <TimerReset size={11} /> +5m
-                            </button>
-                            <button
-                              className="icon-text-btn"
-                              disabled={
-                                overrideBusy === session.sessionId ||
-                                session.interruptionCount === 0
-                              }
-                              onClick={() =>
-                                void applyOverride(session.sessionId, 'excuse_interruption')
-                              }
-                              title="Excuse all recorded interruptions"
-                            >
-                              Excuse
-                            </button>
-                          </>
+                          <button
+                            className="icon-text-btn"
+                            disabled={overrideBusy === session.sessionId}
+                            onClick={() => void applyOverride(session.sessionId, 'extend_time')}
+                            title="Extend this session by 5 minutes"
+                          >
+                            <TimerReset size={11} /> +5m
+                          </button>
+                        )}
+                        {session.examMode && (
+                          <button
+                            className="icon-text-btn"
+                            onClick={() => setOverrideSession(session)}
+                            title="Custom override or reopen"
+                          >
+                            Override
+                          </button>
                         )}
                       </span>
                       {session.overrideNote && (
@@ -288,6 +298,21 @@ export default function AssessmentMonitor({
             </tbody>
           </table>
         </div>
+      )}
+
+      {overrideSession && (
+        <AssessmentOverrideModal
+          session={overrideSession}
+          onClose={() => setOverrideSession(null)}
+          onApplied={() => {
+            setOverrideSession(null)
+            setVersion((current) => current + 1)
+          }}
+        />
+      )}
+
+      {eventSession && (
+        <AssessmentEventLog session={eventSession} onClose={() => setEventSession(null)} />
       )}
     </section>
   )
