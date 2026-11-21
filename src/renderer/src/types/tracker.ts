@@ -1,6 +1,8 @@
 // Shared types for the Time-Travel Diff & Paste Tracker feature.
 // These mirror the tables defined in supabase/schema.sql.
 
+import type { EditStats } from '../lib/authorship'
+
 export type SnapshotType = 'auto' | 'paste' | 'manual' | 'restore'
 
 export type PasteMode = 'single-line' | 'multi-line'
@@ -30,6 +32,19 @@ export interface CodeSnapshot {
   created_at: string
   /** Gaps between edit bursts, captured for the cadence heatmap. */
   typing_intervals?: number[] | null
+  /** Authorship counters for the ICS. Absent on snapshots from older builds. */
+  edit_stats?: EditStats | null
+  /** Window focus counters for the ICS away pattern. */
+  focus_stats?: FocusStats | null
+}
+
+export interface FocusStats {
+  /** Times the window lost focus. */
+  blurs: number
+  /** Times the window regained focus. */
+  returns: number
+  /** Total time away, in milliseconds. */
+  awayMs: number
 }
 
 export interface PasteEventRecord {

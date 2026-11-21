@@ -40,7 +40,17 @@ The system records the following information:
   inactivity, with a minimum spacing of 10 seconds between automatic snapshots.
   Paste events, restores, and submissions force an immediate capture. Each
   snapshot stores the file content, version, snapshot type, character and line
-  counts, language, and typing intervals.
+  counts, language, typing intervals, and authorship counters.
+- **Authorship counters.** Each snapshot carries a delta of edit behaviour:
+  insertions and deletions, undo/redo, insertions made above the current line
+  (revisits), pauses and where typing resumed after them, line-chunk bursts, and
+  line chunks typed immediately after the window regained focus. These counters
+  drive the v3 authored-evidence and transcription terms. A pause is never
+  penalised on its own; only the resume behaviour is scored.
+- **Window focus.** Blur, focus, and visibility changes are counted per
+  snapshot as `focus_stats` (blurs, returns, away time). Returning to the window
+  and immediately typing a complete line is corroborating evidence, capped so it
+  cannot flag a student alone.
 - **Paste events.** Monaco's `onDidPaste` event records the pasted text and the
   exact range. A velocity heuristic also flags bursts of at least 120 inserted
   characters without a paste event, covering drag-and-drop, middle-click, and
@@ -51,28 +61,63 @@ The system records the following information:
 - **Typing timing.** The tracker stores intervals between content-change events
   when text is inserted. It does not save the actual keys pressed. Paste,
   undo/redo, and restore events are excluded, and intervals are clamped to
-  20 ms–10 s with a cap of 800 intervals per snapshot.
-- **Focus/activity.** The ICS focus signal is derived from snapshot timestamps:
-  gaps of up to 2 minutes count as active time, and breaks longer than 30
-  minutes are excluded from the session. The application does not record raw
-  window focus/blur events. Separately, lightweight presence heartbeats update
-  the professor's Live Lab with active, idle, or offline status; these are not a
-  window-focus log.
+  20 ms–10 s with a cap of 800 intervals per snapshot. These intervals feed the
+  typing-rhythm heatmap; the scored authorship term uses the separate counters
+  above.
+- **Focus/activity.** The focus signal is derived from window blur/return events
+  and snapshot timestamps. A gap of up to 5 minutes counts as active work, and
+  breaks longer than 30 minutes are excluded from the session. The application
+  does not record raw window focus/blur history beyond these counters.
+  Separately, lightweight presence heartbeats update the professor's Live Lab
+  with active, idle, or offline status; these are not a window-focus log.
 - **Compilation/test activity.** Judge0 test-case results are stored in
-  `code_runs`; the compilation term of the ICS uses the latest pass/fail result
-  per test case, with a neutral value of 50 when no run exists. Local **Run
-  file** attempts are not persisted as telemetry.
+  `code_runs` and reported as a separate quality figure. They are not counted in
+  the integrity score, because a passing test does not establish authorship.
+  Local **Run file** attempts are not persisted as telemetry.
 - **Manual snapshots and restores.** The snapshot data model still supports
   `manual` and `restore` types, but the student-facing history/restore browser
   was intentionally removed. Professors review the recorded history through the
   submission timeline and diff views.
 
 These records let instructors examine the development process—code evolution,
-paste behavior, typing rhythm, and test outcomes—rather than judging only the
-final submitted code. The capture rules are documented in the
+paste behavior, authorship evidence, and test outcomes—rather than judging only
+the final submitted code. The capture rules are documented in the
 [tracking engine section](02_TECHNICAL_OVERVIEW.md#11-tracking-engine), and the
 corresponding feature rows are in the
 [telemetry section](01_FEATURE_MASTER_LIST.md#6-edit-tracking-snapshots-paste-analytics-and-typing-rhythm).
+
+### Methodology basis for the ICS
+
+The ICS is an evidence ledger rather than a weighted sum of positive terms. The
+design follows five findings from the literature:
+
+1. Keystroke-dynamics identification is not accurate enough to serve as
+   authorship evidence: the best of 14 benchmark detectors reached a 9.6–10.2%
+   equal-error rate [1], and an academic-integrity study using a modified
+   TypeNet reports 74.98–85.72% accuracy only in condition-specific settings,
+   falling to 52.24–80.54% when conditions vary [2].
+2. Free writing differs from transcription-like typing in its revision
+   behaviour—shorter bursts, longer pauses, and more corrections [2]. The score
+   therefore uses corrections, reworks, and revisits, not pause length. Revisits
+   are counted per excursion above the working line, not per keystroke, and a
+   single excursion is deliberately too weak to carry a pass: moving up and
+   editing an earlier line is both easy to imitate and common among honest
+   coders, so it only helps after it repeats alongside a rework or an undo.
+3. Hand-retyping from a reference is a known blind spot for IDE-based paste
+   trackers [3]. The system can only infer it from edit shape, so one
+   transcription signal holds a submission at review rather than flagging it.
+4. Programming-process data has submission-, snapshot-, and keystroke-level
+   granularity [4]. This implementation is snapshot-level and falls back to a
+   labelled v2 estimate when the counters are unavailable.
+5. Detection tools are indicators, not verdicts: a 14-tool evaluation found
+   AI-text detectors "neither accurate nor reliable" [5], and contract-cheating
+   guidance treats digital traces as corroboration, not proof [6]. A `flag` is
+   therefore a request for review.
+
+The score starts at 50 and moves only with evidence; confidence gates the band so
+a short session cannot pass, and authored evidence is scaled by session volume so
+a 120-character snippet can reach review but not a confident pass. Judge0 results
+are reported separately as quality.
 
 ## 4.3.3 Backend and Data Storage
 
@@ -127,3 +172,31 @@ The main status caveats are that Judge0 requires an external endpoint and the
 ICS formula remains a review heuristic. A Windows installer has been built but
 is unsigned, so SmartScreen may warn on first launch. The current verification
 evidence is summarized in [Table 2 / Development Status](05_DEVELOPMENT_STATUS.md).
+
+## References cited in 4.3.2
+
+1. Killourhy, K. S., & Maxion, R. A. (2009). Comparing anomaly detectors for
+   keystroke dynamics. In _Proceedings of the 39th Annual IEEE/IFIP
+   International Conference on Dependable Systems and Networks (DSN 2009)_
+   (pp. 125–134). IEEE Computer Society.
+   https://www.cs.cmu.edu/~maxion/pubs/KillourhyMaxion09.pdf
+2. Kundu, D., Mehta, A., Kumar, R., Lal, N., Anand, A., Singh, A., & Shah, R. R.
+   (2024). Keystroke dynamics against academic dishonesty in the age of LLMs.
+   _IEEE International Joint Conference on Biometrics (IJCB 2024)_.
+   https://arxiv.org/abs/2406.15335
+3. McDonald, J., Robertson, S., & Peruma, A. (2025). PasteTrace: A single source
+   plagiarism detection tool for introductory programming courses.
+   _arXiv:2506.17355_. https://arxiv.org/abs/2506.17355
+4. Ihantola, P., Vihavainen, A., Ahadi, A., Butler, M., Börstler, J., Edwards,
+   S. H., Isohanni, E., Korhonen, A., Petersen, A., Rivers, K., Rubio, M. Á.,
+   Sheard, J., Skupas, B., Spacco, J., Szabo, C., & Toll, D. (2015). Educational
+   data mining and learning analytics in programming: Literature review and case
+   studies. In _Proceedings of the 2015 ITiCSE on Working Group Reports_
+   (ITiCSE-WGR '15, pp. 41–63). ACM. https://doi.org/10.1145/2858796.2858798
+5. Weber-Wulff, D., Anohina-Naumeca, A., Bjelobaba, S., Foltýnek, T.,
+   Guerrero-Dib, J., Popoola, O., Šigut, P., & Waddington, L. (2023). Testing of
+   detection tools for AI-generated text. _International Journal for Educational
+   Integrity, 19_(26). https://doi.org/10.1007/s40979-023-00146-z
+6. Tertiary Education Quality and Standards Agency. (2026). _Substantiating
+   contract cheating: A guide for investigators_.
+   https://www.teqsa.gov.au/sites/default/files/2026-05/substantiating-contract-cheating-guide-for-investigators.pdf

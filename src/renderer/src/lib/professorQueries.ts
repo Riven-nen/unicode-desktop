@@ -5,6 +5,7 @@ import type {
   CodeRunEntry,
   CommentEntry,
   IcsBand,
+  IcsEvidenceValues,
   IcsScoreRow,
   LiveLabStudent,
   PasteSimilarityMatch,
@@ -757,6 +758,10 @@ interface IcsFull {
   ics: number | string
   band: IcsBand
   computed_at: string
+  confidence: number | string | null
+  evidence: IcsEvidenceValues | null
+  band_reason: string | null
+  model: string | null
 }
 
 interface DetailRow {
@@ -827,7 +832,7 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
          id, title, language, file_name, class_id,
          class:classes!assignments_class_id_fkey ( id, name, code )
        ),
-       ics:ics_scores ( submission_id, paste_term, cadence_term, focus_term, compilation_term, ics, band, computed_at )`
+       ics:ics_scores ( submission_id, paste_term, cadence_term, focus_term, compilation_term, ics, band, computed_at, confidence, evidence, band_reason, model )`
     )
     .eq('id', submissionId)
     .single()
@@ -942,7 +947,11 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
         compilationTerm: Number(ics.compilation_term),
         ics: Number(ics.ics),
         band: ics.band,
-        computedAt: ics.computed_at
+        computedAt: ics.computed_at,
+        confidence: ics.confidence === null ? null : Number(ics.confidence),
+        evidence: ics.evidence,
+        bandReason: ics.band_reason,
+        model: ics.model
       }
     : null
 

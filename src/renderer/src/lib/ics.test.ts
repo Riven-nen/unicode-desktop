@@ -17,7 +17,7 @@ describe('deriveRawInputs', (): void => {
   it('inverts the weighted terms back to 0-100 inputs', (): void => {
     expect(deriveRawInputs(perfect)).toEqual({
       pasteRatio: 0,
-      cadence: 100,
+      authorship: 100,
       focus: 100,
       compilation: 100
     })
@@ -33,7 +33,7 @@ describe('deriveRawInputs', (): void => {
     }
     const raw = deriveRawInputs(score)
     expect(raw.pasteRatio).toBe(1)
-    expect(raw.cadence).toBe(100)
+    expect(raw.authorship).toBe(100)
     expect(raw.focus).toBe(0)
     expect(raw.compilation).toBe(0)
   })
@@ -60,14 +60,14 @@ describe('bandForScore', (): void => {
 
 describe('computeIcs', (): void => {
   it('awards full points for a clean session', (): void => {
-    const breakdown = computeIcs({ pasteRatio: 0, cadence: 100, focus: 100, compilation: 100 })
+    const breakdown = computeIcs({ pasteRatio: 0, authorship: 100, focus: 100, compilation: 100 })
     expect(breakdown.pasteTerm).toBe(35)
     expect(breakdown.ics).toBe(100)
     expect(breakdown.band).toBe('pass')
   })
 
   it('weights each term and clamps out-of-range inputs', (): void => {
-    const breakdown = computeIcs({ pasteRatio: 2, cadence: 50, focus: -10, compilation: 80 })
+    const breakdown = computeIcs({ pasteRatio: 2, authorship: 50, focus: -10, compilation: 80 })
     expect(breakdown.pasteTerm).toBe(0)
     expect(breakdown.cadenceTerm).toBeCloseTo(12.5)
     expect(breakdown.focusTerm).toBe(0)

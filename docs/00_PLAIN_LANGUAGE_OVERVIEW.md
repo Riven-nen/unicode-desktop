@@ -232,11 +232,14 @@ student to press Save. When the code settles after typing, it records a copy.
 The app notices when text is pasted in. It also notices very large sudden inserts
 that probably came from a drag-and-drop or middle-click paste.
 
-### Typing rhythm
+### Typing rhythm and authorship
 
-The app records the time gaps between edits. A person typing normally produces a
-jagged rhythm with pauses. A large block delivered all at once looks different.
-This is a clue, not a lie detector.
+The app records how edits unfold, not how fast someone types. A pause is not
+treated as suspicious — people stop to think. What matters is what happens when
+typing resumes: fixing a mistake, going back to an earlier line, or hesitating
+in the middle of a line all count in the student's favour. Typing a complete,
+perfect line in one go and never correcting anything looks like copying, and that
+is the only pattern the score penalises. This is a clue, not a lie detector.
 
 ### Diff
 
@@ -255,15 +258,20 @@ renaming, so it can highlight suspiciously similar solutions.
 
 ### Integrity Confidence Score (ICS)
 
-The ICS is a 0–100 review score built from four signals:
+The ICS is a 0–100 review score that starts at 50 and moves only when there is
+evidence:
 
-- paste activity;
-- typing cadence;
-- focus/idle behavior;
-- test-case compilation results.
+- fixing mistakes, going back to earlier lines, and pausing inside a line raise
+  it;
+- novel paste, typing complete lines straight from a reference, machine-regular
+  typing, and leaving the window then immediately typing lower it;
+- short or thin sessions are held at **review** because there is not enough
+  evidence;
+- test results are shown separately as **quality**, not integrity.
 
 It is shown as **pass**, **review**, or **flag**. It is a review aid, not a
-verdict.
+verdict. A long thinking pause never lowers the score; copying a whole line at a
+time is what holds a submission at review.
 
 ---
 
@@ -334,7 +342,7 @@ verdict.
 2. Show the class cards and new-submission badges.
 3. Open CS101 → Fibonacci.
 4. Open student3’s submission.
-5. Show **Diff**, then **Cadence** heatmap, then **Paste detected**.
+5. Show **Diff**, then **Authorship** heatmap, then **Paste detected**.
 6. Use the timeline to step through snapshots and show **Diff**.
 7. Show the private grade and release it.
 8. Open **Live Lab** while a student is signed in on another window.

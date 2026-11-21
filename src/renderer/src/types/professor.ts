@@ -112,6 +112,17 @@ export interface LiveLabStudent {
   lastSeenAt: string
 }
 
+export interface IcsEvidenceValues {
+  authored: number | string
+  paste: number | string
+  transcription: number | string
+  rhythm: number | string
+  away: number | string
+  similarity: number | string
+  e_plus: number | string
+  e_minus: number | string
+}
+
 export interface IcsScoreRow {
   submissionId: string
   pasteTerm: number
@@ -121,6 +132,10 @@ export interface IcsScoreRow {
   ics: number
   band: IcsBand
   computedAt: string
+  confidence?: number | null
+  evidence?: IcsEvidenceValues | null
+  bandReason?: string | null
+  model?: string | null
 }
 
 export interface CommentEntry {

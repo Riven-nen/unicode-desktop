@@ -3,9 +3,11 @@ import type * as monaco from 'monaco-editor'
 import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { snapshotQueue } from '../lib/snapshotQueue'
+import { AuthorshipTracker } from '../lib/authorship'
 import type {
   CodeSnapshot,
   DetectionSource,
+  FocusStats,
   PasteEventRecord,
   SnapshotType,
   SyncStatus
@@ -141,6 +143,18 @@ export function useCodeTracker({
   const windowsRef = useRef(new Map<string, ChangeWindow>())
   // Gaps between edit bursts, attached to the next snapshot for the heatmap.
   const typingIntervalsRef = useRef(new Map<string, number[]>())
+  // Authorship counters for the ICS. Unlike typing intervals these are not
+  // cleared on capture, so a pause across a snapshot boundary still counts.
+  const authorshipRef = useRef(new Map<string, AuthorshipTracker>())
+  // Window focus bookkeeping. Deltas are attached to the next snapshot.
+  const focusRef = useRef({
+    blurs: 0,
+    returns: 0,
+    awayMs: 0,
+    awayStartedAt: 0,
+    lastReturnAt: 0,
+    usedReturn: false
+  })
   const lastChangeRef = useRef(new Map<string, number>())
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const restoringRef = useRef<string | null>(null)
@@ -288,6 +302,19 @@ export function useCodeTracker({
       if (!force && last && last.content === content) return null
 
       const intervals = typingIntervalsRef.current.get(fileName) ?? []
+      const tracker = authorshipRef.current.get(fileName)
+      const editStats = tracker?.drain()
+      const hasEditStats = editStats && Object.values(editStats).some((value) => value > 0)
+      const focus = focusRef.current
+      const focusDelta: FocusStats = {
+        blurs: focus.blurs,
+        returns: focus.returns,
+        awayMs: Math.round(focus.awayMs)
+      }
+      const hasFocusStats = focusDelta.blurs > 0 || focusDelta.returns > 0 || focusDelta.awayMs > 0
+      focus.blurs = 0
+      focus.returns = 0
+      focus.awayMs = 0
       const snapshot: CodeSnapshot = {
         id: crypto.randomUUID(),
         user_id: userIdRef.current ?? LOCAL_USER,
@@ -300,7 +327,9 @@ export function useCodeTracker({
         line_count: model.getLineCount(),
         language: model.getLanguageId() || null,
         created_at: new Date().toISOString(),
-        typing_intervals: intervals.length > 0 ? intervals : null
+        typing_intervals: intervals.length > 0 ? intervals : null,
+        edit_stats: hasEditStats ? editStats : null,
+        focus_stats: hasFocusStats ? focusDelta : null
       }
       typingIntervalsRef.current.delete(fileName)
       lastChangeRef.current.delete(fileName)
@@ -330,6 +359,7 @@ export function useCodeTracker({
         // A bulk insert is not typing rhythm.
         typingIntervalsRef.current.delete(fileName)
         lastChangeRef.current.delete(fileName)
+        authorshipRef.current.get(fileName)?.discardBurst()
         const snapshot = captureSnapshot(fileName, 'paste', true)
         recordPaste(fileName, snapshot, changeWindow.texts.join(''), 'velocity')
         return
@@ -374,12 +404,54 @@ export function useCodeTracker({
       // Bulk programmatic replaces (setValue) are not user edits.
       if (event.isFlush) return
 
+      // Authorship evidence: what the student did, not how long they paused.
+      const now = Date.now()
+      let insertedTotal = 0
+      let deletedTotal = 0
+      let insertedText = ''
+      let startLine = Number.MAX_SAFE_INTEGER
+      let startColumn = Number.MAX_SAFE_INTEGER
+      let containsNewline = false
+      for (const change of event.changes) {
+        insertedTotal += change.text.length
+        deletedTotal += change.rangeLength
+        insertedText += change.text
+        if (change.text.includes('\n')) containsNewline = true
+        startLine = Math.min(startLine, change.range.startLineNumber)
+        startColumn = Math.min(startColumn, change.range.startColumn)
+      }
+      let authorship = authorshipRef.current.get(fileName)
+      if (!authorship) {
+        authorship = new AuthorshipTracker()
+        authorshipRef.current.set(fileName, authorship)
+      }
+      const safeStartLine = startLine === Number.MAX_SAFE_INTEGER ? 1 : startLine
+      const lineText = modelsRef.current.get(fileName)?.getLineContent(safeStartLine) ?? ''
+      const lineIndent = (lineText.match(/^[ \t]*/) ?? [''])[0].length
+      const focus = focusRef.current
+      const afterReturn =
+        focus.lastReturnAt > 0 && !focus.usedReturn && now - focus.lastReturnAt <= 2500
+      if (afterReturn) focus.usedReturn = true
+      authorship.record(
+        {
+          insertedChars: insertedTotal,
+          deletedChars: deletedTotal,
+          insertedText,
+          startLine: safeStartLine,
+          startColumn: startColumn === Number.MAX_SAFE_INTEGER ? 1 : startColumn,
+          lineIndent,
+          containsNewline,
+          afterReturn,
+          isUndoRedo: event.isUndoing || event.isRedoing
+        },
+        now
+      )
+
       // Edit cadence: one sample per content change, ignoring undo/redo and
       // implausibly long pauses. These become the typing heatmap points.
       if (!event.isUndoing && !event.isRedoing) {
         const inserted = event.changes.reduce((total, change) => total + change.text.length, 0)
         if (inserted > 0) {
-          const now = Date.now()
           const previous = lastChangeRef.current.get(fileName)
           if (previous !== undefined) {
             const interval = now - previous
@@ -431,6 +503,7 @@ export function useCodeTracker({
       // A paste is not typing rhythm.
       typingIntervalsRef.current.delete(fileName)
       lastChangeRef.current.delete(fileName)
+      authorshipRef.current.get(fileName)?.discardBurst()
 
       const pastedText = resolvePastedText(event, model)
       if (!pastedText) return
@@ -603,6 +676,41 @@ export function useCodeTracker({
     }
   }, [])
 
+  // Window focus tracking for the ICS away signal. blur/visibilitychange both
+  // fire on some platforms, so the away start is guarded.
+  useEffect(() => {
+    const markAway = (): void => {
+      const focus = focusRef.current
+      if (focus.awayStartedAt > 0) return
+      focus.awayStartedAt = Date.now()
+      focus.blurs += 1
+    }
+    const markBack = (): void => {
+      const focus = focusRef.current
+      if (focus.awayStartedAt === 0) return
+      const now = Date.now()
+      focus.awayMs += now - focus.awayStartedAt
+      focus.awayStartedAt = 0
+      focus.returns += 1
+      focus.lastReturnAt = now
+      focus.usedReturn = false
+    }
+    const onVisibility = (): void => {
+      if (document.hidden) markAway()
+      else markBack()
+    }
+    const onBlur = (): void => markAway()
+    const onFocus = (): void => markBack()
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
+
   // Dispose timers and model listeners on unmount.
   useEffect(() => {
     const timers = timersRef.current
@@ -610,6 +718,7 @@ export function useCodeTracker({
     const windows = windowsRef.current
     const typingIntervals = typingIntervalsRef.current
     const lastChanges = lastChangeRef.current
+    const authorship = authorshipRef.current
     return () => {
       for (const timer of timers.values()) clearTimeout(timer)
       timers.clear()
@@ -622,6 +731,7 @@ export function useCodeTracker({
       windows.clear()
       typingIntervals.clear()
       lastChanges.clear()
+      authorship.clear()
     }
   }, [])
 

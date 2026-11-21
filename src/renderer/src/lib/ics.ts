@@ -3,7 +3,9 @@ import type { IcsBand, IcsScoreRow } from '../types/professor'
 /** Maximum points each weighted term can contribute to the 0-100 ICS. */
 export const TERM_META = [
   { key: 'paste', label: 'Paste', weight: 0.35, max: 35 },
-  { key: 'cadence', label: 'Cadence', weight: 0.25, max: 25 },
+  // The stored key stays `cadence` for database/API compatibility; the input
+  // is now authorship evidence (see lib/authorship.ts).
+  { key: 'cadence', label: 'Authorship', weight: 0.25, max: 25 },
   { key: 'focus', label: 'Focus', weight: 0.2, max: 20 },
   { key: 'compilation', label: 'Compilation', weight: 0.2, max: 20 }
 ] as const
@@ -11,8 +13,8 @@ export const TERM_META = [
 export interface DerivedIcsInputs {
   /** P: pasted chars / inserted chars, 0..1 */
   pasteRatio: number
-  /** C: typing cadence, 0..100 */
-  cadence: number
+  /** A: authorship evidence, 0..100 */
+  authorship: number
   /** F: focus retention, 0..100 */
   focus: number
   /** K: compilation profile, 0..100 */
@@ -30,7 +32,7 @@ const clamp = (value: number, min: number, max: number): number =>
 export function deriveRawInputs(score: IcsScoreRow): DerivedIcsInputs {
   return {
     pasteRatio: clamp(1 - score.pasteTerm / 35, 0, 1),
-    cadence: clamp(score.cadenceTerm / 0.25, 0, 100),
+    authorship: clamp(score.cadenceTerm / 0.25, 0, 100),
     focus: clamp(score.focusTerm / 0.2, 0, 100),
     compilation: clamp(score.compilationTerm / 0.2, 0, 100)
   }
@@ -54,12 +56,12 @@ export interface IcsBreakdown {
 
 /**
  * Weighted score for the student-facing demo. Mirrors the database formula:
- * paste 35, cadence 25, focus 20, compilation 20. Inputs are clamped so the
- * gauge can never leave 0-100.
+ * paste 35, authorship 25, focus 20, compilation 20. Inputs are clamped so
+ * the gauge can never leave 0-100.
  */
 export function computeIcs(inputs: DerivedIcsInputs): IcsBreakdown {
   const pasteTerm = 35 * (1 - clamp(inputs.pasteRatio, 0, 1))
-  const cadenceTerm = 25 * (clamp(inputs.cadence, 0, 100) / 100)
+  const cadenceTerm = 25 * (clamp(inputs.authorship, 0, 100) / 100)
   const focusTerm = 20 * (clamp(inputs.focus, 0, 100) / 100)
   const compilationTerm = 20 * (clamp(inputs.compilation, 0, 100) / 100)
   const ics = pasteTerm + cadenceTerm + focusTerm + compilationTerm
@@ -92,7 +94,7 @@ export function describeIcs(score: IcsScoreRow): string {
     return `${prefix} Paste is the weakest term: about ${Math.round(raw.pasteRatio * 100)}% of inserted characters came from clipboard events.`
   }
   if (weakest.key === 'cadence') {
-    return `${prefix} Typing cadence is the weakest term (${Math.round(raw.cadence)}/100).`
+    return `${prefix} Authorship evidence is the weakest term (${Math.round(raw.authorship)}/100).`
   }
   if (weakest.key === 'focus') {
     return `${prefix} Focus retention is the weakest term (${Math.round(raw.focus)}/100).`
