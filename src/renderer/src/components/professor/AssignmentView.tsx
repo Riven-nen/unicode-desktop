@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   ChevronLeft,
+  Clock,
   ListChecks,
   Pencil,
   RefreshCw,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react'
 import SubmissionTable from './SubmissionTable'
 import AssignmentAnalytics from './AssignmentAnalytics'
+import AssessmentMonitor from './AssessmentMonitor'
 import SimilarityPanel from './SimilarityPanel'
 import { fileNameForAssignment } from '../../lib/assignments'
 import { recomputeIcsForAssignment, releaseAssignmentGrades } from '../../lib/professorQueries'
@@ -116,7 +118,10 @@ export default function AssignmentView({
           <ChevronLeft size={14} /> Class overview
         </button>
         <div className="assignment-view-copy">
-          <span className="class-hero-code">{assignment.language ?? 'plaintext'}</span>
+          <span className="class-hero-code">
+            {assignment.kind === 'seatwork' ? 'Seatwork' : 'Assignment'} ·{' '}
+            {assignment.language ?? 'plaintext'}
+          </span>
           <h1>{assignment.title}</h1>
           <p className="professor-sub">
             {fileNameForAssignment(assignment)} · {assignment.testCaseCount}{' '}
@@ -133,6 +138,17 @@ export default function AssignmentView({
             {assignment.dueAt ? ` · Due ${formatDue(assignment.dueAt)}` : ''}
             {assignment.autoTestEnabled ? ' · Auto tests on' : ' · Auto tests off'}
           </p>
+          {assignment.timingMode !== 'none' && (
+            <p className="assignment-timing-summary">
+              <Clock size={12} />
+              {assignment.timingMode === 'live_window' ? 'Shared live window' : 'Per-student timer'}
+              {assignment.durationMinutes ? ` · ${assignment.durationMinutes} minutes` : ''}
+              {assignment.opensAt ? ` · Opens ${formatDue(assignment.opensAt)}` : ''}
+              {assignment.closesAt ? ` · Closes ${formatDue(assignment.closesAt)}` : ''}
+              {assignment.autoSubmit ? ' · Auto-submit on' : ' · Manual submit only'}
+              {!assignment.showTimer ? ' · Timer hidden' : ''}
+            </p>
+          )}
         </div>
         <div className="assignment-view-actions">
           <button
@@ -195,6 +211,14 @@ export default function AssignmentView({
         rosterCount={rosterCount}
         loading={loading}
       />
+
+      {assignment.timingMode !== 'none' && (
+        <AssessmentMonitor
+          assignmentId={assignment.id}
+          rosterCount={rosterCount}
+          onOpenSubmission={onOpenSubmission}
+        />
+      )}
 
       <SimilarityPanel
         key={assignment.id}

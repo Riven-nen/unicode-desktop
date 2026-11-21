@@ -44,11 +44,11 @@ node --env-file=.env scripts/seed.mjs
 
 Expected accounts:
 
-| Role | Email | Password |
-|---|---|---|
+| Role      | Email                                                                          | Password       |
+| --------- | ------------------------------------------------------------------------------ | -------------- |
 | Professor | `professor@unicode.test`, `professor2@unicode.test`, `professor3@unicode.test` | `Password123!` |
-| Admin | `admin@unicode.test` | `Password123!` |
-| Students | `student1@unicode.test` … `student10@unicode.test` | `Password123!` |
+| Admin     | `admin@unicode.test`                                                           | `Password123!` |
+| Students  | `student1@unicode.test` … `student10@unicode.test`                             | `Password123!` |
 
 Expected demo state:
 
@@ -176,6 +176,68 @@ Expected:
 - [ ] **P1** Private grade is not shown to the student.
 - [ ] **P1** Released grade appears in card/details/feedback.
 - [ ] **P2** Grade-release timestamp is used for the New grade chip.
+
+---
+
+## 5A. Timed assessments and live seatworks (Phase 1)
+
+### Professor setup
+
+- [ ] **P0** Class overview shows Assignments and Seatworks tabs with correct
+      counts.
+- [ ] **P0** New from Assignments creates a take-home assignment; New from
+      Seatworks defaults to a timed live window.
+- [ ] **P0** Timing settings accept duration, opening time, cut-off, auto-submit,
+      and show-timer values.
+- [ ] **P0** Saving a seatwork with no timing mode is rejected with a clear
+      message.
+- [ ] **P0** Saving a live-window seatwork without an opening time is rejected.
+- [ ] **P0** A closing time at or before the opening time is rejected.
+- [ ] **P0** The assignment header shows type, duration, window, and auto-submit
+      policy.
+- [ ] **P0** The session monitor lists started students with status, start,
+      deadline, last save, and draft revision.
+- [ ] **P0** Monitor Refresh picks up a new draft save within a few seconds and
+      finalizes a past-deadline session.
+- [ ] **P0** Review on a finished session opens the normal submission detail.
+
+### Student flow
+
+- [ ] **P0** Class detail shows Assignments and Seatworks tabs with correct
+      counts.
+- [ ] **P0** A live seatwork before `opens_at` shows Scheduled and cannot start.
+- [ ] **P0** A past `closes_at` seatwork shows Closed and cannot start.
+- [ ] **P0** Start opens the workspace, seeds/restores the assignment file, and
+      shows the countdown bar.
+- [ ] **P0** The countdown uses server time; changing the Windows clock does not
+      extend the displayed deadline.
+- [ ] **P0** Editing for at least 8 seconds then refreshing/restarting returns the
+      same draft and the same deadline.
+- [ ] **P0** Window hide triggers a draft save.
+- [ ] **P0** Submit asks for confirmation and creates one submission with the live
+      content.
+- [ ] **P0** The submitted seatwork becomes Submitted and no second attempt can
+      start.
+- [ ] **P0** A draft left past the deadline auto-submits the latest saved content.
+- [ ] **P0** Starting a second timed assessment while one is active is blocked
+      with a readable message.
+- [ ] **P1** Hiding the countdown keeps the deadline enforced but removes the
+      numeric timer.
+- [ ] **P1** Auto-submit while the student is on the dashboard updates the card
+      after refresh.
+- [ ] **P1** The final timed submission appears in ICS, grading, comments, and
+      similarity review like a normal submission.
+
+### Server checks
+
+- [ ] **P0** A hand-crafted `submit_assessment_session` after the grace period
+      marks `auto_submitted` and uses the saved draft.
+- [ ] **P0** `start_assessment_session` rejects non-enrolled students and
+      unpublished/closed work.
+- [ ] **P0** A second start after submission is rejected.
+- [ ] **P0** Professor monitor RPC rejects a professor outside the class.
+- [ ] **P0** Student cannot read another student's session or draft through the
+      table API.
 
 ---
 
@@ -339,6 +401,8 @@ Expected:
 - [ ] **P0** Filter Pass/Review/Flag works.
 - [ ] **P0** Submission CSV export downloads.
 - [ ] **P0** Submission detail opens.
+- [ ] **P1** Local terminal opens a temporary copy of the selected snapshot,
+      Run file produces local output, and Close removes the temporary copy.
 - [ ] **P0** Snapshot timeline selects snapshots.
 - [ ] **P0** Timeline scrolls horizontally when needed and keeps the selected dot visible.
 - [ ] **P0** Diff toggle compares selected snapshot to previous.

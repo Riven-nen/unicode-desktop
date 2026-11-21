@@ -1,3 +1,17 @@
+import type { AssessmentKind, AssessmentSessionStatus, AssessmentTimingMode } from './assessment'
+
+export interface StudentAssessmentSession {
+  id: string
+  status: AssessmentSessionStatus
+  startedAt: string
+  expiresAt: string | null
+  submittedAt: string | null
+  lastSavedAt: string | null
+  draftRevision: number
+  /** Corrects the local clock for countdowns; the server still owns the deadline. */
+  serverOffsetMs: number
+}
+
 export interface StudentSubmission {
   id: string
   submittedAt: string
@@ -24,5 +38,14 @@ export interface StudentAssignment {
   publishAt: string | null
   dueAt: string | null
   autoTestEnabled: boolean
+  kind: AssessmentKind
+  timingMode: AssessmentTimingMode
+  durationMinutes: number | null
+  opensAt: string | null
+  closesAt: string | null
+  autoSubmit: boolean
+  showTimer: boolean
   latestSubmission: StudentSubmission | null
+  /** The student's single attempt, when this is a timed assessment. */
+  session: StudentAssessmentSession | null
 }

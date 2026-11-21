@@ -1,0 +1,42 @@
+# Unicode Lab — Development Status
+
+## Table 2. Development Status of the System
+
+| System Development | Current Status | Description |
+|---|---|---|
+| Overall Application | Implemented — capstone scope | The student workspace, professor dashboard, admin console, telemetry, submissions, grading, ICS, offline queue, multi-language analysis, and a Windows installer are implemented. Remaining caveats are the unavailable live Judge0 endpoint and the heuristic ICS formula. |
+| Integrity Compliance Score | Implemented — heuristic | The weighted paste, cadence, focus, and compilation score is computed and stored in `ics_scores`. Recompute, class analytics, and the typing heatmap are available. The formula is still a heuristic and is not claimed to be final. |
+| Respondent Evaluation | Conducted — external to the repository | The evaluation activity is not represented in the codebase. Record the actual respondent count, date, and instrument in the paper; the system itself does not store survey responses. |
+| Student Programming Environment | Implemented | Electron desktop workspace fixed at `Documents/Unicode Lab`, with Monaco tabs/save/rename/delete, syntax highlighting, Pyright language intelligence, Java/C/C++ diagnostics, terminal, **Run file**, snapshots, paste tracking, and submissions. |
+| Authorship Telemetry | Implemented | `code_snapshots` stores content, version, snapshot type, character/line counts, language, and typing intervals. `paste_events` stores pasted text, character count, paste mode, and detection source. Presence heartbeats and ICS inputs are also captured. |
+| Professor Dashboard | Implemented | Classes and rosters, assignments and test cases, scheduling, private grade storage and release, analytics, snapshot timeline/diff, typing heatmap, cross-student paste similarity, Live Lab, comments, and CSV export. |
+| Judge0 Integration | Implemented — not live-verified | The main-process client, language IDs, Judge0 settings, and **Run tests** interface exist. No live Judge0 endpoint was available during QA, so remote execution is unverified. Local compiler/run-file execution works. |
+| Offline Synchronization | Implemented | Snapshot and paste captures, and submissions, queue locally and retry when connectivity or the session returns. Submissions use an idempotent `client_token` so retries cannot create duplicates. Queue behavior is covered by unit tests; a manual offline demo is still recommended. |
+
+## Explanation and verification basis
+
+As shown in Table 2, the earlier provisional entries have been replaced with the
+status of the current repository at commit `29ff14d`. The overall system is now
+implemented for the capstone scope rather than merely partially developed. The
+remaining limitations are explicit and do not silently block the demo: Judge0
+depends on an external endpoint, the ICS is a review heuristic, and the Windows
+installer is built but unsigned, so SmartScreen may warn on first launch.
+
+The status was checked against the current implementation and test results:
+
+- **74 Vitest tests** across 13 test files pass.
+- **41/41 live RLS regression checks** pass against the development Supabase
+  project.
+- `typecheck`, `lint`, and the production bundle build pass.
+- Live checks covered Python type diagnostics, Pyright type-aware completion and
+  hover, Java compiler diagnostics, Java/C++ outlines, and the professor class
+  dashboard.
+- The seed data creates **3 professors, 10 students, 4 classes**, Java and C++
+  assignments with test cases, published and scheduled work, submissions,
+  grades, comments, paste evidence, and typing intervals.
+- **Judge0 was not live-verified** because no reachable endpoint was available;
+  the integration code and UI are present, but the table does not claim a
+  successful remote run.
+- **Respondent Evaluation** is a research activity outside the application, so
+  its sample size and dates should come from the actual evaluation instrument
+  rather than the repository.

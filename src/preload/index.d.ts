@@ -8,7 +8,12 @@ import type {
   Judge0SaveConfigInput,
   Judge0Status
 } from '../shared/judge0'
-import type { TerminalDataEvent, TerminalExitEvent } from '../shared/terminal'
+import type {
+  SubmissionLocalRun,
+  SubmissionLocalRunInput,
+  TerminalDataEvent,
+  TerminalExitEvent
+} from '../shared/terminal'
 import type { ToolchainStatus } from '../shared/toolchains'
 
 export interface WindowControlsApi {
@@ -94,10 +99,19 @@ export interface Judge0Api {
 export interface TerminalApi {
   /** Starts a local shell rooted at the active workspace. Returns its cwd. */
   start(cwd: string | null): Promise<string>
+  /** Starts a shell in a prepared temporary submission directory. */
+  startSubmission(runId: string): Promise<string>
   write(data: string): void
   stop(): void
   onData(callback: (event: TerminalDataEvent) => void): () => void
   onExit(callback: (event: TerminalExitEvent) => void): () => void
+}
+
+export interface SubmissionRunsApi {
+  /** Writes a selected snapshot to a temporary directory for local review. */
+  prepare(input: SubmissionLocalRunInput): Promise<SubmissionLocalRun>
+  /** Removes a prepared temporary directory. */
+  discard(runId: string): void
 }
 
 export interface UnicodeApi {
@@ -114,6 +128,7 @@ export interface UnicodeApi {
   lsp: LspApi
   judge0: Judge0Api
   terminal: TerminalApi
+  submissions: SubmissionRunsApi
 }
 
 declare global {

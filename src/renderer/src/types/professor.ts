@@ -1,3 +1,5 @@
+import type { AssessmentKind, AssessmentTimingMode } from './assessment'
+
 export type IcsBand = 'pass' | 'review' | 'flag'
 
 export type SnapshotType = 'auto' | 'paste' | 'manual' | 'restore'
@@ -33,6 +35,16 @@ export interface AssignmentSummary {
   publishAt: string | null
   dueAt: string | null
   autoTestEnabled: boolean
+  /** `seatwork` is in-person timed work; `assignment` is take-home work. */
+  kind: AssessmentKind
+  timingMode: AssessmentTimingMode
+  durationMinutes: number | null
+  /** Shared opening time for live-window seatworks. */
+  opensAt: string | null
+  /** Hard cut-off for both timing modes. */
+  closesAt: string | null
+  autoSubmit: boolean
+  showTimer: boolean
 }
 
 export interface RosterStudent {

@@ -96,6 +96,29 @@ should pass before the demo.
 - [ ] Offline test: disable the network, submit, see it queued; re-enable and
       verify it sends once (no duplicate submission).
 
+## 3A. Timed assessments and seatworks (Phase 1)
+
+- [ ] Professor class page has Assignments and Seatworks tabs with separate
+      counts and New actions.
+- [ ] A new seatwork defaults to a timed live window; a take-home assignment
+      stays untimed by default.
+- [ ] Professor can set duration, opening time, hard cut-off, auto-submit, and
+      show-timer; invalid seatwork timing is rejected.
+- [ ] Assignment header shows type, duration/window, and auto-submit policy.
+- [ ] Professor session monitor shows each student's status, start, deadline,
+      last save, revision, and Review link.
+- [ ] Student class page has Assignments and Seatworks tabs.
+- [ ] Starting a seatwork opens the workspace with the draft and a countdown
+      bar; changing the system clock does not extend the deadline.
+- [ ] Edits autosave within 8 seconds; restarting the app and resuming returns
+      the draft and the original deadline.
+- [ ] Submit creates one submission with the live content and blocks a second
+      attempt.
+- [ ] Leaving work past the deadline auto-submits the latest saved draft.
+- [ ] Starting a second timed assessment while one is active is blocked.
+- [ ] Timed submissions flow into the normal review, grading, ICS, comments,
+      and similarity views.
+
 ## 4. Workspace and files
 
 - [ ] Workspace is fixed to `Documents\Unicode Lab`; no folder picker exists.
@@ -223,6 +246,9 @@ should pass before the demo.
 - [ ] Submission CSV export downloads with the visible rows.
 - [ ] Submission detail opens: read-only code, snapshot timeline, comments,
       grade box, ICS panel.
+- [ ] Local terminal opens for the selected snapshot in a temporary directory;
+      Run file uses the local toolchain, shows output, and closing it removes
+      the temporary copy.
 - [ ] Add a line-anchored comment; reply to it; grade numeric updates.
 - [ ] Saving a grade marks it Private; Release to student makes it visible;
       Hide from student removes it again.

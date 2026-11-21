@@ -57,6 +57,8 @@ export interface CodeTrackerApi {
   captureManualSnapshot(fileName: string): void
   restoreSnapshot(fileName: string, snapshot: CodeSnapshot): void
   getModelValue(fileName: string): string | null
+  /** Replaces a model's content without recording a user edit. */
+  setModelValue(fileName: string, content: string): boolean
   /** Captures the live content immediately (used when submitting). */
   captureCurrent(fileName: string): void
   /** Flushes pending edits and resolves once queued captures are synced. */
@@ -495,6 +497,13 @@ export function useCodeTracker({
     []
   )
 
+  const setModelValue = useCallback((fileName: string, content: string): boolean => {
+    const model = modelsRef.current.get(fileName)
+    if (!model) return false
+    if (model.getValue() !== content) model.setValue(content)
+    return true
+  }, [])
+
   const captureCurrent = useCallback(
     (fileName: string): void => {
       // Forced capture: submission must not depend on the idle debounce or
@@ -632,6 +641,7 @@ export function useCodeTracker({
     captureManualSnapshot,
     restoreSnapshot,
     getModelValue,
+    setModelValue,
     captureCurrent,
     flush,
     flushNow

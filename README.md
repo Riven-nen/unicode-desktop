@@ -127,6 +127,7 @@ Unicode Lab is intended to be a complete, local-first lab environment for progra
   - inline comments anchored to line numbers, with threaded replies
   - numeric grade save with private/released visibility control, per submission or for the whole assignment
   - Judge0 test runner (fixed endpoint, optional token) with persisted execution history
+  - **local terminal** for the selected snapshot: writes a temporary copy and runs it with the installed toolchain, outside Judge0, with the professor's local OS permissions
 - **Live Lab** page: student heartbeats every 30 seconds show active, idle, flagged (recent paste), or offline, with the current file. Updates arrive over Realtime.
 
 ## Tech stack

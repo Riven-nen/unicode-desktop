@@ -59,6 +59,7 @@ import {
   rotateClassJoinCode
 } from '../../lib/professorQueries'
 import type { StudentReplyEvent, SubmissionEvent } from '../../lib/professorQueries'
+import type { AssessmentKind } from '../../types/assessment'
 import type {
   AssignmentSummary,
   ClassSummary,
@@ -144,6 +145,7 @@ export default function ProfessorDashboard({
   const [rosterOpen, setRosterOpen] = useState(false)
   const [assignmentModal, setAssignmentModal] = useState<{
     initial: AssignmentSummary | null
+    defaultKind: AssessmentKind
   } | null>(null)
   const [testsOpen, setTestsOpen] = useState(false)
   const [lifecycleBusy, setLifecycleBusy] = useState(false)
@@ -691,7 +693,12 @@ export default function ProfessorDashboard({
             loading={submissionsLoading}
             error={submissionError}
             onBack={backToClassOverview}
-            onEdit={() => setAssignmentModal({ initial: selectedAssignment })}
+            onEdit={() =>
+              setAssignmentModal({
+                initial: selectedAssignment,
+                defaultKind: selectedAssignment.kind
+              })
+            }
             onManageTests={() => setTestsOpen(true)}
             onOpenSubmission={setSelectedSubmissionId}
             onRefresh={() => {
@@ -808,7 +815,7 @@ export default function ProfessorDashboard({
               onToggleArchivedAssignments={() => setShowArchivedAssignments((current) => !current)}
               onSelectAssignment={openAssignment}
               onSelectStudent={openStudent}
-              onNewAssignment={() => setAssignmentModal({ initial: null })}
+              onNewAssignment={(kind) => setAssignmentModal({ initial: null, defaultKind: kind })}
               onManageStudents={() => setRosterOpen(true)}
             />
           </>
@@ -858,6 +865,7 @@ export default function ProfessorDashboard({
         <AssignmentModal
           classId={selectedClass.id}
           initial={assignmentModal.initial}
+          defaultKind={assignmentModal.defaultKind}
           onClose={() => setAssignmentModal(null)}
           onSaved={(assignmentId) => {
             const created = assignmentModal.initial === null

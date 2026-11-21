@@ -183,6 +183,13 @@ interface AssignmentRow {
   publish_at: string | null
   due_at: string | null
   auto_test_enabled: boolean
+  kind: 'assignment' | 'seatwork'
+  timing_mode: 'none' | 'duration' | 'live_window'
+  duration_minutes: number | null
+  opens_at: string | null
+  closes_at: string | null
+  auto_submit: boolean
+  show_timer: boolean
   test_cases: Array<{ id: string; is_hidden: boolean }> | null
 }
 
@@ -190,7 +197,7 @@ export async function fetchAssignments(classId: string): Promise<AssignmentSumma
   const { data, error } = await client()
     .from('assignments')
     .select(
-      'id, title, language, description, file_name, starter_code, archived_at, published, publish_at, due_at, auto_test_enabled, test_cases(id, is_hidden)'
+      'id, title, language, description, file_name, starter_code, archived_at, published, publish_at, due_at, auto_test_enabled, kind, timing_mode, duration_minutes, opens_at, closes_at, auto_submit, show_timer, test_cases(id, is_hidden)'
     )
     .eq('class_id', classId)
     .order('created_at', { ascending: true })
@@ -210,6 +217,13 @@ export async function fetchAssignments(classId: string): Promise<AssignmentSumma
       publishAt: row.publish_at,
       dueAt: row.due_at,
       autoTestEnabled: row.auto_test_enabled,
+      kind: row.kind,
+      timingMode: row.timing_mode,
+      durationMinutes: row.duration_minutes,
+      opensAt: row.opens_at,
+      closesAt: row.closes_at,
+      autoSubmit: row.auto_submit,
+      showTimer: row.show_timer,
       testCaseCount: cases.length,
       hiddenCaseCount: cases.filter((testCase) => testCase.is_hidden).length
     }
@@ -220,18 +234,30 @@ export async function fetchAssignments(classId: string): Promise<AssignmentSumma
 // Assignment editing
 // ---------------------------------------------------------------------------
 
-export async function createAssignment(input: {
-  classId: string
-  title: string
-  description: string
-  language: string
-  fileName: string
-  starterCode: string
-  published: boolean
-  publishAt: string | null
-  dueAt: string | null
-  autoTestEnabled: boolean
-}): Promise<string> {
+export interface AssignmentTimingInput {
+  kind: 'assignment' | 'seatwork'
+  timingMode: 'none' | 'duration' | 'live_window'
+  durationMinutes: number | null
+  opensAt: string | null
+  closesAt: string | null
+  autoSubmit: boolean
+  showTimer: boolean
+}
+
+export async function createAssignment(
+  input: AssignmentTimingInput & {
+    classId: string
+    title: string
+    description: string
+    language: string
+    fileName: string
+    starterCode: string
+    published: boolean
+    publishAt: string | null
+    dueAt: string | null
+    autoTestEnabled: boolean
+  }
+): Promise<string> {
   const { data, error } = await client()
     .from('assignments')
     .insert({
@@ -244,7 +270,14 @@ export async function createAssignment(input: {
       published: input.published,
       publish_at: input.publishAt,
       due_at: input.dueAt,
-      auto_test_enabled: input.autoTestEnabled
+      auto_test_enabled: input.autoTestEnabled,
+      kind: input.kind,
+      timing_mode: input.timingMode,
+      duration_minutes: input.timingMode === 'none' ? null : input.durationMinutes,
+      opens_at: input.opensAt,
+      closes_at: input.closesAt,
+      auto_submit: input.autoSubmit,
+      show_timer: input.showTimer
     })
     .select('id')
     .single()
@@ -253,18 +286,20 @@ export async function createAssignment(input: {
   return (data as unknown as { id: string }).id
 }
 
-export async function updateAssignment(input: {
-  assignmentId: string
-  title: string
-  description: string
-  language: string
-  fileName: string
-  starterCode: string
-  published: boolean
-  publishAt: string | null
-  dueAt: string | null
-  autoTestEnabled: boolean
-}): Promise<void> {
+export async function updateAssignment(
+  input: AssignmentTimingInput & {
+    assignmentId: string
+    title: string
+    description: string
+    language: string
+    fileName: string
+    starterCode: string
+    published: boolean
+    publishAt: string | null
+    dueAt: string | null
+    autoTestEnabled: boolean
+  }
+): Promise<void> {
   const { error } = await client()
     .from('assignments')
     .update({
@@ -276,7 +311,14 @@ export async function updateAssignment(input: {
       published: input.published,
       publish_at: input.publishAt,
       due_at: input.dueAt,
-      auto_test_enabled: input.autoTestEnabled
+      auto_test_enabled: input.autoTestEnabled,
+      kind: input.kind,
+      timing_mode: input.timingMode,
+      duration_minutes: input.timingMode === 'none' ? null : input.durationMinutes,
+      opens_at: input.opensAt,
+      closes_at: input.closesAt,
+      auto_submit: input.autoSubmit,
+      show_timer: input.showTimer
     })
     .eq('id', input.assignmentId)
 

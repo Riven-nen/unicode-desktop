@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ProfessorModal from './ProfessorModal'
 import { defaultAssignmentFileName } from '../../lib/assignments'
 import { createAssignment, updateAssignment } from '../../lib/professorQueries'
+import type { AssessmentKind, AssessmentTimingMode } from '../../types/assessment'
 import type { AssignmentSummary } from '../../types/professor'
 
 const LANGUAGES = [
@@ -24,6 +25,8 @@ const LANGUAGES = [
 interface AssignmentModalProps {
   classId: string
   initial: AssignmentSummary | null
+  /** Which class tab opened the modal; new seatworks start timed. */
+  defaultKind?: AssessmentKind
   onClose: () => void
   onSaved: (assignmentId: string) => void
 }
@@ -42,9 +45,26 @@ function toDateTimeLocal(iso: string | null): string {
 export default function AssignmentModal({
   classId,
   initial,
+  defaultKind = 'assignment',
   onClose,
   onSaved
 }: AssignmentModalProps): React.ReactElement {
+  const startingKind = initial?.kind ?? defaultKind
+  const [kind, setKind] = useState<AssessmentKind>(startingKind)
+  const [timingMode, setTimingMode] = useState<AssessmentTimingMode>(
+    initial?.timingMode ?? (startingKind === 'seatwork' ? 'live_window' : 'none')
+  )
+  const [durationMinutes, setDurationMinutes] = useState(
+    initial?.durationMinutes !== null && initial?.durationMinutes !== undefined
+      ? String(initial.durationMinutes)
+      : startingKind === 'seatwork'
+        ? '60'
+        : ''
+  )
+  const [opensAt, setOpensAt] = useState(toDateTimeLocal(initial?.opensAt ?? null))
+  const [closesAt, setClosesAt] = useState(toDateTimeLocal(initial?.closesAt ?? null))
+  const [autoSubmit, setAutoSubmit] = useState(initial?.autoSubmit ?? true)
+  const [showTimer, setShowTimer] = useState(initial?.showTimer ?? true)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [language, setLanguage] = useState(initial?.language ?? 'python')
@@ -58,18 +78,57 @@ export default function AssignmentModal({
   const [error, setError] = useState<string | null>(null)
 
   const resolvedFileName = fileName.trim() || defaultAssignmentFileName(title, language)
+  const timed = timingMode !== 'none'
+
+  const changeKind = (next: AssessmentKind): void => {
+    setKind(next)
+    if (next === 'seatwork') {
+      if (timingMode === 'none') setTimingMode('live_window')
+      if (!durationMinutes.trim()) setDurationMinutes('60')
+    }
+  }
 
   const submit = async (): Promise<void> => {
     if (!title.trim()) {
       setError('Enter an assignment title.')
       return
     }
+    if (kind === 'seatwork' && timingMode === 'none') {
+      setError('Seatworks are in-person timed work. Choose a timing mode.')
+      return
+    }
+
+    const parsedDuration = Number(durationMinutes)
+    if (timed && (!Number.isFinite(parsedDuration) || parsedDuration <= 0)) {
+      setError('Enter a time limit in minutes.')
+      return
+    }
+    if (timingMode === 'live_window' && !opensAt) {
+      setError('Live seatworks need an opening time so every student shares the same clock.')
+      return
+    }
+    if (opensAt && closesAt && new Date(closesAt).getTime() <= new Date(opensAt).getTime()) {
+      setError('The closing time must be after the opening time.')
+      return
+    }
+
+    const timingPayload = {
+      kind,
+      timingMode,
+      durationMinutes: timed ? Math.round(parsedDuration) : null,
+      opensAt: timed && opensAt ? new Date(opensAt).toISOString() : null,
+      closesAt: timed && closesAt ? new Date(closesAt).toISOString() : null,
+      autoSubmit: timed ? autoSubmit : false,
+      showTimer: timed ? showTimer : false
+    }
+
     setBusy(true)
     setError(null)
     try {
       if (initial) {
         await updateAssignment({
           assignmentId: initial.id,
+          ...timingPayload,
           title,
           description,
           language,
@@ -84,6 +143,7 @@ export default function AssignmentModal({
       } else {
         const assignmentId = await createAssignment({
           classId,
+          ...timingPayload,
           title,
           description,
           language,
@@ -104,7 +164,17 @@ export default function AssignmentModal({
   }
 
   return (
-    <ProfessorModal title={initial ? 'Edit assignment' : 'New assignment'} onClose={onClose} wide>
+    <ProfessorModal
+      title={
+        initial
+          ? `Edit ${initial.kind === 'seatwork' ? 'seatwork' : 'assignment'}`
+          : kind === 'seatwork'
+            ? 'New seatwork'
+            : 'New assignment'
+      }
+      onClose={onClose}
+      wide
+    >
       <form
         className="modal-form"
         onSubmit={(event) => {
@@ -136,6 +206,116 @@ export default function AssignmentModal({
             ))}
           </select>
         </div>
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="assignment-kind">Type</label>
+            <select
+              id="assignment-kind"
+              value={kind}
+              onChange={(event) => changeKind(event.target.value as AssessmentKind)}
+            >
+              <option value="assignment">Assignment (take-home)</option>
+              <option value="seatwork">Seatwork (in-person)</option>
+            </select>
+            <span className="form-hint">
+              Assignments are listed in the take-home tab; seatworks are timed in-person work.
+            </span>
+          </div>
+          <div className="form-field">
+            <label htmlFor="assignment-timing">Timing</label>
+            <select
+              id="assignment-timing"
+              value={timingMode}
+              onChange={(event) => setTimingMode(event.target.value as AssessmentTimingMode)}
+            >
+              {kind === 'assignment' && <option value="none">No timer</option>}
+              <option value="duration">Per-student timer</option>
+              <option value="live_window">Shared live window</option>
+            </select>
+            <span className="form-hint">
+              {timingMode === 'none'
+                ? 'Students work without a deadline.'
+                : timingMode === 'live_window'
+                  ? 'Every student’s deadline is opening time + duration.'
+                  : 'The clock starts when each student opens the work.'}
+            </span>
+          </div>
+        </div>
+
+        {timed && (
+          <>
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="assignment-duration">Time limit (minutes)</label>
+                <input
+                  id="assignment-duration"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={durationMinutes}
+                  placeholder="60"
+                  onChange={(event) => setDurationMinutes(event.target.value)}
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="assignment-opens">
+                  {timingMode === 'live_window' ? 'Opens at' : 'Available from (optional)'}
+                </label>
+                <input
+                  id="assignment-opens"
+                  type="datetime-local"
+                  value={opensAt}
+                  onChange={(event) => setOpensAt(event.target.value)}
+                />
+                <span className="form-hint">
+                  {timingMode === 'live_window'
+                    ? 'Required. The shared clock starts at this time.'
+                    : 'Leave blank to let students start as soon as it is published.'}
+                </span>
+              </div>
+            </div>
+            <div className="form-field">
+              <label htmlFor="assignment-closes">Hard cut-off (optional)</label>
+              <input
+                id="assignment-closes"
+                type="datetime-local"
+                value={closesAt}
+                onChange={(event) => setClosesAt(event.target.value)}
+              />
+              <span className="form-hint">
+                Closes the assessment for everyone, even if a student still has time left.
+              </span>
+            </div>
+            <div className="form-row">
+              <div className="form-field">
+                <label className="checkbox-field" htmlFor="assignment-auto-submit">
+                  <input
+                    id="assignment-auto-submit"
+                    type="checkbox"
+                    checked={autoSubmit}
+                    onChange={(event) => setAutoSubmit(event.target.checked)}
+                  />
+                  <span>Auto-submit at the limit</span>
+                </label>
+                <span className="form-hint">
+                  Sends the latest saved draft when the server deadline passes.
+                </span>
+              </div>
+              <div className="form-field">
+                <label className="checkbox-field" htmlFor="assignment-show-timer">
+                  <input
+                    id="assignment-show-timer"
+                    type="checkbox"
+                    checked={showTimer}
+                    onChange={(event) => setShowTimer(event.target.checked)}
+                  />
+                  <span>Show the countdown to students</span>
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="form-field">
           <label htmlFor="assignment-file">Workspace file name</label>
           <input

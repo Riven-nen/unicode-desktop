@@ -12,6 +12,7 @@ import {
   Info,
   LogOut,
   MessageSquare,
+  PlayCircle,
   RefreshCw,
   ShieldCheck,
   UserPlus,
@@ -22,6 +23,7 @@ import AppearancePanel from './AppearancePanel'
 import AssignmentDetailModal from './AssignmentDetailModal'
 import IntegrityDemo from './IntegrityDemo'
 import JoinClassModal from './JoinClassModal'
+import StudentSeatworkCard from './StudentSeatworkCard'
 import TitleBarControls from './TitleBarControls'
 import { useStudentFeedback } from '../hooks/useStudentFeedback'
 import { usePendingSubmissions } from '../hooks/usePendingSubmissions'
@@ -36,6 +38,13 @@ import {
   markFeedbackSeen,
   markGradesSeen
 } from '../lib/notifications'
+import {
+  assessmentAvailability,
+  assessmentRemainingMs,
+  formatCountdown,
+  timingSummary
+} from '../lib/assessmentTime'
+import type { AssessmentKind } from '../types/assessment'
 import type { StudentAssignment } from '../types/student'
 
 interface StudentDashboardProps {
@@ -53,6 +62,8 @@ interface StudentDashboardProps {
   onOpenAssignment: (assignment: StudentAssignment) => Promise<void>
   /** Submits the current content of the assignment file. */
   onSubmitAssignment: (assignment: StudentAssignment) => Promise<void>
+  /** Starts or resumes a timed seatwork and opens its workspace file. */
+  onStartAssessment: (assignment: StudentAssignment) => Promise<void>
   /** Reloads enrollments, assignments, and the workspace after joining. */
   onJoinedClass: () => void
   onOpenWorkspace: () => void
@@ -99,6 +110,7 @@ export default function StudentDashboard({
   onOpenClassFiles,
   onOpenAssignment,
   onSubmitAssignment,
+  onStartAssessment,
   onJoinedClass,
   onOpenWorkspace,
   onOpenFeedback,
@@ -121,7 +133,11 @@ export default function StudentDashboard({
   // Re-renders after marking feedback or a class as seen.
   const [, bumpSeenVersion] = useState(0)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const [startingSeatworkId, setStartingSeatworkId] = useState<string | null>(null)
+  const [assignmentTab, setAssignmentTab] = useState<AssessmentKind>('assignment')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [clock, setClock] = useState(() => Date.now())
+  const expiredRefreshRef = useRef<Set<string>>(new Set())
   const rootRef = useRef<HTMLDivElement | null>(null)
   const hasBeenActive = useRef(false)
 
@@ -135,6 +151,30 @@ export default function StudentDashboard({
       hasBeenActive.current = true
     }
   }, [active, reload, reloadFeedback])
+
+  const hasActiveSession = assignments.some((assignment) => assignment.session?.status === 'active')
+
+  // A running seatwork ticks every second; otherwise a slower tick is enough
+  // to move cards between scheduled, open, and closed.
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), hasActiveSession ? 1000 : 15_000)
+    return () => window.clearInterval(timer)
+  }, [hasActiveSession])
+
+  // If the dashboard is idle when a deadline passes, ask the RPC-backed reload
+  // to finalize the session. The server still decides the outcome.
+  useEffect(() => {
+    for (const assignment of assignments) {
+      const session = assignment.session
+      if (!session || session.status !== 'active') continue
+      if (expiredRefreshRef.current.has(session.id)) continue
+      const remaining = assessmentRemainingMs(session, clock)
+      if (remaining !== null && remaining <= 0) {
+        expiredRefreshRef.current.add(session.id)
+        reload()
+      }
+    }
+  }, [assignments, clock, reload])
 
   const displayName = useMemo(() => {
     const metadata = session.user.user_metadata as Record<string, unknown> | undefined
@@ -196,6 +236,7 @@ export default function StudentDashboard({
   }
 
   const openClassDetail = (courseId: string): void => {
+    setAssignmentTab('assignment')
     const summary = classSummaries.find((item) => item.course.id === courseId)
     const newest = (summary?.assignments ?? []).reduce(
       (latest, assignment) =>
@@ -224,6 +265,15 @@ export default function StudentDashboard({
     classSummaries.find((summary) => summary.course.id === selectedClassId) ?? null
   const detailAssignment =
     selectedClass?.assignments.find((assignment) => assignment.id === detailId) ?? null
+  const classAssignments = selectedClass?.assignments ?? []
+  const classAssignmentItems = classAssignments.filter(
+    (assignment) => assignment.kind === 'assignment'
+  )
+  const classSeatworkItems = classAssignments.filter((assignment) => assignment.kind === 'seatwork')
+  const visibleCoursework = assignmentTab === 'seatwork' ? classSeatworkItems : classAssignmentItems
+  const visibleSubmitted = visibleCoursework.filter(
+    (assignment) => assignment.latestSubmission !== null
+  ).length
   // Captured once per dashboard visit so "past due" flags stay stable during a render.
   const [now] = useState(() => Date.now())
   const totalFeedback = classSummaries.reduce((total, summary) => total + summary.feedbackCount, 0)
@@ -288,6 +338,18 @@ export default function StudentDashboard({
       setActionError(error instanceof Error ? error.message : 'Could not submit this assignment.')
     } finally {
       setSubmittingId(null)
+    }
+  }
+
+  const startSeatwork = async (assignment: StudentAssignment): Promise<void> => {
+    setStartingSeatworkId(assignment.id)
+    setActionError(null)
+    try {
+      await onStartAssessment(assignment)
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not start this seatwork.')
+    } finally {
+      setStartingSeatworkId(null)
     }
   }
 
@@ -409,113 +471,215 @@ export default function StudentDashboard({
               <div className="student-content-grid">
                 <div className="student-class-list">
                   <section className="student-panel">
-                    <header className="student-panel-head">
-                      <h3>Assignments</h3>
+                    <header className="student-panel-head student-coursework-head">
+                      <div
+                        className="student-coursework-tabs"
+                        role="tablist"
+                        aria-label="Coursework type"
+                      >
+                        <button
+                          role="tab"
+                          aria-selected={assignmentTab === 'assignment'}
+                          className={`student-coursework-tab ${
+                            assignmentTab === 'assignment' ? 'is-active' : ''
+                          }`}
+                          onClick={() => setAssignmentTab('assignment')}
+                        >
+                          Assignments
+                          <span className="student-count">{classAssignmentItems.length}</span>
+                        </button>
+                        <button
+                          role="tab"
+                          aria-selected={assignmentTab === 'seatwork'}
+                          className={`student-coursework-tab ${
+                            assignmentTab === 'seatwork' ? 'is-active' : ''
+                          }`}
+                          onClick={() => setAssignmentTab('seatwork')}
+                        >
+                          Seatworks
+                          <span className="student-count">{classSeatworkItems.length}</span>
+                        </button>
+                      </div>
                       <span className="student-panel-meta">
-                        {selectedClass.submitted}/{selectedClass.assignments.length} submitted
+                        {visibleSubmitted}/{visibleCoursework.length} submitted
                       </span>
                     </header>
 
-                    {selectedClass.assignments.length === 0 && (
-                      <p className="student-panel-empty">No assignments for this class yet.</p>
+                    {visibleCoursework.length === 0 && (
+                      <p className="student-panel-empty">
+                        {assignmentTab === 'seatwork'
+                          ? 'No seatworks for this class yet.'
+                          : 'No assignments for this class yet.'}
+                      </p>
                     )}
 
                     <div className="student-assignment-list">
-                      {selectedClass.assignments.map((assignment) => {
-                        const latest = assignment.latestSubmission
-                        const queued = queuedAssignmentIds.has(assignment.id)
-                        const status = queued
-                          ? 'queued'
-                          : latest === null
-                            ? 'new'
-                            : latest.grade !== null
-                              ? 'graded'
-                              : 'submitted'
-                        const newGrade = latest?.gradeReleasedAt
-                          ? (Date.parse(latest.gradeReleasedAt) || 0) > seenGradesAt
-                          : false
-                        const due = assignment.dueAt ? new Date(assignment.dueAt) : null
-                        const late =
-                          due !== null && latest !== null
-                            ? new Date(latest.submittedAt).getTime() > due.getTime()
+                      {assignmentTab === 'seatwork' &&
+                        classSeatworkItems.map((assignment) => (
+                          <StudentSeatworkCard
+                            key={assignment.id}
+                            assignment={assignment}
+                            localNow={clock}
+                            starting={startingSeatworkId === assignment.id}
+                            onStart={(selected) => void startSeatwork(selected)}
+                            onDetails={openAssignmentDetail}
+                          />
+                        ))}
+                      {assignmentTab === 'assignment' &&
+                        classAssignmentItems.map((assignment) => {
+                          const latest = assignment.latestSubmission
+                          const queued = queuedAssignmentIds.has(assignment.id)
+                          const session = assignment.session
+                          const sessionActive = session?.status === 'active'
+                          const timed = assignment.timingMode !== 'none'
+                          const availability = assessmentAvailability(assignment, clock)
+                          const remaining = assessmentRemainingMs(session, clock)
+                          const status = sessionActive
+                            ? 'active'
+                            : timed && session && session.status !== 'active'
+                              ? 'submitted'
+                              : queued
+                                ? 'queued'
+                                : latest === null
+                                  ? 'new'
+                                  : latest.grade !== null
+                                    ? 'graded'
+                                    : 'submitted'
+                          const newGrade = latest?.gradeReleasedAt
+                            ? (Date.parse(latest.gradeReleasedAt) || 0) > seenGradesAt
                             : false
-                        const overdue = due !== null && latest === null && due.getTime() < now
-                        return (
-                          <article key={assignment.id} className={`assignment-card is-${status}`}>
-                            <div className="assignment-card-head">
-                              <span className="assignment-card-title">{assignment.title}</span>
-                              <span className={`assignment-status is-${status}`}>
-                                <span className="assignment-status-dot" />
-                                {status === 'queued'
-                                  ? 'Queued'
-                                  : status === 'graded' && latest
-                                    ? `Graded · ${latest.grade}`
-                                    : status === 'submitted'
-                                      ? 'Submitted'
-                                      : 'Not submitted'}
-                              </span>
-                            </div>
-
-                            <div className="assignment-card-meta">
-                              {assignment.fileName && (
-                                <span className="assignment-file">
-                                  <FileText size={10} />
-                                  {assignment.fileName}
+                          const due = assignment.dueAt ? new Date(assignment.dueAt) : null
+                          const late =
+                            due !== null && latest !== null
+                              ? new Date(latest.submittedAt).getTime() > due.getTime()
+                              : false
+                          const overdue = due !== null && latest === null && due.getTime() < now
+                          return (
+                            <article key={assignment.id} className={`assignment-card is-${status}`}>
+                              <div className="assignment-card-head">
+                                <span className="assignment-card-title">{assignment.title}</span>
+                                <span className={`assignment-status is-${status}`}>
+                                  <span className="assignment-status-dot" />
+                                  {status === 'active'
+                                    ? 'In progress'
+                                    : status === 'queued'
+                                      ? 'Queued'
+                                      : status === 'graded' && latest
+                                        ? `Graded · ${latest.grade}`
+                                        : status === 'submitted'
+                                          ? 'Submitted'
+                                          : 'Not submitted'}
                                 </span>
+                              </div>
+
+                              <div className="assignment-card-meta">
+                                {assignment.fileName && (
+                                  <span className="assignment-file">
+                                    <FileText size={10} />
+                                    {assignment.fileName}
+                                  </span>
+                                )}
+                                {assignment.language && (
+                                  <span className="assignment-language">{assignment.language}</span>
+                                )}
+                                {timed && (
+                                  <span className="seatwork-kind">{timingSummary(assignment)}</span>
+                                )}
+                                {sessionActive && remaining !== null && (
+                                  <span
+                                    className={`seatwork-countdown ${
+                                      remaining <= 5 * 60_000 ? 'is-urgent' : ''
+                                    }`}
+                                  >
+                                    {remaining <= 0
+                                      ? 'Time is up'
+                                      : `${formatCountdown(remaining)} left`}
+                                  </span>
+                                )}
+                                {due && (
+                                  <span
+                                    className={`assignment-due ${late || overdue ? 'is-late' : ''}`}
+                                  >
+                                    Due {formatDue(due.toISOString())}
+                                  </span>
+                                )}
+                                {late && <span className="assignment-flag is-late">Late</span>}
+                                {overdue && (
+                                  <span className="assignment-flag is-overdue">Past due</span>
+                                )}
+                                {newGrade && (
+                                  <span className="assignment-flag is-grade">New grade</span>
+                                )}
+                              </div>
+
+                              {assignment.description && (
+                                <p className="assignment-card-description">
+                                  {assignment.description}
+                                </p>
                               )}
-                              {assignment.language && (
-                                <span className="assignment-language">{assignment.language}</span>
-                              )}
-                              {due && (
-                                <span
-                                  className={`assignment-due ${late || overdue ? 'is-late' : ''}`}
+
+                              <div className="assignment-card-actions">
+                                <button
+                                  className="btn-secondary"
+                                  onClick={() => openAssignmentDetail(assignment)}
                                 >
-                                  Due {formatDue(due.toISOString())}
-                                </span>
-                              )}
-                              {late && <span className="assignment-flag is-late">Late</span>}
-                              {overdue && (
-                                <span className="assignment-flag is-overdue">Past due</span>
-                              )}
-                              {newGrade && (
-                                <span className="assignment-flag is-grade">New grade</span>
-                              )}
-                            </div>
-
-                            {assignment.description && (
-                              <p className="assignment-card-description">
-                                {assignment.description}
-                              </p>
-                            )}
-
-                            <div className="assignment-card-actions">
-                              <button
-                                className="btn-secondary"
-                                onClick={() => openAssignmentDetail(assignment)}
-                              >
-                                <Info size={12} /> Details
-                              </button>
-                              <button
-                                className="btn-secondary"
-                                onClick={() => void openAssignmentFile(assignment)}
-                              >
-                                <FolderOpen size={12} /> Open file
-                              </button>
-                              <button
-                                className="btn-primary"
-                                disabled={submittingId === assignment.id || queued}
-                                onClick={() => void submitAssignment(assignment)}
-                              >
-                                {queued
-                                  ? 'Queued'
-                                  : submittingId === assignment.id
-                                    ? 'Submitting…'
-                                    : 'Submit'}
-                              </button>
-                            </div>
-                          </article>
-                        )
-                      })}
+                                  <Info size={12} /> Details
+                                </button>
+                                <button
+                                  className="btn-secondary"
+                                  onClick={() => void openAssignmentFile(assignment)}
+                                >
+                                  <FolderOpen size={12} /> Open file
+                                </button>
+                                {timed ? (
+                                  sessionActive ? (
+                                    <button
+                                      className="btn-primary"
+                                      disabled={startingSeatworkId === assignment.id}
+                                      onClick={() => void startSeatwork(assignment)}
+                                    >
+                                      <PlayCircle size={12} />
+                                      {startingSeatworkId === assignment.id ? 'Opening…' : 'Resume'}
+                                    </button>
+                                  ) : session ? (
+                                    <button className="btn-secondary" disabled>
+                                      <CheckCircle2 size={12} /> Submitted
+                                    </button>
+                                  ) : availability === 'upcoming' ? (
+                                    <button className="btn-secondary" disabled>
+                                      Scheduled
+                                    </button>
+                                  ) : availability === 'closed' ? (
+                                    <button className="btn-secondary" disabled>
+                                      Closed
+                                    </button>
+                                  ) : (
+                                    <button
+                                      className="btn-primary"
+                                      disabled={startingSeatworkId === assignment.id}
+                                      onClick={() => void startSeatwork(assignment)}
+                                    >
+                                      <PlayCircle size={12} />
+                                      {startingSeatworkId === assignment.id ? 'Starting…' : 'Start'}
+                                    </button>
+                                  )
+                                ) : (
+                                  <button
+                                    className="btn-primary"
+                                    disabled={submittingId === assignment.id || queued}
+                                    onClick={() => void submitAssignment(assignment)}
+                                  >
+                                    {queued
+                                      ? 'Queued'
+                                      : submittingId === assignment.id
+                                        ? 'Submitting…'
+                                        : 'Submit'}
+                                  </button>
+                                )}
+                              </div>
+                            </article>
+                          )
+                        })}
                     </div>
                   </section>
                 </div>
@@ -804,12 +968,17 @@ export default function StudentDashboard({
         now={now}
         queued={detailAssignment !== null && queuedAssignmentIds.has(detailAssignment.id)}
         submitting={detailAssignment !== null && submittingId === detailAssignment.id}
+        starting={detailAssignment !== null && startingSeatworkId === detailAssignment.id}
         onClose={() => setDetailId(null)}
         onOpenFile={(assignment) => {
           setDetailId(null)
           void openAssignmentFile(assignment)
         }}
         onSubmit={(assignment) => void submitAssignment(assignment)}
+        onStart={(assignment) => {
+          setDetailId(null)
+          void startSeatwork(assignment)
+        }}
       />
 
       <IntegrityDemo open={demoOpen} onClose={() => setDemoOpen(false)} />

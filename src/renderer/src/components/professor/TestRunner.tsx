@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Play, Settings2 } from 'lucide-react'
+import { Play, Settings2, Terminal } from 'lucide-react'
 import Judge0SettingsModal from './Judge0SettingsModal'
 import {
   friendlyJudge0Error,
@@ -23,6 +23,8 @@ interface TestRunnerProps {
   snapshotId: string | null
   fileName: string | null
   onRecorded?: () => void
+  /** Opens the local submission terminal as a Judge0 fallback. */
+  onRunLocally?: () => void
 }
 
 export default function TestRunner({
@@ -34,7 +36,8 @@ export default function TestRunner({
   assignmentId,
   snapshotId,
   fileName,
-  onRecorded
+  onRecorded,
+  onRunLocally
 }: TestRunnerProps): React.ReactElement {
   const [config, setConfig] = useState<Judge0PublicConfig | null>(null)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -172,22 +175,39 @@ export default function TestRunner({
         </p>
       )}
 
-      <button
-        className="btn-primary"
-        onClick={() => void run()}
-        disabled={running || !configured || !languageSupported || testCases.length === 0}
-        title={
-          configured
-            ? languageSupported
-              ? 'Run every test case against the selected snapshot'
-              : 'This assignment language is not supported by Judge0'
-            : 'Judge0 is not available in this build'
-        }
-      >
-        <Play size={13} /> {running ? 'Running…' : 'Run test cases'}
-      </button>
+      <div className="test-runner-actions">
+        <button
+          className="btn-primary"
+          onClick={() => void run()}
+          disabled={running || !configured || !languageSupported || testCases.length === 0}
+          title={
+            configured
+              ? languageSupported
+                ? 'Run every test case against the selected snapshot'
+                : 'This assignment language is not supported by Judge0'
+              : 'Judge0 is not available in this build'
+          }
+        >
+          <Play size={13} /> {running ? 'Running…' : 'Run test cases'}
+        </button>
+        {onRunLocally && (
+          <button
+            className="btn-secondary"
+            onClick={onRunLocally}
+            title="Run the selected snapshot in a local terminal instead of Judge0"
+          >
+            <Terminal size={13} /> Open local terminal
+          </button>
+        )}
+      </div>
 
       {error && <div className="grade-error">{error}</div>}
+      {error && onRunLocally && (
+        <p className="ics-note">
+          Judge0 is unavailable. Use the local terminal to run this submission with the installed
+          toolchain.
+        </p>
+      )}
 
       {results.length > 0 && (
         <>

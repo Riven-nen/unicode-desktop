@@ -11,11 +11,11 @@ model, subsystem, security boundary, and data flow.
 Unicode Lab is a desktop programming-course environment with three cooperating
 surfaces:
 
-| Surface | Technology | Primary user | Responsibility |
-|---|---|---|---|
-| Desktop app | Electron + React + TypeScript | Student and professor | Files, editor, tracking, submissions, review, grading, Live Lab |
-| Admin console | React + Vite | Administrator | Users, roles, classes, professor invite codes |
-| Backend | Supabase Postgres/Auth/Realtime | All clients | Identity, persistence, RLS, RPCs, realtime fan-out |
+| Surface       | Technology                      | Primary user          | Responsibility                                                  |
+| ------------- | ------------------------------- | --------------------- | --------------------------------------------------------------- |
+| Desktop app   | Electron + React + TypeScript   | Student and professor | Files, editor, tracking, submissions, review, grading, Live Lab |
+| Admin console | React + Vite                    | Administrator         | Users, roles, classes, professor invite codes                   |
+| Backend       | Supabase Postgres/Auth/Realtime | All clients           | Identity, persistence, RLS, RPCs, realtime fan-out              |
 
 The application prioritizes:
 
@@ -53,31 +53,39 @@ The application prioritizes:
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-Judge0 is optional and external. Local terminal/Run File execution does not
-depend on Supabase or Judge0.
+![Unicode Lab system flow](system-flow.png)
+
+### Level 1 data flow
+
+![Unicode Lab data flow diagram](data-flow.png)
+
+D1 is the local workspace on disk. D2–D7 are the Supabase tables read and
+written through the PostgreSQL row-level-security boundary. Judge0 is optional
+and external; local terminal/Run File execution uses the installed toolchain
+instead.
 
 ---
 
 ## 3. Technology stack
 
-| Layer | Choice |
-|---|---|
-| Desktop shell | Electron 44 |
-| UI | React 19, TypeScript |
-| Bundling/dev | electron-vite, Vite 8 |
-| Editor | Monaco Editor (`@monaco-editor/react`) |
-| Language analysis | `@lezer/python`, `@lezer/java`, `@lezer/cpp` |
-| Python language server | Bundled Pyright (`pyright-langserver`) bridged through main-process IPC |
-| Python fallback checking | Pyright CLI, executed through Electron in Node mode |
-| Local compiler checks | `javac` (Java), `gcc`/`g++` (C/C++), run in the main process |
-| Icons | `lucide-react` |
-| Backend | Supabase Postgres, Auth, Realtime |
-| Similarity | Postgres `pg_trgm`, local token-sequence similarity |
-| Local terminal | PowerShell child process managed in main |
-| Remote execution | Judge0 HTTP API, optional |
-| Tests | Vitest, live RLS script |
-| Packaging | electron-builder / NSIS |
-| Admin console | Separate Vite/React project |
+| Layer                    | Choice                                                                  |
+| ------------------------ | ----------------------------------------------------------------------- |
+| Desktop shell            | Electron 44                                                             |
+| UI                       | React 19, TypeScript                                                    |
+| Bundling/dev             | electron-vite, Vite 8                                                   |
+| Editor                   | Monaco Editor (`@monaco-editor/react`)                                  |
+| Language analysis        | `@lezer/python`, `@lezer/java`, `@lezer/cpp`                            |
+| Python language server   | Bundled Pyright (`pyright-langserver`) bridged through main-process IPC |
+| Python fallback checking | Pyright CLI, executed through Electron in Node mode                     |
+| Local compiler checks    | `javac` (Java), `gcc`/`g++` (C/C++), run in the main process            |
+| Icons                    | `lucide-react`                                                          |
+| Backend                  | Supabase Postgres, Auth, Realtime                                       |
+| Similarity               | Postgres `pg_trgm`, local token-sequence similarity                     |
+| Local terminal           | PowerShell child process managed in main                                |
+| Remote execution         | Judge0 HTTP API, optional                                               |
+| Tests                    | Vitest, live RLS script                                                 |
+| Packaging                | electron-builder / NSIS                                                 |
+| Admin console            | Separate Vite/React project                                             |
 
 ---
 
@@ -230,22 +238,24 @@ docs/                 Paper and QA documentation
 
 ### 6.1 Core academic tables
 
-| Table | Key fields | Purpose |
-|---|---|---|
-| `profiles` | `id`, `email`, `display_name`, `role`, `created_at` | User identity and role |
-| `classes` | `id`, `name`, `code`, `professor_id`, `join_code`, `year_section`, `academic_year`, `archived_at` | Course/class instance |
-| `enrollments` | `class_id`, `student_id`, PK | Student-class membership |
-| `assignments` | `id`, `class_id`, `title`, `description`, `language`, `file_name`, `starter_code`, `published`, `publish_at`, `due_at`, `auto_test_enabled`, `archived_at` | Assignment definition |
-| `test_cases` | `id`, `assignment_id`, `stdin`, `expected_stdout`, `ordinal`, `is_hidden` | Judge0 test definitions |
-| `submissions` | `id`, `assignment_id`, `student_id`, `final_snapshot_id`, `status`, `submitted_at`, `grade`, `graded_at`, `graded_by`, `client_token`, `grade_released`, `grade_released_at` | Submission record |
-| `submission_grades` | `submission_id` PK, `grade`, `graded_at`, `graded_by` | Professor-only private mark |
-| `code_snapshots` | `id`, `user_id`, `submission_id`, `file_name`, `content`, `snapshot_type`, `version`, `char_count`, `line_count`, `language`, `typing_intervals`, `created_at` | Edit history |
-| `paste_events` | `id`, `snapshot_id`, `user_id`, `file_name`, `pasted_text`, `pasted_chars`, `paste_mode`, `detected_via`, `created_at` | Paste audit trail |
-| `ics_scores` | `submission_id` PK, term fields, `ics`, `band`, `computed_at` | Integrity score |
-| `comments` | `id`, `submission_id`, `author_id`, `snapshot_id`, `parent_id`, `anchor_line`, `body`, `created_at` | Feedback threads |
-| `code_runs` | submission/test/snapshot references, status, outputs, timing | Judge0 execution history |
-| `professor_invites` | `id`, `code`, `note`, `created_by`, `expires_at`, `max_uses`, `uses`, `revoked_at`, timestamps | Professor onboarding |
-| `student_presence` | `student_id` PK, `current_file`, `status`, `idle_seconds`, `last_seen_at`, `updated_at` | Live Lab heartbeat |
+| Table                 | Key fields                                                                                                                                                                                                                                                  | Purpose                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `profiles`            | `id`, `email`, `display_name`, `role`, `created_at`                                                                                                                                                                                                         | User identity and role                                |
+| `classes`             | `id`, `name`, `code`, `professor_id`, `join_code`, `year_section`, `academic_year`, `archived_at`                                                                                                                                                           | Course/class instance                                 |
+| `enrollments`         | `class_id`, `student_id`, PK                                                                                                                                                                                                                                | Student-class membership                              |
+| `assignments`         | `id`, `class_id`, `title`, `description`, `language`, `file_name`, `starter_code`, `published`, `publish_at`, `due_at`, `auto_test_enabled`, `archived_at`, `kind`, `timing_mode`, `duration_minutes`, `opens_at`, `closes_at`, `auto_submit`, `show_timer` | Assignment/seatwork definition and optional timing    |
+| `assessment_sessions` | `id`, `assignment_id`, `student_id`, `status`, `started_at`, `expires_at`, `submitted_at`, `last_saved_at`, `draft_revision`, `final_submission_id`                                                                                                         | One server-owned timed attempt per student/assessment |
+| `assessment_drafts`   | `session_id` PK, `content`, `revision`, `updated_at`                                                                                                                                                                                                        | Latest autosaved content for a timed attempt          |
+| `test_cases`          | `id`, `assignment_id`, `stdin`, `expected_stdout`, `ordinal`, `is_hidden`                                                                                                                                                                                   | Judge0 test definitions                               |
+| `submissions`         | `id`, `assignment_id`, `student_id`, `final_snapshot_id`, `status`, `submitted_at`, `grade`, `graded_at`, `graded_by`, `client_token`, `grade_released`, `grade_released_at`                                                                                | Submission record                                     |
+| `submission_grades`   | `submission_id` PK, `grade`, `graded_at`, `graded_by`                                                                                                                                                                                                       | Professor-only private mark                           |
+| `code_snapshots`      | `id`, `user_id`, `submission_id`, `file_name`, `content`, `snapshot_type`, `version`, `char_count`, `line_count`, `language`, `typing_intervals`, `created_at`                                                                                              | Edit history                                          |
+| `paste_events`        | `id`, `snapshot_id`, `user_id`, `file_name`, `pasted_text`, `pasted_chars`, `paste_mode`, `detected_via`, `created_at`                                                                                                                                      | Paste audit trail                                     |
+| `ics_scores`          | `submission_id` PK, term fields, `ics`, `band`, `computed_at`                                                                                                                                                                                               | Integrity score                                       |
+| `comments`            | `id`, `submission_id`, `author_id`, `snapshot_id`, `parent_id`, `anchor_line`, `body`, `created_at`                                                                                                                                                         | Feedback threads                                      |
+| `code_runs`           | submission/test/snapshot references, status, outputs, timing                                                                                                                                                                                                | Judge0 execution history                              |
+| `professor_invites`   | `id`, `code`, `note`, `created_by`, `expires_at`, `max_uses`, `uses`, `revoked_at`, timestamps                                                                                                                                                              | Professor onboarding                                  |
+| `student_presence`    | `student_id` PK, `current_file`, `status`, `idle_seconds`, `last_seen_at`, `updated_at`                                                                                                                                                                     | Live Lab heartbeat                                    |
 
 ### 6.2 Relationships
 
@@ -269,22 +279,29 @@ profiles (admin) 1 ─── * professor_invites (created_by)
 
 ### 6.3 Public RPCs and helper functions
 
-| Function | Caller | Purpose |
-|---|---|---|
-| `submit_assignment` | Student | Enrollment check, submission, snapshot attachment, idempotent token |
-| `join_class_by_code` | Student | Join active class by code |
-| `rotate_class_join_code` | Professor | Rotate class code |
-| `add_student_to_class` / `add_students_to_class` | Professor | Roster management |
-| `recompute_ics` / `recompute_ics_for_assignment` | Professor | Integrity score computation |
-| `save_submission_grade` | Professor | Save private mark and hide public copy |
-| `set_submission_grade_release` | Professor | Release/hide one grade |
-| `release_assignment_grades` | Professor | Bulk release |
-| `admin_set_role` | Admin | Guarded role change |
-| `admin_create_professor_invite` | Admin | Generate invite |
-| `admin_revoke_professor_invite` | Admin | Revoke invite |
-| `redeem_professor_invite` | Student | Promote via invite |
-| `touch_student_presence` | Student | Upsert own heartbeat |
-| `professor_paste_matches` | Professor | Class-scoped pg_trgm matches |
+| Function                                         | Caller            | Purpose                                                               |
+| ------------------------------------------------ | ----------------- | --------------------------------------------------------------------- |
+| `submit_assignment`                              | Student           | Enrollment check, submission, snapshot attachment, idempotent token   |
+| `join_class_by_code`                             | Student           | Join active class by code                                             |
+| `rotate_class_join_code`                         | Professor         | Rotate class code                                                     |
+| `add_student_to_class` / `add_students_to_class` | Professor         | Roster management                                                     |
+| `recompute_ics` / `recompute_ics_for_assignment` | Professor         | Integrity score computation                                           |
+| `save_submission_grade`                          | Professor         | Save private mark and hide public copy                                |
+| `set_submission_grade_release`                   | Professor         | Release/hide one grade                                                |
+| `release_assignment_grades`                      | Professor         | Bulk release                                                          |
+| `admin_set_role`                                 | Admin             | Guarded role change                                                   |
+| `admin_create_professor_invite`                  | Admin             | Generate invite                                                       |
+| `admin_revoke_professor_invite`                  | Admin             | Revoke invite                                                         |
+| `redeem_professor_invite`                        | Student           | Promote via invite                                                    |
+| `touch_student_presence`                         | Student           | Upsert own heartbeat                                                  |
+| `professor_paste_matches`                        | Professor         | Class-scoped pg_trgm matches                                          |
+| `start_assessment_session`                       | Student           | Start or resume the single attempt; returns server deadline and draft |
+| `get_assessment_session`                         | Student/Professor | Read session state and server clock; no draft for professors          |
+| `save_assessment_draft`                          | Student           | Autosave content with a monotonic revision                            |
+| `submit_assessment_session`                      | Student           | Finalize within 10s grace or auto-submit the latest draft             |
+| `expire_assessment_sessions`                     | Authenticated     | Lazily finalize every past-deadline active session                    |
+| `fetch_assessment_sessions`                      | Professor         | Session monitor for one assessed assignment                           |
+| `finalize_assessment_session`                    | Internal          | Create the submission/final snapshot and close the session            |
 
 Helper functions used by RLS: `is_admin`, `is_professor_of_class`,
 `is_professor_of_submission`, `is_professor_of_snapshot`,
@@ -292,8 +309,8 @@ Helper functions used by RLS: `is_admin`, `is_professor_of_class`,
 
 ### 6.4 Views
 
-| View | Purpose |
-|---|---|
+| View                  | Purpose                                                                      |
+| --------------------- | ---------------------------------------------------------------------------- |
 | `student_submissions` | Student-facing submission rows; masks unreleased grade and release timestamp |
 
 ---
@@ -304,20 +321,20 @@ RLS is the authority for row visibility. The app never relies on UI hiding alone
 
 ### 7.1 Main policies
 
-| Area | Student | Professor | Admin |
-|---|---|---|---|
-| Profiles | Own row | Own + enrolled students | All profiles |
-| Classes | Enrolled, non-archived | Own classes | All classes |
-| Enrollments | Own | Own classes | All |
-| Assignments | Published, non-archived, `publish_at <= now()` | Own classes, including drafts/scheduled | Metadata |
-| Test cases | Visible only | All in own classes | Metadata only |
-| Submissions | Own | Own classes | None |
-| Private grades | None | Own classes | None |
-| Comments | Own submission threads | Own classes | None |
-| Paste events | Own | Own class submissions | None |
-| Presence | Own row | Own students | None |
-| Professor invites | None | None | All |
-| Code runs | Own | Own class submissions | None |
+| Area              | Student                                        | Professor                               | Admin         |
+| ----------------- | ---------------------------------------------- | --------------------------------------- | ------------- |
+| Profiles          | Own row                                        | Own + enrolled students                 | All profiles  |
+| Classes           | Enrolled, non-archived                         | Own classes                             | All classes   |
+| Enrollments       | Own                                            | Own classes                             | All           |
+| Assignments       | Published, non-archived, `publish_at <= now()` | Own classes, including drafts/scheduled | Metadata      |
+| Test cases        | Visible only                                   | All in own classes                      | Metadata only |
+| Submissions       | Own                                            | Own classes                             | None          |
+| Private grades    | None                                           | Own classes                             | None          |
+| Comments          | Own submission threads                         | Own classes                             | None          |
+| Paste events      | Own                                            | Own class submissions                   | None          |
+| Presence          | Own row                                        | Own students                            | None          |
+| Professor invites | None                                           | None                                    | All           |
+| Code runs         | Own                                            | Own class submissions                   | None          |
 
 ### 7.2 Grade privacy
 
@@ -543,13 +560,47 @@ Dashboard refresh / toast
 If the network is unavailable, the submission is queued locally and retried with
 the same token when possible.
 
+### 12.1 Timed assessments and live seatworks (Phase 1)
+
+```text
+Student clicks Start/Resume
+        │
+        ▼
+start_assessment_session RPC
+        ├─ verify enrollment, publication, opening/closing window
+        ├─ return existing active session, or create one
+        ├─ deadline = min(start + duration, closes_at)          (duration)
+        ├─ deadline = min(opens_at + duration, closes_at)      (live_window)
+        └─ return draft content + server_now
+        │
+        ▼
+Workspace opens the draft in the assignment file
+        │
+        ├─ every 8s / window hide → save_assessment_draft
+        ├─ countdown uses server_now offset, never the local deadline
+        └─ deadline / Submit → submit_assessment_session
+                                  ├─ within 10s grace: submitted
+                                  ├─ after grace: latest draft, auto_submitted
+                                  └─ finalize_assessment_session
+                                       ├─ submissions row + assessment_session_id
+                                       ├─ final code_snapshot
+                                       └─ existing grade/ICS/comment pipeline
+```
+
+`pg_cron` is not installed, so `expire_assessment_sessions()` is called lazily by
+the assessment RPCs and by the professor monitor. A student who closes the app
+past the deadline is finalized the next time a session RPC or monitor refresh
+runs. Phase 1 intentionally excludes tab-out detection, override codes, paste
+blocking, fullscreen enforcement, MCQ quizzes, and exam-mode ICS changes.
+
 ---
 
 ## 13. ICS — Integrity Confidence Score
 
 ### 13.1 Inputs
 
-- Paste events and character counts.
+- Novel paste events and character counts (paste text that did not already
+  exist in an earlier snapshot of the same submission).
 - Snapshot intervals.
 - Snapshot timestamps.
 - Latest Judge0 pass/fail result per test case.
@@ -557,7 +608,8 @@ the same token when possible.
 ### 13.2 Server computation
 
 ```text
-P = pasted_chars / greatest(final_chars, pasted_chars, 1)
+P = novel_pasted_chars / greatest(final_chars, novel_pasted_chars, 1)
+    novel = paste text not present in an earlier snapshot
 Cadence:
     primary: 100 × share(typing gaps ≤ 1500 ms)
     fallback: 100 × max(0, 1 − stddev(session gaps) / mean(session gaps))
@@ -580,6 +632,8 @@ Band: pass ≥ 80, review ≥ 60, otherwise flag
 ```
 
 Stored in `ics_scores`; recompute can target one submission or an assignment.
+
+![Current ICS formula](ics-formula.png)
 
 ### 13.3 Presentation
 
@@ -699,21 +753,21 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 
 ## 17. Build, test, and release
 
-| Concern | Implementation |
-|---|---|
-| Dev | `npm run dev` runs desktop + admin concurrently |
-| Desktop only | `npm run dev:desktop` |
-| Admin only | `npm run dev:admin` |
-| Typecheck | `npm run typecheck` |
-| Lint | `npm run lint` |
-| Unit tests | `npm test` (Vitest, 59 tests) |
-| RLS regression | `npm run test:rls` (41 checks) |
-| Production build | `npm run build` |
-| Windows installer | `npm run build:win` |
-| Admin build | `npm --prefix admin-web run build` |
-| CI | lint, typecheck, unit tests, production build |
-| Installer | NSIS, per-user, unsigned |
-| Checksum | `dist/SHA256SUMS.txt` |
+| Concern           | Implementation                                  |
+| ----------------- | ----------------------------------------------- |
+| Dev               | `npm run dev` runs desktop + admin concurrently |
+| Desktop only      | `npm run dev:desktop`                           |
+| Admin only        | `npm run dev:admin`                             |
+| Typecheck         | `npm run typecheck`                             |
+| Lint              | `npm run lint`                                  |
+| Unit tests        | `npm test` (Vitest, 59 tests)                   |
+| RLS regression    | `npm run test:rls` (41 checks)                  |
+| Production build  | `npm run build`                                 |
+| Windows installer | `npm run build:win`                             |
+| Admin build       | `npm --prefix admin-web run build`              |
+| CI                | lint, typecheck, unit tests, production build   |
+| Installer         | NSIS, per-user, unsigned                        |
+| Checksum          | `dist/SHA256SUMS.txt`                           |
 
 ### Current release artifact
 
@@ -727,36 +781,36 @@ Stored in `ics_scores`; recompute can target one submission or an assignment.
 
 `scripts/seed.mjs` is idempotent and creates deterministic demo data.
 
-| Item | Value |
-|---|---|
-| Professors | `professor@unicode.test`, `professor2@unicode.test`, `professor3@unicode.test` / `Password123!` |
-| Admin | `admin@unicode.test` / `Password123!` |
-| Students | `student1@unicode.test` … `student10@unicode.test` / `Password123!` |
-| CS101 | 6 students, 3 Python assignments |
-| CS102 | 3 students, 2 Python assignments (one scheduled +3 days) |
-| CS201 | 4 students, Java assignment + Java test cases |
-| CS301 | 3 students, C++ assignment + C++ test cases |
-| Join codes | `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z` |
-| Grade state | student1 released 92; student2 private 78; student3 ungraded |
-| Paste demo | student3 has two pastes; student2 shares a 100% match |
-| Typing demo | seeded intervals produce jagged/steady/fast-flat rhythms |
+| Item        | Value                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| Professors  | `professor@unicode.test`, `professor2@unicode.test`, `professor3@unicode.test` / `Password123!` |
+| Admin       | `admin@unicode.test` / `Password123!`                                                           |
+| Students    | `student1@unicode.test` … `student10@unicode.test` / `Password123!`                             |
+| CS101       | 6 students, 3 Python assignments                                                                |
+| CS102       | 3 students, 2 Python assignments (one scheduled +3 days)                                        |
+| CS201       | 4 students, Java assignment + Java test cases                                                   |
+| CS301       | 3 students, C++ assignment + C++ test cases                                                     |
+| Join codes  | `CS101J4K`, `CS102P8Q`, `CS201R7A`, `CS301M2Z`                                                  |
+| Grade state | student1 released 92; student2 private 78; student3 ungraded                                    |
+| Paste demo  | student3 has two pastes; student2 shares a 100% match                                           |
+| Typing demo | seeded intervals produce jagged/steady/fast-flat rhythms                                        |
 
 ---
 
 ## 19. Key design decisions and trade-offs
 
-| Decision | Reason | Trade-off |
-|---|---|---|
-| Electron desktop app instead of VS Code extension | Real files, native dialogs, class workspace, full review surface | Larger binary, Windows-centric packaging |
-| Fixed workspace | Predictable file paths for assignments and tracking | No user-chosen root |
-| Supabase + RLS | Fast multi-user backend with declarative authorization | Requires network for shared features; RLS must be maintained carefully |
-| Private grade table | Prevent API/Realtime leakage | Extra table and copy step on release |
-| Masked student view | Defense in depth for grade visibility | Student feedback queries need a second lookup |
-| Edit intervals, not raw keystrokes | Privacy and storage efficiency | Heatmap is a cadence approximation |
-| Per-device seen state | No extra notification tables | No cross-device synchronization |
-| Token + pg_trgm similarity | Two complementary review signals | Neither proves plagiarism |
-| Separate admin web app | Keeps admin surface out of student/professor bundle | Second deployment target |
-| Unsigned installer | No certificate available | SmartScreen warning |
+| Decision                                          | Reason                                                           | Trade-off                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Electron desktop app instead of VS Code extension | Real files, native dialogs, class workspace, full review surface | Larger binary, Windows-centric packaging                               |
+| Fixed workspace                                   | Predictable file paths for assignments and tracking              | No user-chosen root                                                    |
+| Supabase + RLS                                    | Fast multi-user backend with declarative authorization           | Requires network for shared features; RLS must be maintained carefully |
+| Private grade table                               | Prevent API/Realtime leakage                                     | Extra table and copy step on release                                   |
+| Masked student view                               | Defense in depth for grade visibility                            | Student feedback queries need a second lookup                          |
+| Edit intervals, not raw keystrokes                | Privacy and storage efficiency                                   | Heatmap is a cadence approximation                                     |
+| Per-device seen state                             | No extra notification tables                                     | No cross-device synchronization                                        |
+| Token + pg_trgm similarity                        | Two complementary review signals                                 | Neither proves plagiarism                                              |
+| Separate admin web app                            | Keeps admin surface out of student/professor bundle              | Second deployment target                                               |
+| Unsigned installer                                | No certificate available                                         | SmartScreen warning                                                    |
 
 ---
 

@@ -19,6 +19,7 @@ import {
   WrapText
 } from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
+import AssessmentBar from './components/AssessmentBar'
 import ConfirmDialog from './components/ConfirmDialog'
 import EditorPane from './components/EditorPane'
 import MenuBar from './components/MenuBar'
@@ -44,6 +45,7 @@ import { useProfileRole } from './hooks/useProfileRole'
 import { useSupabaseSession } from './hooks/useSupabaseSession'
 import { useStudentAssignments } from './hooks/useStudentAssignments'
 import { useStudentPresence } from './hooks/useStudentPresence'
+import { useTimedAssessment } from './hooks/useTimedAssessment'
 import { professorInviteClaimInProgress, redeemProfessorInvite } from './lib/professorInvites'
 import { supabase } from './lib/supabase'
 import { languageFromName } from './lib/languages'
@@ -60,6 +62,7 @@ import { defaultSavePath, fileDisplayName, workspaceNameFor } from './lib/worksp
 import type { EditorCommands, EditorViewOptions } from './components/EditorPane'
 import type { CodeAnalysis } from './lib/codeAnalysis'
 import type { LabFile } from './types/tracker'
+import type { AssessmentSubmissionResult } from './types/assessment'
 import type { StudentAssignment } from './types/student'
 import type { AssignmentFileResult, WorkspaceListing } from '../../shared/workspace'
 import './index.css'
@@ -192,6 +195,17 @@ export default function App(): React.ReactElement {
     onModelChange: markFileDirty
   })
 
+  // Timed assessment state. The server owns the deadline; this only displays
+  // the countdown, autosaves drafts, and asks the server to finalize on time.
+  const [activeAssessment, setActiveAssessment] = useState<StudentAssignment | null>(null)
+  const activeAssessmentRef = useRef<StudentAssignment | null>(null)
+  const assessmentFileRef = useRef<{ key: string | null; path: string | null }>({
+    key: null,
+    path: null
+  })
+  const pendingAssessmentDraftRef = useRef<{ key: string; content: string } | null>(null)
+  const lastAssessmentContentRef = useRef<string | null>(null)
+
   // Workspace state: the chosen root folder and its current listing.
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null)
   const [workspace, setWorkspace] = useState<WorkspaceListing | null>(null)
@@ -254,6 +268,61 @@ export default function App(): React.ReactElement {
     setSubmitConfirmation(null)
     resolve?.(confirmed)
   }, [])
+
+  const readAssessmentContent = useCallback(async (): Promise<string | null> => {
+    const target = assessmentFileRef.current
+    let content: string | null = null
+    if (target.key) {
+      content = tracker.getModelValue(target.key)
+    }
+    // If the student closed the tab, the last synced content is closer to the
+    // truth than the possibly stale file on disk.
+    if (content === null) content = lastAssessmentContentRef.current
+    if (content === null && target.path) {
+      try {
+        content = await window.api.fs.readFile(target.path)
+      } catch {
+        return null
+      }
+    }
+    if (content !== null) lastAssessmentContentRef.current = content
+    return content
+  }, [tracker])
+
+  const handleAssessmentSubmitted = useCallback(
+    (result: AssessmentSubmissionResult, reason: 'manual' | 'auto'): void => {
+      setActiveAssessment(null)
+      activeAssessmentRef.current = null
+      assessmentFileRef.current = { key: null, path: null }
+      lastAssessmentContentRef.current = null
+      showToast(
+        result.status === 'auto_submitted' || reason === 'auto'
+          ? 'Time is up — the latest saved draft was submitted.'
+          : 'Seatwork submitted.'
+      )
+      reloadAssignments()
+    },
+    [showToast, reloadAssignments]
+  )
+
+  const timedAssessment = useTimedAssessment({
+    readContent: readAssessmentContent,
+    onSubmitted: handleAssessmentSubmitted
+  })
+
+  useEffect(() => {
+    activeAssessmentRef.current = activeAssessment
+  }, [activeAssessment])
+
+  // Monaco models are created one render after a tab is added. If a draft was
+  // restored before the model existed, retry on each render until it lands.
+  useEffect(() => {
+    const pending = pendingAssessmentDraftRef.current
+    if (!pending) return
+    if (tracker.setModelValue(pending.key, pending.content)) {
+      pendingAssessmentDraftRef.current = null
+    }
+  })
 
   useEffect(() => {
     return () => {
@@ -457,6 +526,68 @@ export default function App(): React.ReactElement {
       return file
     } catch (error) {
       throw new Error(fsErrorMessage(error), { cause: error })
+    }
+  }
+
+  const handleStartAssessment = async (assignment: StudentAssignment): Promise<void> => {
+    if (!session) throw new Error('Sign in to start this assessment.')
+
+    const current = activeAssessmentRef.current
+    if (current && current.id !== assignment.id) {
+      throw new Error(`Finish or submit “${current.title}” before starting another assessment.`)
+    }
+    const otherActive = studentAssignments.assignments.find(
+      (item) => item.id !== assignment.id && item.session?.status === 'active'
+    )
+    if (otherActive) {
+      throw new Error(`Finish or submit “${otherActive.title}” before starting another assessment.`)
+    }
+
+    const started = await timedAssessment.start(assignment.id)
+    if (started.status !== 'active') {
+      throw new Error('This assessment is no longer active.')
+    }
+
+    const file = await prepareAssignmentFile(assignment)
+    // The server draft is authoritative after a crash. Mirror it to disk so a
+    // newly opened tab starts on the same content the session will submit.
+    await window.api.fs.writeFile(file.path, started.draftContent)
+
+    const existing = files.find((item) => item.path && samePath(item.path, file.path))
+    let key: string
+    if (existing) {
+      if (!tracker.setModelValue(existing.name, started.draftContent)) {
+        pendingAssessmentDraftRef.current = {
+          key: existing.name,
+          content: started.draftContent
+        }
+      }
+      setFiles((previous) =>
+        previous.map((item) =>
+          item.name === existing.name ? { ...item, initialContent: started.draftContent } : item
+        )
+      )
+      handleSelectFile(existing.name)
+      key = existing.name
+    } else {
+      const opened = await openFileFromDisk(file.path)
+      if (!opened) throw new Error('Could not open the assessment file.')
+      key = opened
+    }
+
+    assessmentFileRef.current = { key, path: file.path }
+    lastAssessmentContentRef.current = started.draftContent
+    setActiveAssessment(assignment)
+    reloadAssignments()
+    showStudentView('workspace')
+    showToast(assignment.session ? 'Assessment resumed.' : 'Assessment started — timer running.')
+  }
+
+  const handleSubmitTimedAssessment = async (): Promise<void> => {
+    try {
+      await timedAssessment.submit('manual')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not submit the assessment.')
     }
   }
 
@@ -990,6 +1121,12 @@ export default function App(): React.ReactElement {
   }, [editorActive])
 
   const handleSignOut = (): void => {
+    void timedAssessment.saveNow()
+    timedAssessment.reset()
+    setActiveAssessment(null)
+    activeAssessmentRef.current = null
+    assessmentFileRef.current = { key: null, path: null }
+    lastAssessmentContentRef.current = null
     setStudentViewState(null)
     void supabase?.auth.signOut()
   }
@@ -1114,6 +1251,17 @@ export default function App(): React.ReactElement {
 
                 {/* Editor & Terminal */}
                 <main className="editor-area">
+                  {activeAssessment && (
+                    <AssessmentBar
+                      assignment={activeAssessment}
+                      remainingMs={timedAssessment.remainingMs}
+                      saving={timedAssessment.saving}
+                      submitting={timedAssessment.submitting}
+                      error={timedAssessment.error}
+                      onOpenFile={() => void handleOpenAssignmentFile(activeAssessment)}
+                      onSubmit={() => void handleSubmitTimedAssessment()}
+                    />
+                  )}
                   {toolchain.status?.required && !toolchain.status.available && (
                     <div className="toolchain-banner" role="status">
                       <AlertTriangle size={14} />
@@ -1153,6 +1301,14 @@ export default function App(): React.ReactElement {
                     assignment={activeAssignment}
                     onSubmit={async () => {
                       if (!activeAssignment) return
+                      if (activeAssignment.timingMode !== 'none') {
+                        if (activeAssessment?.id !== activeAssignment.id) {
+                          await handleStartAssessment(activeAssignment)
+                          return
+                        }
+                        await handleSubmitTimedAssessment()
+                        return
+                      }
                       await handleSubmitAssignment(activeAssignment)
                     }}
                     onSubmitted={() => studentAssignments.reload()}
@@ -1205,6 +1361,7 @@ export default function App(): React.ReactElement {
                 onOpenClassFiles={openClassFiles}
                 onOpenAssignment={handleOpenAssignmentFile}
                 onSubmitAssignment={handleSubmitAssignment}
+                onStartAssessment={handleStartAssessment}
                 onJoinedClass={handleJoinedClass}
                 onOpenWorkspace={() => showStudentView('workspace')}
                 onOpenFeedback={openStudentFeedback}

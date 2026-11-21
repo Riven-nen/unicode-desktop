@@ -16,7 +16,14 @@ const assignment = (id: string, title: string, dueAt: string | null): Assignment
   published: true,
   publishAt: null,
   dueAt,
-  autoTestEnabled: false
+  autoTestEnabled: false,
+  kind: 'assignment',
+  timingMode: 'none',
+  durationMinutes: null,
+  opensAt: null,
+  closesAt: null,
+  autoSubmit: false,
+  showTimer: false
 })
 
 const student = (studentId: string, name: string, email: string): RosterStudent => ({

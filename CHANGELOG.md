@@ -7,6 +7,12 @@ All notable changes to Unicode Lab are recorded here. The format is based on
 
 ### Added
 
+- **Timed assessments (Phase 1):** take-home assignments may carry a
+  per-student timer, and seatworks are in-person work with a shared live window.
+  Deadlines are server-owned; students get draft autosave, crash resume, a
+  countdown bar, and deadline auto-submit. Professors get Assignments/Seatworks
+  tabs, timing settings, and a live session monitor. See
+  [docs/changelog/2026-11-22-timed-assessments-phase-1.md](docs/changelog/2026-11-22-timed-assessments-phase-1.md).
 - Student class dashboard with class cards, class detail pages, assignment briefs, unread feedback badges, and “new assignment” chips.
 - Two-way feedback: students can reply to professor comments inside the same submission thread.
 - Assignment analytics for professors: submitted vs. enrolled, late count, averages, and ICS band distribution.
@@ -33,6 +39,9 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   median and longest-pause stats.
 - Cadence now uses captured typing intervals with a snapshot-gap fallback, and
   long overnight breaks no longer force Cadence/Focus to zero.
+- ICS paste scoring now counts only **novel** pasted text. Moving or
+  duplicating code that already exists in an earlier snapshot no longer reduces
+  the paste term, while the first external insertion is still counted.
 - Snapshot timeline is now a compact horizontally scrollable rail with larger
   click targets and automatic scrolling to the selected snapshot.
 - Replay was removed; the snapshot timeline is the sole navigation surface for
@@ -50,6 +59,13 @@ All notable changes to Unicode Lab are recorded here. The format is based on
 - Optional local compiler diagnostics for Java and C/C++: `javac` and
   `gcc`/`g++` run in the main process and replace parser diagnostics with real
   compile errors when the toolchain is installed.
+- Professor submission review now includes a **local terminal**. It writes the
+  selected snapshot to a temporary directory, opens a shell there, and exposes
+  **Run file** for the installed toolchain. This runs outside Judge0, so the UI
+  warns that student code executes with the professor's local permissions.
+- Timed assessment schema and RPCs: `assessment_sessions`,
+  `assessment_drafts`, `submissions.assessment_session_id`, and server-side
+  start/draft/submit/expire/monitor functions.
 - Expanded demo data: three professors, ten students, four classes, and Java
   and C++ assignments with test cases.
 - Cross-student **paste similarity** panel using `pg_trgm`, with a red

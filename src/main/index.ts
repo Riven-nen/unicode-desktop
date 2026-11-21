@@ -6,7 +6,7 @@ import { registerDiagnosticsHandlers } from './diagnostics'
 import { registerFsHandlers } from './fs'
 import { registerJudge0Handlers } from './judge0'
 import { registerPythonLspHandlers, stopPythonLsp } from './pythonLsp'
-import { registerTerminalHandlers, stopAllTerminals } from './terminal'
+import { cleanupSubmissionRuns, registerTerminalHandlers, stopAllTerminals } from './terminal'
 import { registerToolchainHandlers } from './toolchains'
 
 function createWindow(): void {
@@ -140,6 +140,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopAllTerminals()
+  cleanupSubmissionRuns()
   stopPythonLsp()
 })
 

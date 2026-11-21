@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Editor, { DiffEditor } from '@monaco-editor/react'
 import type { BeforeMount, OnMount } from '@monaco-editor/react'
 import type * as monacoTypes from 'monaco-editor'
-import { AlertTriangle, ChevronLeft, GitCompareArrows } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, GitCompareArrows, Terminal } from 'lucide-react'
 import { useTheme } from '../../themes/useTheme'
 import { defineMonacoThemes } from '../../themes/themes'
 import { useFont } from '../../fonts/useFont'
 import { ensureFontLoaded } from '../../fonts/fontLoading'
+import { useToolchainStatus } from '../../hooks/useToolchainStatus'
+import TerminalPanel from '../TerminalPanel'
+import type { SubmissionLocalRun } from '../../../../shared/terminal'
 import BandBadge from './BandBadge'
 import CommentMargin from './CommentMargin'
 import GradeBox from './GradeBox'
@@ -71,6 +74,14 @@ export default function SubmissionDetail({
   const [pasteMatches, setPasteMatches] = useState<PasteSimilarityMatch[]>([])
   const [pasteLoading, setPasteLoading] = useState(true)
   const [pasteError, setPasteError] = useState<string | null>(null)
+  const [localRun, setLocalRun] = useState<SubmissionLocalRun | null>(null)
+  const [localTerminalOpen, setLocalTerminalOpen] = useState(false)
+  const [localTerminalBusy, setLocalTerminalBusy] = useState(false)
+  const [localTerminalError, setLocalTerminalError] = useState<string | null>(null)
+  const [localSnapshotLabel, setLocalSnapshotLabel] = useState<string | null>(null)
+  const localRunRef = useRef<SubmissionLocalRun | null>(null)
+  const localTerminalRef = useRef<HTMLDivElement | null>(null)
+  const toolchain = useToolchainStatus(detail.language ?? '')
 
   const recompute = async (): Promise<void> => {
     setIcsBusy(true)
@@ -96,6 +107,62 @@ export default function SubmissionDetail({
 
   const selectSnapshot = (snapshotId: string): void => {
     setSelectedSnapshotId(snapshotId)
+  }
+
+  useEffect(() => {
+    localRunRef.current = localRun
+  }, [localRun])
+
+  // Opening the terminal should not leave it below the visible editor area.
+  useEffect(() => {
+    if (!localTerminalOpen || !localRun) return
+    requestAnimationFrame(() => {
+      localTerminalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+  }, [localTerminalOpen, localRun])
+
+  // Releasing the detail view must also release the temporary copy and shell.
+  useEffect(() => {
+    return () => {
+      const run = localRunRef.current
+      if (run) window.api.submissions.discard(run.runId)
+    }
+  }, [])
+
+  const openLocalTerminal = async (): Promise<void> => {
+    if (!selectedSnapshot || localTerminalBusy) return
+    setLocalTerminalBusy(true)
+    setLocalTerminalError(null)
+    try {
+      const run = await window.api.submissions.prepare({
+        submissionId: detail.summary.id,
+        fileName: detail.fileName ?? 'submission',
+        language: detail.language ?? 'plaintext',
+        content: selectedSnapshot.content
+      })
+      const previous = localRunRef.current
+      if (previous) window.api.submissions.discard(previous.runId)
+      localRunRef.current = run
+      setLocalRun(run)
+      setLocalSnapshotLabel(formatDate(selectedSnapshot.createdAt))
+      setLocalTerminalOpen(true)
+    } catch (error) {
+      setLocalTerminalError(
+        error instanceof Error ? error.message : 'Could not prepare the local submission.'
+      )
+    } finally {
+      setLocalTerminalBusy(false)
+    }
+  }
+
+  const closeLocalTerminal = (): void => {
+    const run = localRunRef.current
+    if (run) window.api.submissions.discard(run.runId)
+    localRunRef.current = null
+    setLocalRun(null)
+    setLocalSnapshotLabel(null)
+    setLocalTerminalOpen(false)
+    setLocalTerminalError(null)
   }
 
   useEffect(() => {
@@ -247,10 +314,30 @@ export default function SubmissionDetail({
 
       <div className="detail-body">
         <div className="detail-left">
-          <section className="detail-editor-panel">
+          <section className={`detail-editor-panel ${localTerminalOpen ? 'has-terminal' : ''}`}>
             <header className="panel-head">
               <h3>Submission</h3>
               <div className="detail-editor-actions">
+                <button
+                  className={`icon-text-btn ${localTerminalOpen ? 'is-active' : ''}`}
+                  onClick={() => {
+                    if (localTerminalOpen) closeLocalTerminal()
+                    else void openLocalTerminal()
+                  }}
+                  disabled={!selectedSnapshot || localTerminalBusy}
+                  title={
+                    localTerminalOpen
+                      ? 'Close the local submission terminal'
+                      : 'Run the selected snapshot in a local terminal (uses your local OS permissions)'
+                  }
+                >
+                  <Terminal size={11} />
+                  {localTerminalBusy
+                    ? 'Preparing…'
+                    : localTerminalOpen
+                      ? 'Close terminal'
+                      : 'Local terminal'}
+                </button>
                 <button
                   className={`icon-text-btn ${diffMode && previousSnapshot ? 'is-active' : ''}`}
                   onClick={() => setDiffMode((current) => !current)}
@@ -318,6 +405,39 @@ export default function SubmissionDetail({
                 />
               )}
             </div>
+            {localTerminalError && <div className="grade-error">{localTerminalError}</div>}
+            {localTerminalOpen && localRun && (
+              <div className="detail-terminal" ref={localTerminalRef}>
+                <div className="detail-terminal-head">
+                  <span className="detail-terminal-title">
+                    <Terminal size={12} /> Local terminal
+                  </span>
+                  <span className="panel-meta">
+                    {localSnapshotLabel ? `Snapshot ${localSnapshotLabel}` : 'Selected snapshot'}
+                  </span>
+                  <button
+                    className="icon-text-btn"
+                    onClick={() => void openLocalTerminal()}
+                    disabled={localTerminalBusy || !selectedSnapshot}
+                    title="Restart the terminal with the currently selected snapshot"
+                  >
+                    {localTerminalBusy ? 'Preparing…' : 'Use selected snapshot'}
+                  </button>
+                  <button className="icon-text-btn" onClick={closeLocalTerminal}>
+                    Close
+                  </button>
+                </div>
+                <TerminalPanel
+                  key={localRun.runId}
+                  workspaceRoot={null}
+                  submissionRunId={localRun.runId}
+                  filePath={localRun.filePath}
+                  language={detail.language ?? 'plaintext'}
+                  toolchain={toolchain.status}
+                  onRecheckToolchain={toolchain.recheck}
+                />
+              </div>
+            )}
           </section>
 
           <div className="detail-comments">
@@ -423,6 +543,7 @@ export default function SubmissionDetail({
             snapshotId={selectedSnapshot?.id ?? null}
             fileName={detail.fileName}
             onRecorded={() => setRunsVersion((version) => version + 1)}
+            onRunLocally={() => void openLocalTerminal()}
           />
           <RunHistory submissionId={detail.summary.id} version={runsVersion} />
         </aside>

@@ -5,6 +5,8 @@ import type { ToolchainStatus } from '../../../shared/toolchains'
 
 interface TerminalPanelProps {
   workspaceRoot: string | null
+  /** Temporary run created for a professor's selected submission snapshot. */
+  submissionRunId?: string | null
   filePath: string | null
   language: string
   /** Local compiler/runtime status for the active file. */
@@ -18,13 +20,16 @@ const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~
 
 export default function TerminalPanel({
   workspaceRoot,
+  submissionRunId = null,
   filePath,
   language,
   toolchain,
   onRecheckToolchain
 }: TerminalPanelProps): React.ReactElement {
   const [output, setOutput] = useState(
-    'Windows PowerShell (local)\nCommands run in your workspace, outside Judge0.\n\n'
+    submissionRunId
+      ? 'Local submission terminal\nA temporary copy of the selected snapshot was created for review.\nRuns execute with your local OS permissions, not inside the Judge0 sandbox.\n\n'
+      : 'Windows PowerShell (local)\nCommands run in your workspace, outside Judge0.\n\n'
   )
   const [input, setInput] = useState('')
   const [ready, setReady] = useState(false)
@@ -62,8 +67,10 @@ export default function TerminalPanel({
         append(`\n[shell exited${code === null ? '' : ` with code ${code}`}]\n`)
       })
 
-      void terminal
-        .start(workspaceRoot)
+      const start = submissionRunId
+        ? terminal.startSubmission(submissionRunId)
+        : terminal.start(workspaceRoot)
+      void start
         .then((directory) => {
           if (cancelled) return
           setCwd(directory)
@@ -71,7 +78,7 @@ export default function TerminalPanel({
         })
         .catch((error) => {
           if (cancelled) return
-          append(`${error instanceof Error ? error.message : 'Could not start PowerShell.'}\n`)
+          append(`${error instanceof Error ? error.message : 'Could not start the shell.'}\n`)
         })
     }, 0)
 
@@ -82,7 +89,7 @@ export default function TerminalPanel({
       unsubscribeExit?.()
       window.api?.terminal?.stop()
     }
-  }, [append, restartKey, workspaceRoot])
+  }, [append, restartKey, submissionRunId, workspaceRoot])
 
   useEffect(() => {
     const element = outputRef.current

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { ArrowUpRight, Plus, Users } from 'lucide-react'
+import { ArrowUpRight, Clock, Plus, Users } from 'lucide-react'
 import { initialsOf } from '../../lib/initials'
+import type { AssessmentKind } from '../../types/assessment'
 import type { AssignmentSummary, RosterStudent } from '../../types/professor'
 
 interface ClassOverviewProps {
@@ -14,8 +15,24 @@ interface ClassOverviewProps {
   onToggleArchivedAssignments: () => void
   onSelectAssignment: (assignmentId: string) => void
   onSelectStudent: (studentId: string) => void
-  onNewAssignment: () => void
+  onNewAssignment: (kind: AssessmentKind) => void
   onManageStudents: () => void
+}
+
+const timingLabel = (assignment: AssignmentSummary): string | null => {
+  if (assignment.timingMode === 'none' || !assignment.durationMinutes) return null
+  const minutes = assignment.durationMinutes
+  if (assignment.timingMode === 'live_window') {
+    return assignment.opensAt
+      ? `Live · ${minutes} min from ${new Date(assignment.opensAt).toLocaleString([], {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`
+      : `Live · ${minutes} min`
+  }
+  return `${minutes} min · starts on open`
 }
 
 const formatDue = (iso: string): string =>
@@ -42,68 +59,103 @@ export default function ClassOverview({
 }: ClassOverviewProps): React.ReactElement {
   // Captured once so the scheduled badge is stable during a render.
   const [now] = useState(() => Date.now())
+  const [tab, setTab] = useState<AssessmentKind>('assignment')
+
+  const assignmentItems = assignments.filter((assignment) => assignment.kind === 'assignment')
+  const seatworkItems = assignments.filter((assignment) => assignment.kind === 'seatwork')
+  const visibleItems = tab === 'seatwork' ? seatworkItems : assignmentItems
+  const isSeatwork = tab === 'seatwork'
 
   return (
     <div className="class-overview-grid">
       <section className="overview-panel">
         <header className="panel-head">
-          <h3>
-            Assignments <span className="panel-count">{assignments.length}</span>
-          </h3>
+          <div className="coursework-tabs" role="tablist" aria-label="Coursework type">
+            <button
+              role="tab"
+              aria-selected={!isSeatwork}
+              className={`coursework-tab ${!isSeatwork ? 'is-active' : ''}`}
+              onClick={() => setTab('assignment')}
+            >
+              Assignments <span className="panel-count">{assignmentItems.length}</span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={isSeatwork}
+              className={`coursework-tab ${isSeatwork ? 'is-active' : ''}`}
+              onClick={() => setTab('seatwork')}
+            >
+              Seatworks <span className="panel-count">{seatworkItems.length}</span>
+            </button>
+          </div>
           <div className="panel-head-actions">
             <button className="icon-text-btn" onClick={onToggleArchivedAssignments}>
               {showArchivedAssignments ? 'Hide archived' : 'Show archived'}
             </button>
-            <button className="icon-text-btn" onClick={onNewAssignment}>
+            <button className="icon-text-btn" onClick={() => onNewAssignment(tab)}>
               <Plus size={12} /> New
             </button>
           </div>
         </header>
 
-        {assignmentsLoading && <div className="professor-empty">Loading assignments…</div>}
+        {assignmentsLoading && (
+          <div className="professor-empty">Loading {isSeatwork ? 'seatworks' : 'assignments'}…</div>
+        )}
         {assignmentError && <div className="professor-error">{assignmentError}</div>}
-        {!assignmentsLoading && !assignmentError && assignments.length === 0 && (
+        {!assignmentsLoading && !assignmentError && visibleItems.length === 0 && (
           <div className="overview-empty">
-            <p>No assignments yet. Create the first one for this class.</p>
-            <button className="btn-secondary" onClick={onNewAssignment}>
-              <Plus size={13} /> New assignment
+            <p>
+              {isSeatwork
+                ? 'No seatworks yet. Create timed in-person work for this class.'
+                : 'No assignments yet. Create the first take-home task for this class.'}
+            </p>
+            <button className="btn-secondary" onClick={() => onNewAssignment(tab)}>
+              <Plus size={13} /> New {isSeatwork ? 'seatwork' : 'assignment'}
             </button>
           </div>
         )}
 
         <div className="overview-assignment-grid">
-          {assignments.map((assignment) => (
-            <button
-              key={assignment.id}
-              className="overview-assignment-card"
-              onClick={() => onSelectAssignment(assignment.id)}
-              aria-label={`Open ${assignment.title}`}
-            >
-              <span className="overview-assignment-top">
-                <span className="assignment-title">{assignment.title}</span>
-                <span className="assignment-count">{assignment.testCaseCount}</span>
-              </span>
-              <span className="assignment-meta">
-                <span className="assignment-lang">{assignment.language ?? 'plaintext'}</span>
-                {!assignment.published && <span className="mini-badge">Draft</span>}
-                {assignment.published &&
-                  assignment.publishAt &&
-                  new Date(assignment.publishAt).getTime() > now && (
-                    <span className="mini-badge">Scheduled</span>
+          {visibleItems.map((assignment) => {
+            const timing = timingLabel(assignment)
+            return (
+              <button
+                key={assignment.id}
+                className="overview-assignment-card"
+                onClick={() => onSelectAssignment(assignment.id)}
+                aria-label={`Open ${assignment.title}`}
+              >
+                <span className="overview-assignment-top">
+                  <span className="assignment-title">{assignment.title}</span>
+                  <span className="assignment-count">{assignment.testCaseCount}</span>
+                </span>
+                <span className="assignment-meta">
+                  <span className="assignment-lang">{assignment.language ?? 'plaintext'}</span>
+                  {!assignment.published && <span className="mini-badge">Draft</span>}
+                  {assignment.published &&
+                    assignment.publishAt &&
+                    new Date(assignment.publishAt).getTime() > now && (
+                      <span className="mini-badge">Scheduled</span>
+                    )}
+                  {assignment.archivedAt && <span className="mini-badge">Archived</span>}
+                  {timing && (
+                    <span className="assignment-lang assignment-timing">
+                      <Clock size={10} /> {timing}
+                    </span>
                   )}
-                {assignment.archivedAt && <span className="mini-badge">Archived</span>}
-                {assignment.dueAt && (
-                  <span className="assignment-lang">Due {formatDue(assignment.dueAt)}</span>
-                )}
-                {assignment.hiddenCaseCount > 0 && (
-                  <span className="assignment-hidden">{assignment.hiddenCaseCount} hidden</span>
-                )}
-              </span>
-              <span className="overview-open">
-                Open assignment <ArrowUpRight size={12} />
-              </span>
-            </button>
-          ))}
+                  {assignment.dueAt && (
+                    <span className="assignment-lang">Due {formatDue(assignment.dueAt)}</span>
+                  )}
+                  {assignment.hiddenCaseCount > 0 && (
+                    <span className="assignment-hidden">{assignment.hiddenCaseCount} hidden</span>
+                  )}
+                </span>
+                <span className="overview-open">
+                  Open {isSeatwork ? 'seatwork' : 'assignment'} <ArrowUpRight size={12} />
+                </span>
+              </button>
+            )
+          })}
         </div>
       </section>
 

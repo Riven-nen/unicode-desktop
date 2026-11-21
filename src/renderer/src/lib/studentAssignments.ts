@@ -1,5 +1,12 @@
 import { supabase } from './supabase'
-import type { StudentAssignment, StudentSubmission } from '../types/student'
+import { fetchStudentAssessmentSessions } from './assessments'
+import type { StudentAssessmentSessionRow } from './assessments'
+import type { AssessmentKind, AssessmentTimingMode } from '../types/assessment'
+import type {
+  StudentAssessmentSession,
+  StudentAssignment,
+  StudentSubmission
+} from '../types/student'
 import type { TestCaseEntry } from '../types/professor'
 
 function client(): NonNullable<typeof supabase> {
@@ -34,6 +41,13 @@ interface AssignmentRow {
   publish_at: string | null
   due_at: string | null
   auto_test_enabled: boolean
+  kind: AssessmentKind
+  timing_mode: AssessmentTimingMode
+  duration_minutes: number | null
+  opens_at: string | null
+  closes_at: string | null
+  auto_submit: boolean
+  show_timer: boolean
   class: ClassEmbed | ClassEmbed[] | null
 }
 
@@ -57,6 +71,7 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
     .from('assignments')
     .select(
       `id, class_id, title, description, language, file_name, starter_code, created_at, publish_at, due_at, auto_test_enabled,
+       kind, timing_mode, duration_minutes, opens_at, closes_at, auto_submit, show_timer,
        class:classes!assignments_class_id_fkey ( id, name, code, archived_at )`
     )
     .eq('published', true)
@@ -83,11 +98,29 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
         publishAt: row.publish_at,
         dueAt: row.due_at,
         autoTestEnabled: row.auto_test_enabled,
-        latestSubmission: null
+        kind: row.kind,
+        timingMode: row.timing_mode,
+        durationMinutes: row.duration_minutes,
+        opensAt: row.opens_at,
+        closesAt: row.closes_at,
+        autoSubmit: row.auto_submit,
+        showTimer: row.show_timer,
+        latestSubmission: null,
+        session: null
       } satisfies StudentAssignment
     })
 
   if (assignments.length === 0) return assignments
+
+  // Sessions come first: lazy expiry can create an auto-submission, and the
+  // submission query below should see it on the same load.
+  let sessions = new Map<string, StudentAssessmentSessionRow>()
+  try {
+    sessions = await fetchStudentAssessmentSessions(studentId)
+  } catch {
+    // Sessions are optional context on the dashboard. A failure here must not
+    // hide the assignment list; the start/resume RPC will surface the error.
+  }
 
   // The student view masks grades until the professor releases them.
   const submissionRes = await client()
@@ -115,10 +148,26 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
     })
   }
 
-  return assignments.map((assignment) => ({
-    ...assignment,
-    latestSubmission: latest.get(assignment.id) ?? null
-  }))
+  return assignments.map((assignment) => {
+    const row = sessions.get(assignment.id)
+    const session: StudentAssessmentSession | null = row
+      ? {
+          id: row.id,
+          status: row.status,
+          startedAt: row.started_at,
+          expiresAt: row.expires_at,
+          submittedAt: row.submitted_at,
+          lastSavedAt: row.last_saved_at,
+          draftRevision: Number(row.draft_revision ?? 0),
+          serverOffsetMs: row.server_offset_ms
+        }
+      : null
+    return {
+      ...assignment,
+      latestSubmission: latest.get(assignment.id) ?? null,
+      session
+    }
+  })
 }
 
 /**

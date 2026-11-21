@@ -2515,7 +2515,8 @@ input:focus-visible,
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
-  margin-top: 16px;}
+  margin-top: 16px;
+}
 .class-card {
   display: flex;
   flex-direction: column;
@@ -2832,6 +2833,44 @@ input:focus-visible,
   height: 560px;
   overflow: hidden;
   border-radius: 6px;
+}
+.detail-editor-panel.has-terminal .detail-monaco {
+  height: 380px;
+}
+.detail-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 280px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.detail-terminal-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-terminal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.detail-terminal-head .panel-meta {
+  margin-right: auto;
+}
+.detail-terminal .terminal-panel {
+  flex: 1;
+  min-height: 0;
 }
 .detail-comments {
   display: flex;
@@ -3398,6 +3437,11 @@ input:focus-visible,
   flex-direction: column;
   gap: 8px;
 }
+.test-runner-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .judge0-setup {
   display: flex;
   flex-direction: column;
@@ -3774,11 +3818,7 @@ input:focus-visible,
   padding: 14px 15px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.035),
-    rgba(255, 255, 255, 0.015)
-  );
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
   transition:
     border-color 0.15s ease,
     transform 0.15s ease;
@@ -4009,11 +4049,7 @@ input:focus-visible,
   padding: 16px 16px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.035),
-    rgba(255, 255, 255, 0.012)
-  );
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
   color: var(--text-main);
   text-align: left;
   transition:
@@ -4204,11 +4240,7 @@ input:focus-visible,
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.012)
-  );
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012));
 }
 .student-panel-head {
   display: flex;
@@ -6979,4 +7011,385 @@ input:focus-visible,
 .btn-primary.is-danger {
   background: var(--error);
   color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   Timed assessments (Phase 1)
+   --------------------------------------------------------------------------- */
+
+.coursework-tabs,
+.student-coursework-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.coursework-tab,
+.student-coursework-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.coursework-tab:hover,
+.student-coursework-tab:hover {
+  color: var(--text-main);
+  background: var(--hover);
+}
+
+.coursework-tab.is-active,
+.student-coursework-tab.is-active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.student-coursework-head {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.assignment-timing,
+.assignment-timing-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.assignment-timing-summary {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.seatwork-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--paste) 38%, var(--border));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--paste) 10%, transparent);
+  color: color-mix(in srgb, var(--paste) 88%, var(--text-main));
+}
+
+.seatwork-timing {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.seatwork-start-note {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.seatwork-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.seatwork-countdown.is-urgent {
+  background: color-mix(in srgb, var(--error) 16%, transparent);
+  color: var(--error);
+  animation: assessment-pulse 1.4s ease-in-out infinite;
+}
+
+.assignment-status.is-active {
+  background: color-mix(in srgb, var(--paste) 18%, transparent);
+  color: var(--paste);
+}
+
+.assignment-status.is-upcoming {
+  background: var(--hover);
+  color: var(--text-muted);
+}
+
+.assignment-status.is-closed {
+  background: color-mix(in srgb, var(--error) 13%, transparent);
+  color: color-mix(in srgb, var(--error) 82%, var(--text-main));
+}
+
+.assignment-card.is-active::before {
+  background: var(--paste);
+}
+
+.student-coursework-tabs .student-count {
+  height: 15px;
+  min-width: 15px;
+  line-height: 15px;
+}
+
+/* In-workspace countdown ---------------------------------------------------- */
+
+.assessment-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-base));
+  font-size: 11.5px;
+}
+
+.assessment-bar.is-warning {
+  background: color-mix(in srgb, var(--paste) 10%, var(--bg-base));
+  border-bottom-color: color-mix(in srgb, var(--paste) 40%, var(--border));
+}
+
+.assessment-bar.is-urgent {
+  background: color-mix(in srgb, var(--error) 10%, var(--bg-base));
+  border-bottom-color: color-mix(in srgb, var(--error) 45%, var(--border));
+}
+
+.assessment-bar-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 10px;
+}
+
+.assessment-bar-title {
+  font-weight: 600;
+}
+
+.assessment-bar-clock {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.assessment-bar.is-warning .assessment-bar-clock {
+  background: color-mix(in srgb, var(--paste) 18%, transparent);
+  color: var(--paste);
+}
+
+.assessment-bar.is-urgent .assessment-bar-clock {
+  background: color-mix(in srgb, var(--error) 18%, transparent);
+  color: var(--error);
+}
+
+.assessment-bar-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+}
+
+.assessment-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.assessment-bar-error {
+  flex-basis: 100%;
+  color: var(--error);
+  font-size: 10.5px;
+}
+
+@keyframes assessment-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Professor monitor --------------------------------------------------------- */
+
+.assessment-monitor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-base) 55%, transparent);
+}
+
+.assessment-monitor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.assessment-monitor-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.assessment-monitor-head p {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.assessment-monitor-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.assessment-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.assessment-stat.is-active {
+  border-color: color-mix(in srgb, var(--paste) 38%, var(--border));
+  background: color-mix(in srgb, var(--paste) 10%, transparent);
+  color: var(--paste);
+}
+
+.assessment-stat.is-done {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.assessment-monitor-table-wrap {
+  overflow-x: auto;
+}
+
+.assessment-monitor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.assessment-monitor-table th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.assessment-monitor-table td {
+  padding: 7px 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.assessment-monitor-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.assessment-student {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.assessment-student > span:last-child {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.assessment-student strong {
+  font-weight: 600;
+}
+
+.assessment-student > span:last-child > span {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.assessment-status {
+  display: inline-flex;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.assessment-status.is-active {
+  background: color-mix(in srgb, var(--paste) 16%, transparent);
+  color: var(--paste);
+}
+
+.assessment-status.is-submitted {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.assessment-status.is-auto_submitted,
+.assessment-status.is-expired {
+  background: color-mix(in srgb, var(--paste) 13%, transparent);
+  color: var(--paste);
+}
+
+.assessment-status.is-expired {
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  color: var(--error);
+}
+
+.assessment-remaining {
+  display: block;
+  margin-top: 2px;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.assessment-remaining.is-expired {
+  color: var(--error);
+}
+
+.assessment-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--paste);
+  font-size: 10px;
+}
+
+.assessment-muted {
+  color: var(--text-muted);
 }

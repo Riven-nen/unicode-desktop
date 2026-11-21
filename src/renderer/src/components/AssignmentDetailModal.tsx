@@ -1,5 +1,21 @@
 import { useEffect } from 'react'
-import { Calendar, FileText, FolderOpen, Send, X } from 'lucide-react'
+import {
+  Calendar,
+  CheckCircle2,
+  FileText,
+  FolderOpen,
+  PlayCircle,
+  Send,
+  Timer,
+  X
+} from 'lucide-react'
+import {
+  assessmentAvailability,
+  assessmentRemainingMs,
+  formatCountdown,
+  timingSummary
+} from '../lib/assessmentTime'
+import { sessionStatusLabel } from '../types/assessment'
 import type { StudentAssignment } from '../types/student'
 
 interface AssignmentDetailModalProps {
@@ -10,9 +26,12 @@ interface AssignmentDetailModalProps {
   queued: boolean
   /** True while this assignment is being submitted from the card or modal. */
   submitting: boolean
+  /** True while a timed assessment is starting or resuming. */
+  starting: boolean
   onClose: () => void
   onOpenFile: (assignment: StudentAssignment) => void
   onSubmit: (assignment: StudentAssignment) => void
+  onStart: (assignment: StudentAssignment) => void
 }
 
 const formatMoment = (iso: string): string =>
@@ -32,9 +51,11 @@ export default function AssignmentDetailModal({
   now,
   queued,
   submitting,
+  starting,
   onClose,
   onOpenFile,
-  onSubmit
+  onSubmit,
+  onStart
 }: AssignmentDetailModalProps): React.ReactElement | null {
   useEffect(() => {
     if (!assignment) return
@@ -48,17 +69,27 @@ export default function AssignmentDetailModal({
   if (!assignment) return null
 
   const latest = assignment.latestSubmission
-  const status = queued
-    ? 'queued'
-    : latest === null
-      ? 'new'
-      : latest.grade !== null
-        ? 'graded'
-        : 'submitted'
+  const session = assignment.session
+  const timed = assignment.timingMode !== 'none'
+  const sessionActive = session?.status === 'active'
+  const availability = assessmentAvailability(assignment, now)
+  const remaining = assessmentRemainingMs(session, now)
+  const seatworkSubmitted = session !== null && session.status !== 'active'
+  const status = sessionActive
+    ? 'active'
+    : timed && seatworkSubmitted
+      ? 'submitted'
+      : queued
+        ? 'queued'
+        : latest === null
+          ? 'new'
+          : latest.grade !== null
+            ? 'graded'
+            : 'submitted'
   const due = assignment.dueAt ? new Date(assignment.dueAt) : null
   const late =
     due !== null && latest !== null ? new Date(latest.submittedAt).getTime() > due.getTime() : false
-  const overdue = due !== null && latest === null && due.getTime() < now
+  const overdue = due !== null && latest === null && !sessionActive && due.getTime() < now
 
   return (
     <div className="auth-overlay" onClick={onClose}>
@@ -77,13 +108,17 @@ export default function AssignmentDetailModal({
           <span className="student-class-code">{assignment.classCode}</span>
           <span className={`assignment-status is-${status}`}>
             <span className="assignment-status-dot" />
-            {status === 'queued'
-              ? 'Queued'
-              : status === 'graded' && latest
-                ? `Graded · ${latest.grade}`
-                : status === 'submitted'
-                  ? 'Submitted'
-                  : 'Not submitted'}
+            {status === 'active'
+              ? 'In progress'
+              : status === 'queued'
+                ? 'Queued'
+                : status === 'graded' && latest
+                  ? `Graded · ${latest.grade}`
+                  : status === 'submitted'
+                    ? timed && session
+                      ? sessionStatusLabel(session.status)
+                      : 'Submitted'
+                    : 'Not submitted'}
           </span>
           {assignment.language && (
             <span className="assignment-language">{assignment.language}</span>
@@ -109,6 +144,28 @@ export default function AssignmentDetailModal({
             <span className="assignment-due">Submitted {formatMoment(latest.submittedAt)}</span>
           )}
         </div>
+
+        {timed && (
+          <div className="assignment-detail-dates assignment-detail-timing">
+            <span className="assignment-due">
+              <Timer size={11} /> {timingSummary(assignment)}
+            </span>
+            {assignment.opensAt && (
+              <span className="assignment-due">Opens {formatMoment(assignment.opensAt)}</span>
+            )}
+            {assignment.closesAt && (
+              <span className="assignment-due">Closes {formatMoment(assignment.closesAt)}</span>
+            )}
+            {sessionActive && remaining !== null && (
+              <span className={`seatwork-countdown ${remaining <= 5 * 60_000 ? 'is-urgent' : ''}`}>
+                {remaining <= 0 ? 'Time is up' : `${formatCountdown(remaining)} left`}
+              </span>
+            )}
+            {!assignment.autoSubmit && (
+              <span className="assignment-flag is-late">Manual submit required</span>
+            )}
+          </div>
+        )}
 
         <div className="assignment-detail-body">
           {assignment.description ? (
@@ -145,14 +202,47 @@ export default function AssignmentDetailModal({
           <button className="btn-secondary" onClick={() => onOpenFile(assignment)}>
             <FolderOpen size={13} /> Open file
           </button>
-          <button
-            className="btn-primary"
-            disabled={submitting || queued}
-            onClick={() => onSubmit(assignment)}
-          >
-            <Send size={12} />
-            {queued ? 'Queued' : submitting ? 'Submitting…' : 'Submit'}
-          </button>
+          {timed ? (
+            sessionActive ? (
+              <button
+                className="btn-primary"
+                disabled={starting}
+                onClick={() => onStart(assignment)}
+              >
+                <PlayCircle size={12} /> {starting ? 'Opening…' : 'Resume'}
+              </button>
+            ) : seatworkSubmitted ? (
+              <button className="btn-secondary" disabled>
+                <CheckCircle2 size={12} />
+                {session ? sessionStatusLabel(session.status) : 'Submitted'}
+              </button>
+            ) : availability === 'upcoming' ? (
+              <button className="btn-secondary" disabled>
+                Opens {assignment.opensAt ? formatMoment(assignment.opensAt) : 'soon'}
+              </button>
+            ) : availability === 'closed' ? (
+              <button className="btn-secondary" disabled>
+                Closed
+              </button>
+            ) : (
+              <button
+                className="btn-primary"
+                disabled={starting}
+                onClick={() => onStart(assignment)}
+              >
+                <PlayCircle size={12} /> {starting ? 'Starting…' : 'Start'}
+              </button>
+            )
+          ) : (
+            <button
+              className="btn-primary"
+              disabled={submitting || queued}
+              onClick={() => onSubmit(assignment)}
+            >
+              <Send size={12} />
+              {queued ? 'Queued' : submitting ? 'Submitting…' : 'Submit'}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -10,7 +10,12 @@ import type {
   Judge0SaveConfigInput,
   Judge0Status
 } from '../shared/judge0'
-import type { TerminalDataEvent, TerminalExitEvent } from '../shared/terminal'
+import type {
+  SubmissionLocalRun,
+  SubmissionLocalRunInput,
+  TerminalDataEvent,
+  TerminalExitEvent
+} from '../shared/terminal'
 import type { ToolchainStatus } from '../shared/toolchains'
 
 // Custom APIs for renderer
@@ -164,6 +169,9 @@ const api = {
     start(cwd: string | null): Promise<string> {
       return ipcRenderer.invoke('terminal:start', cwd)
     },
+    startSubmission(runId: string): Promise<string> {
+      return ipcRenderer.invoke('terminal:start-submission', runId)
+    },
     write(data: string): void {
       ipcRenderer.send('terminal:write', data)
     },
@@ -185,6 +193,15 @@ const api = {
       return () => {
         ipcRenderer.removeListener('terminal:exit', listener)
       }
+    }
+  },
+  // Temporary local copies of student snapshots for professor review.
+  submissions: {
+    prepare(input: SubmissionLocalRunInput): Promise<SubmissionLocalRun> {
+      return ipcRenderer.invoke('terminal:prepare-submission', input)
+    },
+    discard(runId: string): void {
+      ipcRenderer.send('terminal:discard-submission', runId)
     }
   },
   // Custom title-bar controls for the frameless window.
