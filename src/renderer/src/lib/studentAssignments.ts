@@ -48,6 +48,10 @@ interface AssignmentRow {
   closes_at: string | null
   auto_submit: boolean
   show_timer: boolean
+  allowed_tab_outs: number
+  fullscreen_required: boolean
+  block_paste: boolean
+  run_only_terminal: boolean
   class: ClassEmbed | ClassEmbed[] | null
 }
 
@@ -72,6 +76,7 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
     .select(
       `id, class_id, title, description, language, file_name, starter_code, created_at, publish_at, due_at, auto_test_enabled,
        kind, timing_mode, duration_minutes, opens_at, closes_at, auto_submit, show_timer,
+       allowed_tab_outs, fullscreen_required, block_paste, run_only_terminal,
        class:classes!assignments_class_id_fkey ( id, name, code, archived_at )`
     )
     .eq('published', true)
@@ -105,6 +110,10 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
         closesAt: row.closes_at,
         autoSubmit: row.auto_submit,
         showTimer: row.show_timer,
+        allowedTabOuts: row.allowed_tab_outs,
+        fullscreenRequired: row.fullscreen_required,
+        blockPaste: row.block_paste,
+        runOnlyTerminal: row.run_only_terminal,
         latestSubmission: null,
         session: null
       } satisfies StudentAssignment
@@ -159,6 +168,17 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
           submittedAt: row.submitted_at,
           lastSavedAt: row.last_saved_at,
           draftRevision: Number(row.draft_revision ?? 0),
+          examMode: row.exam_mode,
+          allowedTabOuts: Number(row.allowed_tab_outs ?? 0),
+          tabOutCount: Number(row.tab_out_count ?? 0),
+          fullscreenExitCount: Number(row.fullscreen_exit_count ?? 0),
+          blockedPasteCount: Number(row.blocked_paste_count ?? 0),
+          interruptionCount: Number(row.interruption_count ?? 0),
+          fullscreenRequired: row.fullscreen_required,
+          blockPaste: row.block_paste,
+          runOnlyTerminal: row.run_only_terminal,
+          overrideNote: row.override_note,
+          overrideAt: row.override_at,
           serverOffsetMs: row.server_offset_ms
         }
       : null

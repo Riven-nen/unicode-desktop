@@ -1,26 +1,39 @@
-import { AlertTriangle, FileText, Save, Send, Timer } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, FileText, Maximize2, Save, Send, Timer } from 'lucide-react'
 import { formatCountdown } from '../lib/assessmentTime'
+import type { AssessmentSession } from '../types/assessment'
 import type { StudentAssignment } from '../types/student'
 
 interface AssessmentBarProps {
   assignment: StudentAssignment
+  session: AssessmentSession | null
   remainingMs: number | null
   saving: boolean
   submitting: boolean
   error: string | null
   onOpenFile: () => void
   onSubmit: () => void
+  onEnterFullscreen: () => void
 }
 
 export default function AssessmentBar({
   assignment,
+  session,
   remainingMs,
   saving,
   submitting,
   error,
   onOpenFile,
-  onSubmit
+  onSubmit,
+  onEnterFullscreen
 }: AssessmentBarProps): React.ReactElement {
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement))
+  useEffect(() => {
+    const update = (): void => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', update)
+    return () => document.removeEventListener('fullscreenchange', update)
+  }, [])
+
   const expired = remainingMs !== null && remainingMs <= 0
   const urgent = remainingMs !== null && remainingMs > 0 && remainingMs <= 60_000
   const warning = remainingMs !== null && remainingMs > 60_000 && remainingMs <= 5 * 60_000
@@ -44,6 +57,24 @@ export default function AssessmentBar({
         </span>
       )}
       {!assignment.showTimer && <span className="assessment-bar-clock">Time limit enforced</span>}
+      {session?.examMode && (
+        <span className="assessment-bar-exam">
+          <span>
+            Interruptions {session.interruptionCount}/{session.allowedTabOuts}
+          </span>
+          {session.blockedPasteCount > 0 && <span>{session.blockedPasteCount} pastes blocked</span>}
+          {session.fullscreenRequired && !isFullscreen && (
+            <button className="icon-text-btn" onClick={onEnterFullscreen}>
+              <Maximize2 size={11} /> Fullscreen
+            </button>
+          )}
+          {session.overrideNote && (
+            <span className="assessment-bar-override" title={session.overrideNote}>
+              Override applied
+            </span>
+          )}
+        </span>
+      )}
       <span className="assessment-bar-save">
         {saving ? (
           <>

@@ -5128,7 +5128,8 @@ input:focus-visible,
   border: 1px solid var(--border);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.015);
-}.ics-ledger-row {
+}
+.ics-ledger-row {
   display: grid;
   grid-template-columns: 1fr 36px 52px;
   align-items: baseline;
@@ -7865,4 +7866,92 @@ input:focus-visible,
 
 .file-item > svg.lucide-image {
   color: var(--paste);
+}
+
+/* Exam controls ------------------------------------------------------------ */
+
+.assessment-bar-exam {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--error) 28%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  color: color-mix(in srgb, var(--error) 75%, var(--text-main));
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.assessment-bar-exam .icon-text-btn {
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+.assessment-bar-override {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paste) 16%, transparent);
+  color: var(--paste);
+}
+
+.assessment-warning-overlay {
+  z-index: 80;
+}
+
+.assessment-warning-modal {
+  width: min(520px, 92vw);
+}
+
+.assessment-warning-modal .auth-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--error);
+}
+
+.assessment-interruptions {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.assessment-interruptions.is-over {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.assessment-event-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.assessment-event-list > span {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.assessment-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.assessment-override-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  color: var(--paste);
+}
+
+.terminal-exam-badge {
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--paste) 35%, var(--border));
+  border-radius: 999px;
+  color: var(--paste);
+  font-size: 9.5px;
 }

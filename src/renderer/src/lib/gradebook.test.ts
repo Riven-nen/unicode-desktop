@@ -23,7 +23,11 @@ const assignment = (id: string, title: string, dueAt: string | null): Assignment
   opensAt: null,
   closesAt: null,
   autoSubmit: false,
-  showTimer: false
+  showTimer: false,
+  allowedTabOuts: 1,
+  fullscreenRequired: false,
+  blockPaste: false,
+  runOnlyTerminal: false
 })
 
 const student = (studentId: string, name: string, email: string): RosterStudent => ({

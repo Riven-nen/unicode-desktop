@@ -12,6 +12,8 @@ interface TerminalPanelProps {
   /** Local compiler/runtime status for the active file. */
   toolchain: ToolchainStatus | null
   onRecheckToolchain: () => void
+  /** Exam mode: allow Run file, disable arbitrary shell input. */
+  runOnly?: boolean
 }
 
 const MAX_OUTPUT = 220_000
@@ -24,7 +26,8 @@ export default function TerminalPanel({
   filePath,
   language,
   toolchain,
-  onRecheckToolchain
+  onRecheckToolchain,
+  runOnly = false
 }: TerminalPanelProps): React.ReactElement {
   const [output, setOutput] = useState(
     submissionRunId
@@ -180,6 +183,7 @@ export default function TerminalPanel({
               <Play size={12} /> Run file
             </button>
           )}
+          {runOnly && <span className="terminal-exam-badge">Exam mode: Run file only</span>}
           <button className="icon-text-btn" onClick={() => setOutput('')} title="Clear output">
             <Trash2 size={12} /> Clear
           </button>
@@ -204,9 +208,13 @@ export default function TerminalPanel({
         <pre className="terminal-output" ref={outputRef} aria-live="polite">
           {output}
           {output.endsWith('\n') ? '' : '\n'}
-          <span className="terminal-prompt">PS&gt; </span>
-          <span className="terminal-typed">{input}</span>
-          <span className="terminal-caret" aria-hidden="true" />
+          {!runOnly && (
+            <>
+              <span className="terminal-prompt">PS&gt; </span>
+              <span className="terminal-typed">{input}</span>
+              <span className="terminal-caret" aria-hidden="true" />
+            </>
+          )}
         </pre>
 
         <input
@@ -214,11 +222,16 @@ export default function TerminalPanel({
           className="terminal-capture"
           value={input}
           spellCheck={false}
-          disabled={!ready}
+          disabled={!ready || runOnly}
+          placeholder={runOnly ? 'Shell input is disabled during this seatwork' : undefined}
           aria-label="PowerShell input"
           autoComplete="off"
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
+            if (runOnly) {
+              event.preventDefault()
+              return
+            }
             if (event.key === 'Enter') {
               event.preventDefault()
               execute(input)

@@ -74,6 +74,9 @@ interface EditorPaneProps {
   onToggleWordWrap?: () => void
   /** Receives the active file's live symbols and diagnostics. */
   onAnalysisChange?: (analysis: CodeAnalysis | null) => void
+  /** Exam mode: reject paste and drag-drop into the editor. */
+  blockPaste?: boolean
+  onBlockedPaste?: () => void
   /**
    * Closes a workspace tab. The last remaining file can't be closed —
    * App guards it, so the close button is hidden on single-file workspaces.
@@ -91,7 +94,9 @@ export default function EditorPane({
   viewOptions = DEFAULT_VIEW_OPTIONS,
   onToggleWordWrap,
   onAnalysisChange,
-  onCloseFile
+  onCloseFile,
+  blockPaste = false,
+  onBlockedPaste
 }: EditorPaneProps): React.ReactElement {
   const { monacoTheme } = useTheme()
   const { font, fontSize, ligatures } = useFont()
@@ -121,6 +126,13 @@ export default function EditorPane({
   const filesRef = useRef(files)
   const lspExitRegisteredRef = useRef(false)
   const htmlAutoCloseGuardRef = useRef(false)
+  const blockPasteRef = useRef(blockPaste)
+  const onBlockedPasteRef = useRef(onBlockedPaste)
+
+  useEffect(() => {
+    blockPasteRef.current = blockPaste
+    onBlockedPasteRef.current = onBlockedPaste
+  }, [blockPaste, onBlockedPaste])
 
   /**
    * Monaco does not implement VS Code's HTML `autoClosingTags` option. When a
@@ -624,6 +636,19 @@ export default function EditorPane({
     editor.onDidPaste((event) => {
       tracker.handlePaste(activeFileRef.current, event)
     })
+
+    // Exam mode intercepts paste and drop before Monaco can insert anything.
+    const dom = editor.getDomNode()
+    if (dom) {
+      const rejectInsert = (event: Event): void => {
+        if (!blockPasteRef.current) return
+        event.preventDefault()
+        event.stopPropagation()
+        onBlockedPasteRef.current?.()
+      }
+      dom.addEventListener('paste', rejectInsert, true)
+      dom.addEventListener('drop', rejectInsert, true)
+    }
 
     editor.onDidChangeCursorPosition((event) => {
       onCursorChangeRef.current?.({

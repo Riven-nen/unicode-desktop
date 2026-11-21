@@ -26,6 +26,48 @@ export interface AssessmentSession {
   serverOffsetMs: number
   draftContent: string
   draftRevision: number
+  examMode: boolean
+  allowedTabOuts: number
+  tabOutCount: number
+  fullscreenExitCount: number
+  blockedPasteCount: number
+  interruptionCount: number
+  fullscreenRequired: boolean
+  blockPaste: boolean
+  runOnlyTerminal: boolean
+  overrideNote: string | null
+  overrideAt: string | null
+}
+
+export interface AssessmentExamState {
+  examMode: boolean
+  allowedTabOuts: number
+  tabOutCount: number
+  fullscreenExitCount: number
+  blockedPasteCount: number
+  interruptionCount: number
+  fullscreenRequired: boolean
+  blockPaste: boolean
+  runOnlyTerminal: boolean
+  overrideNote: string | null
+  overrideAt: string | null
+  serverOffsetMs: number
+}
+
+export type AssessmentEventType =
+  'tab_out' | 'fullscreen_exit' | 'paste_blocked' | 'warning' | 'focus_return'
+
+export interface AssessmentEventResult {
+  action: 'logged' | 'warning' | 'auto_submit'
+  status: AssessmentSessionStatus
+  tabOutCount: number
+  fullscreenExitCount: number
+  blockedPasteCount: number
+  interruptionCount: number
+  allowedTabOuts: number
+  submissionId: string | null
+  serverNow: string
+  serverOffsetMs: number
 }
 
 export interface AssessmentSessionSummary {
@@ -42,6 +84,17 @@ export interface AssessmentSessionSummary {
   finalSubmissionId: string | null
   serverNow: string
   serverOffsetMs: number
+  examMode: boolean
+  allowedTabOuts: number
+  tabOutCount: number
+  fullscreenExitCount: number
+  blockedPasteCount: number
+  interruptionCount: number
+  fullscreenRequired: boolean
+  blockPaste: boolean
+  runOnlyTerminal: boolean
+  overrideNote: string | null
+  overrideAt: string | null
 }
 
 export interface AssessmentDraftResult {
@@ -57,6 +110,16 @@ export interface AssessmentSubmissionResult {
   submissionId: string
   status: AssessmentSessionStatus
   submittedAt: string
+}
+
+export interface AssessmentOverrideResult {
+  status: AssessmentSessionStatus
+  expiresAt: string | null
+  interruptionCount: number
+  overrideNote: string | null
+  overrideAt: string | null
+  serverNow: string
+  serverOffsetMs: number
 }
 
 export function isAssessmentTimed(mode: AssessmentTimingMode): boolean {

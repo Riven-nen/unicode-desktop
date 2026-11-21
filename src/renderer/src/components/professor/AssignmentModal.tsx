@@ -67,6 +67,10 @@ export default function AssignmentModal({
   const [closesAt, setClosesAt] = useState(toDateTimeLocal(initial?.closesAt ?? null))
   const [autoSubmit, setAutoSubmit] = useState(initial?.autoSubmit ?? true)
   const [showTimer, setShowTimer] = useState(initial?.showTimer ?? true)
+  const [allowedTabOuts, setAllowedTabOuts] = useState(String(initial?.allowedTabOuts ?? 1))
+  const [fullscreenRequired, setFullscreenRequired] = useState(initial?.fullscreenRequired ?? true)
+  const [blockPaste, setBlockPaste] = useState(initial?.blockPaste ?? true)
+  const [runOnlyTerminal, setRunOnlyTerminal] = useState(initial?.runOnlyTerminal ?? true)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [language, setLanguage] = useState(initial?.language ?? 'python')
@@ -119,6 +123,14 @@ export default function AssignmentModal({
       setError('The closing time must be after the opening time.')
       return
     }
+    const parsedTabOuts = Number(allowedTabOuts)
+    if (
+      kind === 'seatwork' &&
+      (!Number.isInteger(parsedTabOuts) || parsedTabOuts < 0 || parsedTabOuts > 10)
+    ) {
+      setError('Allowed interruptions must be a whole number from 0 to 10.')
+      return
+    }
 
     const timingPayload = {
       kind,
@@ -127,7 +139,11 @@ export default function AssignmentModal({
       opensAt: timed && opensAt ? new Date(opensAt).toISOString() : null,
       closesAt: timed && closesAt ? new Date(closesAt).toISOString() : null,
       autoSubmit: timed ? autoSubmit : false,
-      showTimer: timed ? showTimer : false
+      showTimer: timed ? showTimer : false,
+      allowedTabOuts: kind === 'seatwork' ? parsedTabOuts : 1,
+      fullscreenRequired: kind === 'seatwork' ? fullscreenRequired : false,
+      blockPaste: kind === 'seatwork' ? blockPaste : false,
+      runOnlyTerminal: kind === 'seatwork' ? runOnlyTerminal : false
     }
 
     setBusy(true)
@@ -319,6 +335,68 @@ export default function AssignmentModal({
                   />
                   <span>Show the countdown to students</span>
                 </label>
+              </div>
+            </div>
+          </>
+        )}
+
+        {kind === 'seatwork' && (
+          <>
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="assignment-tab-outs">Allowed interruptions</label>
+                <input
+                  id="assignment-tab-outs"
+                  type="number"
+                  min={0}
+                  max={10}
+                  step={1}
+                  value={allowedTabOuts}
+                  onChange={(event) => setAllowedTabOuts(event.target.value)}
+                />
+                <span className="form-hint">
+                  0 submits on the first tab-out. 1 gives one warning, then submits on the next.
+                </span>
+              </div>
+              <div className="form-field">
+                <label className="checkbox-field" htmlFor="assignment-fullscreen">
+                  <input
+                    id="assignment-fullscreen"
+                    type="checkbox"
+                    checked={fullscreenRequired}
+                    onChange={(event) => setFullscreenRequired(event.target.checked)}
+                  />
+                  <span>Require fullscreen</span>
+                </label>
+                <span className="form-hint">Exiting fullscreen counts as an interruption.</span>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-field">
+                <label className="checkbox-field" htmlFor="assignment-block-paste">
+                  <input
+                    id="assignment-block-paste"
+                    type="checkbox"
+                    checked={blockPaste}
+                    onChange={(event) => setBlockPaste(event.target.checked)}
+                  />
+                  <span>Block paste and drag-drop</span>
+                </label>
+                <span className="form-hint">Blocked attempts are logged in the monitor.</span>
+              </div>
+              <div className="form-field">
+                <label className="checkbox-field" htmlFor="assignment-run-only">
+                  <input
+                    id="assignment-run-only"
+                    type="checkbox"
+                    checked={runOnlyTerminal}
+                    onChange={(event) => setRunOnlyTerminal(event.target.checked)}
+                  />
+                  <span>Run-only terminal</span>
+                </label>
+                <span className="form-hint">
+                  Shell input is disabled; Run file remains available.
+                </span>
               </div>
             </div>
           </>

@@ -247,28 +247,32 @@ integrity.
 
 ## 10. Professor class and assignment management
 
-| ID     | Feature                     | Description                                                                 | Status      |
-| ------ | --------------------------- | --------------------------------------------------------------------------- | ----------- |
-| PRO-01 | Professor dashboard         | Role-gated class grid after sign-in                                         | Implemented |
-| PRO-02 | Class CRUD                  | Create/edit/archive/restore/delete classes                                  | Implemented |
-| PRO-03 | Class metadata              | Year/section and academic year                                              | Implemented |
-| PRO-04 | Join code                   | Auto-generated; copy and rotate                                             | Implemented |
-| PRO-05 | Roster management           | Add by email, remove, bulk import emails/CSV                                | Implemented |
-| PRO-06 | Student reply badge         | “N new student replies” on class cards                                      | Implemented |
-| PRO-07 | New-submission badge        | “N new submissions” on class cards                                          | Implemented |
-| PRO-08 | Assignment CRUD             | Title, language, description, file name, starter code                       | Implemented |
-| PRO-09 | Assignment lifecycle        | Draft, published, archived, deleted                                         | Implemented |
-| PRO-10 | Publish scheduling          | `publish_at` hides published assignments until a future time                | Implemented |
-| PRO-11 | Due dates                   | Stored, displayed, used for late flags                                      | Implemented |
-| PRO-12 | Auto-tests toggle           | Enables student Test cases/Run tests                                        | Implemented |
-| PRO-13 | Test case CRUD              | Add/delete cases                                                            | Implemented |
-| PRO-14 | Hidden test cases           | `is_hidden` hides cases from students                                       | Implemented |
-| PRO-15 | Assignment file naming      | Default/derived workspace file name                                         | Implemented |
-| PRO-16 | Class/assignment CSV export | Gradebook export                                                            | Implemented |
-| PRO-17 | Assignment/seatwork tabs    | Class overview separates take-home work from in-person seatworks            | Implemented |
-| PRO-18 | Timing settings             | Type, duration, opening time, cut-off, auto-submit, show-timer              | Implemented |
-| PRO-19 | Session monitor             | Per-student status, start, deadline, last save, draft revision, review link | Implemented |
-| PRO-20 | Lazy expiry                 | Monitor refresh finalizes past-deadline sessions without `pg_cron`          | Implemented |
+| ID     | Feature                     | Description                                                                          | Status      |
+| ------ | --------------------------- | ------------------------------------------------------------------------------------ | ----------- |
+| PRO-01 | Professor dashboard         | Role-gated class grid after sign-in                                                  | Implemented |
+| PRO-02 | Class CRUD                  | Create/edit/archive/restore/delete classes                                           | Implemented |
+| PRO-03 | Class metadata              | Year/section and academic year                                                       | Implemented |
+| PRO-04 | Join code                   | Auto-generated; copy and rotate                                                      | Implemented |
+| PRO-05 | Roster management           | Add by email, remove, bulk import emails/CSV                                         | Implemented |
+| PRO-06 | Student reply badge         | “N new student replies” on class cards                                               | Implemented |
+| PRO-07 | New-submission badge        | “N new submissions” on class cards                                                   | Implemented |
+| PRO-08 | Assignment CRUD             | Title, language, description, file name, starter code                                | Implemented |
+| PRO-09 | Assignment lifecycle        | Draft, published, archived, deleted                                                  | Implemented |
+| PRO-10 | Publish scheduling          | `publish_at` hides published assignments until a future time                         | Implemented |
+| PRO-11 | Due dates                   | Stored, displayed, used for late flags                                               | Implemented |
+| PRO-12 | Auto-tests toggle           | Enables student Test cases/Run tests                                                 | Implemented |
+| PRO-13 | Test case CRUD              | Add/delete cases                                                                     | Implemented |
+| PRO-14 | Hidden test cases           | `is_hidden` hides cases from students                                                | Implemented |
+| PRO-15 | Assignment file naming      | Default/derived workspace file name                                                  | Implemented |
+| PRO-16 | Class/assignment CSV export | Gradebook export                                                                     | Implemented |
+| PRO-17 | Assignment/seatwork tabs    | Class overview separates take-home work from in-person seatworks                     | Implemented |
+| PRO-18 | Timing settings             | Type, duration, opening time, cut-off, auto-submit, show-timer                       | Implemented |
+| PRO-19 | Session monitor             | Per-student status, start, deadline, last save, draft revision, review link          | Implemented |
+| PRO-20 | Lazy expiry                 | Monitor refresh finalizes past-deadline sessions without `pg_cron`                   | Implemented |
+| PRO-21 | Exam controls               | Seatwork settings: interruptions allowed, fullscreen, paste block, run-only terminal | Implemented |
+| PRO-22 | Exam event monitor          | Tab-outs, fullscreen exits, blocked pastes, interruption counts, override state      | Implemented |
+| PRO-23 | Professor override          | Authenticated +5-minute extension or interruption excuse with audit trail            | Implemented |
+| PRO-24 | Exam-mode ICS               | Seatwork scores mark paste as N/A and keep the remaining evidence score              | Implemented |
 
 ---
 
@@ -415,12 +419,7 @@ integrity.
 | OUT-15 | Full keystroke logging                       | Typing rhythm uses edit intervals only           |
 | OUT-16 | FERPA/GDPR/legal policy pack                 | Not implemented                                  |
 | OUT-17 | Audit-log export                             | Not implemented                                  |
-| OUT-18 | Tab-out detection and strikes                | Phase 2, not implemented                         |
-| OUT-19 | Professor override / waiver code             | Phase 2, not implemented                         |
-| OUT-20 | Paste blocking and run-only terminal         | Phase 2, not implemented                         |
-| OUT-21 | Fullscreen enforcement                       | Phase 2, not implemented                         |
-| OUT-22 | MCQ quizzes                                  | Phase 2, not implemented; UniCode remains an IDE |
-| OUT-23 | Exam-mode ICS renormalization                | Phase 2, not implemented                         |
+| OUT-22 | MCQ quizzes                                  | Not implemented; UniCode remains an IDE          |
 
 ---
 

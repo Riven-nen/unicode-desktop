@@ -45,6 +45,10 @@ export interface AssignmentSummary {
   closesAt: string | null
   autoSubmit: boolean
   showTimer: boolean
+  allowedTabOuts: number
+  fullscreenRequired: boolean
+  blockPaste: boolean
+  runOnlyTerminal: boolean
 }
 
 export interface RosterStudent {
@@ -136,6 +140,7 @@ export interface IcsScoreRow {
   evidence?: IcsEvidenceValues | null
   bandReason?: string | null
   model?: string | null
+  examMode?: boolean
 }
 
 export interface CommentEntry {

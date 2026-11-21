@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
 import AssessmentBar from './components/AssessmentBar'
+import AssessmentWarningModal from './components/AssessmentWarningModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import EditorPane from './components/EditorPane'
 import MenuBar from './components/MenuBar'
@@ -199,6 +200,7 @@ export default function App(): React.ReactElement {
   // Timed assessment state. The server owns the deadline; this only displays
   // the countdown, autosaves drafts, and asks the server to finalize on time.
   const [activeAssessment, setActiveAssessment] = useState<StudentAssignment | null>(null)
+  const [assessmentWarning, setAssessmentWarning] = useState<string | null>(null)
   const activeAssessmentRef = useRef<StudentAssignment | null>(null)
   const assessmentFileRef = useRef<{ key: string | null; path: string | null }>({
     key: null,
@@ -296,6 +298,7 @@ export default function App(): React.ReactElement {
       activeAssessmentRef.current = null
       assessmentFileRef.current = { key: null, path: null }
       lastAssessmentContentRef.current = null
+      setAssessmentWarning(null)
       showToast(
         result.status === 'auto_submitted' || reason === 'auto'
           ? 'Time is up — the latest saved draft was submitted.'
@@ -308,7 +311,8 @@ export default function App(): React.ReactElement {
 
   const timedAssessment = useTimedAssessment({
     readContent: readAssessmentContent,
-    onSubmitted: handleAssessmentSubmitted
+    onSubmitted: handleAssessmentSubmitted,
+    onWarning: setAssessmentWarning
   })
 
   useEffect(() => {
@@ -534,6 +538,12 @@ export default function App(): React.ReactElement {
 
   const handleStartAssessment = async (assignment: StudentAssignment): Promise<void> => {
     if (!session) throw new Error('Sign in to start this assessment.')
+
+    // Fullscreen needs to be requested inside the click gesture before any
+    // awaited work. Failure is reported by the bar, not a hard start blocker.
+    if (assignment.kind === 'seatwork' && assignment.fullscreenRequired) {
+      void timedAssessment.enterFullscreen()
+    }
 
     const current = activeAssessmentRef.current
     if (current && current.id !== assignment.id) {
@@ -1171,6 +1181,7 @@ export default function App(): React.ReactElement {
     timedAssessment.reset()
     setActiveAssessment(null)
     activeAssessmentRef.current = null
+    setAssessmentWarning(null)
     assessmentFileRef.current = { key: null, path: null }
     lastAssessmentContentRef.current = null
     setStudentViewState(null)
@@ -1303,12 +1314,14 @@ export default function App(): React.ReactElement {
                   {activeAssessment && (
                     <AssessmentBar
                       assignment={activeAssessment}
+                      session={timedAssessment.session}
                       remainingMs={timedAssessment.remainingMs}
                       saving={timedAssessment.saving}
                       submitting={timedAssessment.submitting}
                       error={timedAssessment.error}
                       onOpenFile={() => void handleOpenAssignmentFile(activeAssessment)}
                       onSubmit={() => void handleSubmitTimedAssessment()}
+                      onEnterFullscreen={() => void timedAssessment.enterFullscreen()}
                     />
                   )}
                   {toolchain.status?.required && !toolchain.status.available && (
@@ -1337,6 +1350,11 @@ export default function App(): React.ReactElement {
                     onToggleWordWrap={() => handleToggleViewOption('wordWrap')}
                     onCloseFile={(name) => void handleCloseFile(name)}
                     onAnalysisChange={setActiveAnalysis}
+                    blockPaste={timedAssessment.session?.blockPaste ?? false}
+                    onBlockedPaste={() => {
+                      void timedAssessment.recordEvent('paste_blocked')
+                      showToast('Paste is blocked during this seatwork.')
+                    }}
                   />
 
                   <BottomPanel
@@ -1349,6 +1367,7 @@ export default function App(): React.ReactElement {
                     readSource={() => tracker.getModelValue(activeFile)}
                     assignment={activeAssignment}
                     previewRefreshToken={previewRefreshToken}
+                    runOnlyTerminal={timedAssessment.session?.runOnlyTerminal ?? false}
                     onSubmit={async () => {
                       if (!activeAssignment) return
                       if (activeAssignment.timingMode !== 'none') {
@@ -1435,6 +1454,13 @@ export default function App(): React.ReactElement {
                 confirmLabel="Submit"
                 onConfirm={() => finishSubmitConfirmation(true)}
                 onCancel={() => finishSubmitConfirmation(false)}
+              />
+            )}
+
+            {assessmentWarning && (
+              <AssessmentWarningModal
+                message={assessmentWarning}
+                onClose={() => setAssessmentWarning(null)}
               />
             )}
 

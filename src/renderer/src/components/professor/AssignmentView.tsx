@@ -147,6 +147,18 @@ export default function AssignmentView({
               {assignment.closesAt ? ` · Closes ${formatDue(assignment.closesAt)}` : ''}
               {assignment.autoSubmit ? ' · Auto-submit on' : ' · Manual submit only'}
               {!assignment.showTimer ? ' · Timer hidden' : ''}
+              {assignment.kind === 'seatwork'
+                ? ` · ${assignment.allowedTabOuts} interruption${
+                    assignment.allowedTabOuts === 1 ? '' : 's'
+                  } allowed`
+                : ''}
+              {assignment.kind === 'seatwork' && assignment.fullscreenRequired
+                ? ' · Fullscreen'
+                : ''}
+              {assignment.kind === 'seatwork' && assignment.blockPaste ? ' · Paste blocked' : ''}
+              {assignment.kind === 'seatwork' && assignment.runOnlyTerminal
+                ? ' · Run-only terminal'
+                : ''}
             </p>
           )}
         </div>

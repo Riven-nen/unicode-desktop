@@ -8,6 +8,17 @@ export interface StudentAssessmentSession {
   submittedAt: string | null
   lastSavedAt: string | null
   draftRevision: number
+  examMode: boolean
+  allowedTabOuts: number
+  tabOutCount: number
+  fullscreenExitCount: number
+  blockedPasteCount: number
+  interruptionCount: number
+  fullscreenRequired: boolean
+  blockPaste: boolean
+  runOnlyTerminal: boolean
+  overrideNote: string | null
+  overrideAt: string | null
   /** Corrects the local clock for countdowns; the server still owns the deadline. */
   serverOffsetMs: number
 }
@@ -45,6 +56,10 @@ export interface StudentAssignment {
   closesAt: string | null
   autoSubmit: boolean
   showTimer: boolean
+  allowedTabOuts: number
+  fullscreenRequired: boolean
+  blockPaste: boolean
+  runOnlyTerminal: boolean
   latestSubmission: StudentSubmission | null
   /** The student's single attempt, when this is a timed assessment. */
   session: StudentAssessmentSession | null

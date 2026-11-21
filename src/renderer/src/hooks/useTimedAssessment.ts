@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  recordAssessmentEvent,
   saveAssessmentDraft,
   startAssessmentSession,
   submitAssessmentSession
 } from '../lib/assessments'
 import { assessmentRemainingMs } from '../lib/assessmentTime'
-import type { AssessmentSession, AssessmentSubmissionResult } from '../types/assessment'
+import type {
+  AssessmentEventResult,
+  AssessmentEventType,
+  AssessmentSession,
+  AssessmentSubmissionResult
+} from '../types/assessment'
 
 export type SubmitReason = 'manual' | 'auto'
 
@@ -13,6 +19,8 @@ interface UseTimedAssessmentOptions {
   /** Reads the live editor content, or the file on disk after a crash. */
   readContent: () => Promise<string | null>
   onSubmitted: (result: AssessmentSubmissionResult, reason: SubmitReason) => void
+  /** Shown when the server records a warning-level exam interruption. */
+  onWarning?: (message: string) => void
 }
 
 export interface TimedAssessmentApi {
@@ -25,6 +33,11 @@ export interface TimedAssessmentApi {
   start: (assignmentId: string) => Promise<AssessmentSession>
   submit: (reason?: SubmitReason) => Promise<AssessmentSubmissionResult | null>
   saveNow: () => Promise<void>
+  recordEvent: (
+    eventType: AssessmentEventType,
+    metadata?: Record<string, unknown>
+  ) => Promise<AssessmentEventResult | null>
+  enterFullscreen: () => Promise<boolean>
   reset: () => void
 }
 
@@ -41,7 +54,8 @@ function messageOf(error: unknown): string {
  */
 export function useTimedAssessment({
   readContent,
-  onSubmitted
+  onSubmitted,
+  onWarning
 }: UseTimedAssessmentOptions): TimedAssessmentApi {
   const [session, setSession] = useState<AssessmentSession | null>(null)
   const [remainingMs, setRemainingMs] = useState<number | null>(null)
@@ -56,10 +70,12 @@ export function useTimedAssessment({
   const revisionRef = useRef(0)
   const readRef = useRef(readContent)
   const submittedRef = useRef(onSubmitted)
+  const warningRef = useRef(onWarning)
 
   useEffect(() => {
     readRef.current = readContent
     submittedRef.current = onSubmitted
+    warningRef.current = onWarning
   })
 
   useEffect(() => {
@@ -114,6 +130,85 @@ export function useTimedAssessment({
     }
   }, [])
 
+  const exitFullscreen = useCallback((): void => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined)
+    }
+  }, [])
+
+  const enterFullscreen = useCallback(async (): Promise<boolean> => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      }
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  const recordEvent = useCallback(
+    async (
+      eventType: AssessmentEventType,
+      metadata: Record<string, unknown> = {}
+    ): Promise<AssessmentEventResult | null> => {
+      const current = sessionRef.current
+      if (!current || current.status !== 'active' || finalizingRef.current) return null
+
+      try {
+        const result = await recordAssessmentEvent({
+          sessionId: current.sessionId,
+          eventType,
+          metadata
+        })
+        if (result.status !== 'active') {
+          sessionRef.current = null
+          setSession(null)
+          setRemainingMs(null)
+          exitFullscreen()
+          submittedRef.current(
+            {
+              submissionId: result.submissionId ?? current.sessionId,
+              status: result.status,
+              submittedAt: result.serverNow
+            },
+            'auto'
+          )
+          return result
+        }
+
+        setSession((previous) =>
+          previous && previous.sessionId === current.sessionId
+            ? {
+                ...previous,
+                tabOutCount: result.tabOutCount,
+                fullscreenExitCount: result.fullscreenExitCount,
+                blockedPasteCount: result.blockedPasteCount,
+                interruptionCount: result.interruptionCount,
+                allowedTabOuts: result.allowedTabOuts,
+                serverOffsetMs: result.serverOffsetMs
+              }
+            : previous
+        )
+
+        if (result.action === 'warning') {
+          const label =
+            eventType === 'fullscreen_exit'
+              ? 'Fullscreen was exited'
+              : 'You left the assessment window'
+          warningRef.current?.(
+            `${label}. This is interruption ${result.interruptionCount} of ${result.allowedTabOuts} allowed. The next interruption will submit automatically.`
+          )
+        }
+        return result
+      } catch (eventError) {
+        setError(messageOf(eventError))
+        return null
+      }
+    },
+    [exitFullscreen]
+  )
+
   const submit = useCallback(
     async (reason: SubmitReason = 'manual'): Promise<AssessmentSubmissionResult | null> => {
       const current = sessionRef.current
@@ -128,6 +223,7 @@ export function useTimedAssessment({
         setSession(null)
         setRemainingMs(null)
         setError(null)
+        exitFullscreen()
         submittedRef.current(result, reason)
         return result
       } catch (submitError) {
@@ -138,7 +234,7 @@ export function useTimedAssessment({
         setSubmitting(false)
       }
     },
-    []
+    [exitFullscreen]
   )
 
   const reset = useCallback((): void => {
@@ -146,12 +242,13 @@ export function useTimedAssessment({
     finalizingRef.current = false
     expiredRef.current = false
     revisionRef.current = 0
+    exitFullscreen()
     setSession(null)
     setRemainingMs(null)
     setSaving(false)
     setSubmitting(false)
     setError(null)
-  }, [])
+  }, [exitFullscreen])
 
   // Countdown + deadline finalization. The interval keeps running while the
   // student is in the dashboard so a forgotten timer still auto-submits.
@@ -191,6 +288,70 @@ export function useTimedAssessment({
     }
   }, [autosaveSessionId, autosaveActive, saveNow])
 
+  // Exam guard: tab-out/window blur after a short grace. Duplicate blur +
+  // visibility events are coalesced into one server event.
+  const examMode = session?.examMode ?? false
+  const examActive = session?.status === 'active'
+  const examSessionId = session?.sessionId ?? null
+  const fullscreenRequired = session?.fullscreenRequired ?? false
+
+  useEffect(() => {
+    if (!examActive || !examMode || !examSessionId) return
+    let timer: number | null = null
+    const clearTimer = (): void => {
+      if (timer !== null) {
+        window.clearTimeout(timer)
+        timer = null
+      }
+    }
+    const schedule = (): void => {
+      clearTimer()
+      timer = window.setTimeout(() => {
+        timer = null
+        // A fullscreen exam is still the assessment surface even if the window
+        // reports a transient blur while entering/leaving fullscreen.
+        if (
+          !document.fullscreenElement &&
+          (document.visibilityState === 'hidden' || !document.hasFocus())
+        ) {
+          void recordEvent('tab_out', { source: 'window' })
+        }
+      }, 2500)
+    }
+    const handleVisibility = (): void => {
+      if (document.visibilityState === 'hidden') schedule()
+      else clearTimer()
+    }
+    const handleBlur = (): void => schedule()
+    const handleFocus = (): void => clearTimer()
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('blur', handleBlur)
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      clearTimer()
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('blur', handleBlur)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [examActive, examMode, examSessionId, recordEvent])
+
+  // The first real exit from fullscreen counts as an interruption. Initial
+  // state is captured so entering fullscreen does not fire an event.
+  useEffect(() => {
+    if (!examActive || !examMode || !fullscreenRequired || !examSessionId) return
+    let wasFullscreen = document.fullscreenElement !== null
+    const handleFullscreenChange = (): void => {
+      const isFullscreen = document.fullscreenElement !== null
+      if (wasFullscreen && !isFullscreen) {
+        void recordEvent('fullscreen_exit')
+      }
+      wasFullscreen = isFullscreen
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [examActive, examMode, fullscreenRequired, examSessionId, recordEvent])
+
   return {
     session,
     remainingMs,
@@ -200,6 +361,8 @@ export function useTimedAssessment({
     start,
     submit,
     saveNow,
+    recordEvent,
+    enterFullscreen,
     reset
   }
 }

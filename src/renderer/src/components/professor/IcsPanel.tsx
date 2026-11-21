@@ -24,6 +24,7 @@ export default function IcsPanel({
 }: IcsPanelProps): React.ReactElement {
   const [heatmapOpen, setHeatmapOpen] = useState(false)
   const evidence = score?.evidence ?? null
+  const examMode = score?.examMode === true
 
   const ledger = evidence
     ? [
@@ -35,9 +36,9 @@ export default function IcsPanel({
         },
         {
           key: 'paste',
-          label: 'Paste',
-          score: value(evidence.paste),
-          contribution: -40.5 * value(evidence.paste)
+          label: examMode ? 'Paste (N/A)' : 'Paste',
+          score: examMode ? 0 : value(evidence.paste),
+          contribution: examMode ? 0 : -40.5 * value(evidence.paste)
         },
         {
           key: 'transcription',

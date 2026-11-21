@@ -17,6 +17,8 @@ interface BottomPanelProps {
   assignment: StudentAssignment | null
   /** Bumped after images are added so the live preview reloads. */
   previewRefreshToken: number
+  /** Exam mode: allow Run file but disable arbitrary shell input. */
+  runOnlyTerminal: boolean
   onSubmit: () => Promise<void>
   onSubmitted: () => void
 }
@@ -34,6 +36,7 @@ export default function BottomPanel({
   readSource,
   assignment,
   previewRefreshToken,
+  runOnlyTerminal,
   onSubmit,
   onSubmitted
 }: BottomPanelProps): React.ReactElement {
@@ -167,6 +170,7 @@ export default function BottomPanel({
               language={language}
               toolchain={toolchain}
               onRecheckToolchain={onRecheckToolchain}
+              runOnly={runOnlyTerminal}
             />
           </div>
         )}

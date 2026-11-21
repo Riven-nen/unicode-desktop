@@ -301,6 +301,27 @@ Expected:
 
 ---
 
+## 6B. Exam controls (Phase 2/3)
+
+- [ ] **P0** A seatwork editor exposes allowed interruptions, fullscreen, paste block, and run-only terminal settings.
+- [ ] **P0** Starting a seatwork requests fullscreen when required.
+- [ ] **P0** Exiting fullscreen shows a warning and increments the interruption counter.
+- [ ] **P0** Leaving the window for more than ~2.5 seconds records a tab-out; a quick switch does not.
+- [ ] **P0** The first interruption warns when allowed = 1; the next auto-submits.
+- [ ] **P0** Allowed = 0 auto-submits on the first interruption.
+- [ ] **P0** Paste and drag-drop are rejected during a seatwork; a toast appears and the monitor count rises.
+- [ ] **P0** Shell input is disabled in run-only mode, but Run file still works.
+- [ ] **P0** The countdown bar shows interruptions, blocked pastes, fullscreen re-entry, and override state.
+- [ ] **P0** The professor monitor shows tab-outs, fullscreen exits, blocked pastes, interruption count, and override note.
+- [ ] **P0** +5m extends the server deadline and updates the student countdown.
+- [ ] **P0** Excuse resets interruptions and writes an override audit row.
+- [ ] **P0** Recompute on a seatwork submission marks paste as N/A and shows the exam-mode reason.
+- [ ] **P1** A submitted session cannot be extended.
+- [ ] **P1** An override is visible in `assessment_overrides` and the event audit.
+- [ ] **P1** A student cannot read another student’s exam events or apply overrides.
+
+---
+
 ## 7. Editor and language intelligence
 
 - [ ] **P0** Monaco opens with syntax highlighting for Python/Java/C/C++.

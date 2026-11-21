@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, PlayCircle, RefreshCw, Users } from 'lucide-react'
-import { fetchAssessmentSessions } from '../../lib/assessments'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  PlayCircle,
+  RefreshCw,
+  TimerReset,
+  Users
+} from 'lucide-react'
+import { applyAssessmentOverride, fetchAssessmentSessions } from '../../lib/assessments'
 import { initialsOf } from '../../lib/initials'
 import { sessionStatusLabel, type AssessmentSessionSummary } from '../../types/assessment'
 
@@ -38,6 +46,7 @@ export default function AssessmentMonitor({
   const [items, setItems] = useState<AssessmentSessionSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [overrideBusy, setOverrideBusy] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const [clock, setClock] = useState(() => Date.now())
 
@@ -81,6 +90,32 @@ export default function AssessmentMonitor({
     (session) => session.status === 'submitted' || session.status === 'auto_submitted'
   ).length
   const notStarted = Math.max(0, rosterCount - sessions.length)
+
+  const applyOverride = async (
+    sessionId: string,
+    action: 'extend_time' | 'excuse_interruption'
+  ): Promise<void> => {
+    setOverrideBusy(sessionId)
+    try {
+      await applyAssessmentOverride({
+        sessionId,
+        action,
+        minutes: action === 'extend_time' ? 5 : undefined,
+        reason:
+          action === 'extend_time'
+            ? 'Professor extended time from the session monitor.'
+            : 'Professor excused interruptions from the session monitor.'
+      })
+      setVersion((current) => current + 1)
+      setError(null)
+    } catch (overrideError) {
+      setError(
+        overrideError instanceof Error ? overrideError.message : 'Could not apply the override.'
+      )
+    } finally {
+      setOverrideBusy(null)
+    }
+  }
 
   return (
     <section className="assessment-monitor">
@@ -134,6 +169,8 @@ export default function AssessmentMonitor({
                 <th>Deadline</th>
                 <th>Last saved</th>
                 <th>Draft</th>
+                <th>Interruptions</th>
+                <th>Exam events</th>
                 <th />
               </tr>
             </thead>
@@ -176,19 +213,73 @@ export default function AssessmentMonitor({
                     <td>{formatMoment(session.lastSavedAt)}</td>
                     <td>rev {session.draftRevision}</td>
                     <td>
-                      {session.finalSubmissionId ? (
-                        <button
-                          className="icon-text-btn"
-                          onClick={() => onOpenSubmission(session.finalSubmissionId as string)}
+                      {session.examMode ? (
+                        <span
+                          className={`assessment-interruptions ${
+                            session.interruptionCount > session.allowedTabOuts ? 'is-over' : ''
+                          }`}
                         >
-                          Review
-                        </button>
-                      ) : expired ? (
-                        <span className="assessment-pending">
-                          <AlertTriangle size={12} /> Pending
+                          {session.interruptionCount}/{session.allowedTabOuts}
                         </span>
                       ) : (
                         <span className="assessment-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {session.examMode ? (
+                        <span className="assessment-event-list">
+                          <span title="Tab-outs">Tab {session.tabOutCount}</span>
+                          <span title="Fullscreen exits">Full {session.fullscreenExitCount}</span>
+                          <span title="Blocked pastes">Paste {session.blockedPasteCount}</span>
+                        </span>
+                      ) : (
+                        <span className="assessment-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="assessment-row-actions">
+                        {session.finalSubmissionId ? (
+                          <button
+                            className="icon-text-btn"
+                            onClick={() => onOpenSubmission(session.finalSubmissionId as string)}
+                          >
+                            Review
+                          </button>
+                        ) : expired ? (
+                          <span className="assessment-pending">
+                            <AlertTriangle size={12} /> Pending
+                          </span>
+                        ) : null}
+                        {running && session.examMode && (
+                          <>
+                            <button
+                              className="icon-text-btn"
+                              disabled={overrideBusy === session.sessionId}
+                              onClick={() => void applyOverride(session.sessionId, 'extend_time')}
+                              title="Extend this session by 5 minutes"
+                            >
+                              <TimerReset size={11} /> +5m
+                            </button>
+                            <button
+                              className="icon-text-btn"
+                              disabled={
+                                overrideBusy === session.sessionId ||
+                                session.interruptionCount === 0
+                              }
+                              onClick={() =>
+                                void applyOverride(session.sessionId, 'excuse_interruption')
+                              }
+                              title="Excuse all recorded interruptions"
+                            >
+                              Excuse
+                            </button>
+                          </>
+                        )}
+                      </span>
+                      {session.overrideNote && (
+                        <span className="assessment-override-note" title={session.overrideNote}>
+                          Override
+                        </span>
                       )}
                     </td>
                   </tr>

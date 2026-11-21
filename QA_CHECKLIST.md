@@ -130,6 +130,13 @@ should pass before the demo.
 - [ ] A linked CSS file in the class folder loads in the preview.
 - [ ] Refresh and Browser actions work.
 - [ ] HTML/CSS assignments show no Judge0 Test cases tab.
+- [ ] Seatwork settings expose allowed interruptions, fullscreen, paste block,
+      and run-only terminal.
+- [ ] First allowed tab-out/fullscreen exit warns; the next auto-submits.
+- [ ] Paste and drag-drop are blocked during a seatwork.
+- [ ] Run-only terminal disables shell input but keeps Run file.
+- [ ] Professor +5m and Excuse actions update the student and leave an audit note.
+- [ ] Seatwork ICS marks paste N/A.
 - [ ] The project opens `profile-project/index.html` and creates that folder.
 - [ ] New Folder creates nested project folders that persist after refresh.
 - [ ] Add Images copies images into the selected folder; duplicates get a

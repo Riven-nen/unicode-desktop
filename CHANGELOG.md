@@ -24,6 +24,12 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   format-on-type/paste with Tab-accepted suggestions.
 - Seed now computes demo ICS rows through the live v3 `recompute_ics` RPC using
   synthetic `edit_stats`/`focus_stats`, so the demo matches the shipped model.
+- **Phase 2 exam controls:** seatwork settings for allowed interruptions,
+  fullscreen, paste blocking, and run-only terminal; server-side tab-out and
+  fullscreen warnings; auto-submit after the allowance; event audit; professor
+  +5-minute/override actions with an audit trail.
+- **Phase 3 exam ICS:** seatwork scores mark paste as N/A and preserve the
+  remaining evidence score.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a
