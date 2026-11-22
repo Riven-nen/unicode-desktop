@@ -1,6 +1,6 @@
 # UniCode Demo Script — Exam Integrity and Grading
 
-**Target runtime:** 14:00–14:30  
+**Target runtime:** 14:30, 15:00 max  
 **Narrators:** Mau (lead), Ella, CJ, Laurence  
 **Focus:** exam mode, interruption keys, suspicious-activity review, and faster grading.  
 **Tone:** Short sentences, conversational, light jargon. Do not read the UI.
@@ -51,18 +51,19 @@ Have these ready:
 | Time        | Segment                                                | Lead           | Main screen                |
 | ----------- | ------------------------------------------------------ | -------------- | -------------------------- |
 | 0:00–3:45   | Student experience and first interruption              | Mau + Ella     | Student desktop app        |
-| 3:45–10:30  | Professor key, second interruption, grading, and cases | Mau + CJ       | Professor desktop app      |
-| 10:30–13:45 | Admin console and metric                               | Mau + Laurence | Admin web console          |
-| 13:45–14:15 | Recap                                                  | Mau            | Split screen or title card |
+| 3:45–10:45  | Professor key, second interruption, grading, and cases | Mau + CJ       | Professor desktop app      |
+| 10:45–14:00 | Admin console and metric                               | Mau + Laurence | Admin web console          |
+| 14:00–14:30 | Recap                                                  | Mau            | Split screen or title card |
 
 ### Case files at a glance
 
-| Case | What it shows                           | Where to click                                        |
-| ---- | --------------------------------------- | ----------------------------------------------------- |
-| 1    | Same pasted block across two students   | Student Two → **Paste similarity**                    |
-| 2    | Paste-heavy flag with full pasted text  | Student Three → **Integrity Score** + **Paste audit** |
-| 3    | How the code changed between snapshots  | Student Two → **Timeline** → **Diff**                 |
-| 4    | No paste, but a line-chunk/away pattern | Student Three → **Integrity Score** ledger            |
+| Case | What it shows                           | Where to click                                                 |
+| ---- | --------------------------------------- | -------------------------------------------------------------- |
+| 1    | Full-code similarity, Student One/Two   | Assignment → **Cross-student similarity** → **Run similarity** |
+| 2    | Paste similarity, Student Two/Three     | Student Two → **Paste similarity**                             |
+| 3    | Paste-heavy flag with full pasted text  | Student Three → **Integrity Score** + **Paste audit**          |
+| 4    | How the code changed between snapshots  | Student Two → **Timeline** → **Diff**                          |
+| 5    | No paste, but a line-chunk/away pattern | Student Three → **Integrity Score** ledger                     |
 
 ---
 
@@ -226,22 +227,31 @@ Have these ready:
 **CJ:**  
 “Comments are line-anchored. Grades stay private until the professor releases them.”
 
-### 7:45 — Case 1: same pasted block, two students
+### 7:45 — Case 1: full-code similarity run
+
+**SCREEN:** From CS101, open the **Fibonacci** assignment. Scroll to **Cross-student similarity**. Click **Run similarity**.
+
+**MAU:**  
+“This is the full-code check, not the paste check. It compares the final snapshot of every student’s latest submission using shared token sequences. Student One and Student Two come back at **100%** — a structural copy.”
+
+**SCREEN:** Point to the threshold selector and the **Inspect** buttons.
+
+**MAU:**  
+“Renaming variables doesn’t hide it, because identifiers are normalized. The threshold lets you tighten or loosen the list, and Inspect opens either submission.”
+
+### 8:25 — Case 2: paste similarity
 
 **SCREEN:** Open **Student Two’s Fibonacci submission**. Point to the **Paste similarity** panel.
 
 **MAU:**  
-“This is a seeded case. Student Two pasted a 156-character Fibonacci block. The class-scoped similarity run finds a **100% match** in Student Three’s submission.”
+“The paste check tells a different story. Student Two and Student Three share the same 156-character pasted block. Student Two pasted first; Student Three about a day later.”
 
-**SCREEN:** Point to the two paste timestamps.
-
-**MAU:**  
-“The system doesn’t decide who copied whom. It shows the match and the timing — Student Two pasted first, Student Three about a day later. That’s the starting point for a conversation.”
+**SCREEN:** Point to the match percentage and the two timestamps.
 
 **MAU:**  
-“This is the difference between a suspicion and a lead you can actually act on.”
+“Two similarity views, two different questions: who has the same final code, and who pasted the same text.”
 
-### 8:30 — Case 2: paste-heavy flag
+### 9:00 — Case 3: paste-heavy flag
 
 **SCREEN:** Open **Student Three’s submission**. Show the **Integrity Score** — 5.0, flag. Point to the evidence ledger.
 
@@ -258,7 +268,7 @@ Have these ready:
 **MAU:**  
 “The diff shows the block landing in one moment. That is much clearer than staring at the final file and wondering how it got there.”
 
-### 9:15 — Case 3: snapshot history and the diff
+### 9:40 — Case 4: snapshot history and the diff
 
 **SCREEN:** Open **Student Two’s timeline**. Select the second stop, then click **Diff**.
 
@@ -268,7 +278,7 @@ Have these ready:
 **MAU:**  
 “Normal revision looks gradual — small edits, corrections, a little backtracking. A paste stop looks like a sudden block. The professor can tell the difference without reading every line from scratch.”
 
-### 9:50 — Case 4: no paste, still suspicious
+### 10:10 — Case 5: no paste, still suspicious
 
 **SCREEN:** Return to Student Three’s **Integrity Score** panel. Point to the transcription and away evidence.
 
@@ -283,7 +293,7 @@ Have these ready:
 **MAU:**  
 “Important: this is a review aid, not proof. The system surfaces evidence. The professor makes the judgment.”
 
-### 10:30 — Transition
+### 10:45 — Transition
 
 **MAU:**  
 “The professor handles teaching, monitoring, and review. Account management and the global metric live in the admin console.”
@@ -292,28 +302,28 @@ Have these ready:
 
 # Segment 3 — Admin Console
 
-### 10:30 - Admin console
+### 10:45 - Admin console
 
 **SCREEN:** Admin browser. Show accounts and roles.
 
 **MAU:**  
 “The admin console is a separate web app on the same backend. It is not part of the desktop bundle.”
 
-### 10:55 - Accounts and roles
+### 11:10 - Accounts and roles
 
 **SCREEN:** Search a user, show the role dropdown.
 
 **MAU:**  
 “Admins manage accounts and roles. Guards prevent changing your own role or demoting the last admin.”
 
-### 11:15 - Classes and join codes
+### 11:30 - Classes and join codes
 
 **SCREEN:** Scroll to **Classes**.
 
 **LAURENCE:**  
 “Admins can review every class, see the professor, and copy the join code students use to enroll.”
 
-### 11:35 - ICS metric
+### 11:50 - ICS metric
 
 **SCREEN:** Scroll to **ICS metric**. Drag **Authored weight**, then **Paste**. Point to the changing hint and band map.
 
@@ -328,7 +338,7 @@ Have these ready:
 **MAU:**  
 “Saving creates a version. Re-applying re-scores stored v3 evidence without reading student code. Legacy v2 rows stay unchanged.”
 
-### 12:30 - ICS demo
+### 12:45 - ICS demo
 
 **SCREEN:** Click **ICS demo**. Type or paste a few lines.
 
@@ -342,7 +352,7 @@ Have these ready:
 
 **SCREEN:** Close the demo.
 
-### 13:15 - Security boundary
+### 13:30 - Security boundary
 
 **SCREEN:** Return to the dashboard.
 
@@ -352,7 +362,7 @@ Have these ready:
 **MAU:**  
 “That is enforced with Row-Level Security and guarded database functions, not just hidden buttons.”
 
-### 13:45 - Recap
+### 14:00 - Recap
 
 **SCREEN:** Split screen or title card.
 

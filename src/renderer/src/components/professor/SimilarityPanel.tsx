@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Copy } from 'lucide-react'
+import { Copy, RefreshCw } from 'lucide-react'
 import { fetchSubmissionContents } from '../../lib/professorQueries'
 import { findSimilarPairs } from '../../lib/similarity'
 import type { SimilarityEntry } from '../../lib/similarity'
@@ -27,28 +27,37 @@ export default function SimilarityPanel({
 }: SimilarityPanelProps): React.ReactElement {
   const [entries, setEntries] = useState<SimilarityEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [threshold, setThreshold] = useState<number>(0.65)
+  const [threshold, setThreshold] = useState<number>(0.6)
+  const [version, setVersion] = useState(0)
+  const [running, setRunning] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     void fetchSubmissionContents(assignmentId)
       .then((rows) => {
-        if (!cancelled) setEntries(rows)
+        if (!cancelled) {
+          setEntries(rows)
+          setError(null)
+        }
       })
       .catch((loadError) => {
         if (cancelled) return
         setEntries([])
         setError(loadError instanceof Error ? loadError.message : 'Could not compare submissions.')
       })
+      .finally(() => {
+        if (!cancelled) setRunning(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [assignmentId])
+  }, [assignmentId, version])
 
   const pairs = useMemo(
     () => (entries ? findSimilarPairs(entries, threshold) : []),
     [entries, threshold]
   )
+  const busy = running || entries === null
 
   return (
     <section className="similarity-panel">
@@ -56,19 +65,33 @@ export default function SimilarityPanel({
         <h3>
           <Copy size={14} /> Cross-student similarity
         </h3>
-        <label className="similarity-threshold">
-          Threshold
-          <select
-            value={String(threshold)}
-            onChange={(event) => setThreshold(Number(event.target.value))}
+        <div className="similarity-controls">
+          <label className="similarity-threshold">
+            Threshold
+            <select
+              value={String(threshold)}
+              onChange={(event) => setThreshold(Number(event.target.value))}
+            >
+              {THRESHOLDS.map((value) => (
+                <option key={value} value={value}>
+                  {Math.round(value * 100)}%
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              setRunning(true)
+              setVersion((current) => current + 1)
+            }}
+            disabled={busy}
+            title="Compare the final snapshot of every student's latest submission"
           >
-            {THRESHOLDS.map((value) => (
-              <option key={value} value={value}>
-                {Math.round(value * 100)}%
-              </option>
-            ))}
-          </select>
-        </label>
+            <RefreshCw size={12} className={busy ? 'is-spinning' : undefined} />{' '}
+            {busy ? 'Comparing…' : 'Run similarity'}
+          </button>
+        </div>
       </header>
 
       {error && <div className="professor-error">{error}</div>}

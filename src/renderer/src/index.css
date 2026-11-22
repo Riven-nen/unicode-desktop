@@ -4742,6 +4742,13 @@ input:focus-visible,
   font-size: 12.5px;
   font-weight: 600;
 }
+.similarity-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .similarity-threshold {
   display: flex;
   align-items: center;

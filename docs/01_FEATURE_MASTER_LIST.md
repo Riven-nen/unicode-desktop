@@ -304,11 +304,11 @@ integrity.
 | REV-02 | Sort/filter               | Sort by ICS/time; filter pass/review/flag                                                       | Implemented                     |
 | REV-03 | Submission CSV            | Export visible submission rows                                                                  | Implemented                     |
 | REV-04 | Assignment analytics      | Submitted/enrolled, late, average ICS/grade, band distribution                                  | Implemented                     |
-| REV-05 | Token similarity panel    | Cross-student final-snapshot token similarity with threshold                                    | Implemented                     |
+| REV-05 | Token similarity panel    | Cross-student final-snapshot token similarity with Run similarity and 60/75/90% threshold       | Implemented                     |
 | REV-06 | Submission detail         | Student, assignment, class, band, ICS                                                           | Implemented                     |
 | REV-07 | Snapshot timeline         | Horizontally scrollable rail with large click targets                                           | Implemented                     |
 | REV-08 | Diff mode                 | Compare selected snapshot to previous in inline Monaco diff                                     | Implemented                     |
-| REV-09 | Paste similarity          | Red Paste detected badge; matched cross-student paste                                           | Implemented                     |
+| REV-09 | Paste similarity          | Red Paste detected badge; matched cross-student paste with full text and timestamps             | Implemented                     |
 | REV-10 | Typing heatmap            | Authorship scatter plot, median gap, longest pause                                              | Implemented                     |
 | REV-11 | ICS panel                 | Weighted terms, score, band, explanation                                                        | Implemented                     |
 | REV-12 | Inline comments           | Line-anchored comments with threaded replies                                                    | Implemented                     |
@@ -326,8 +326,13 @@ integrity.
 ### Review caveats
 
 - Diff mode is disabled for the first snapshot.
-- Paste similarity is a review signal, not a plagiarism verdict.
-- Token similarity normalizes identifiers but does not prove copying.
+- Paste similarity is a review signal, not a plagiarism verdict. It only
+  compares recorded paste events.
+- Token similarity normalizes identifiers but does not prove copying. It
+  compares the final snapshot of each student’s latest submission, not every
+  snapshot.
+- The token similarity panel is separate from the ICS score; it is a professor
+  review tool.
 - The local submission terminal executes student code with the professor's OS
   permissions, outside the Judge0 sandbox. It should only be used for trusted
   review runs.
