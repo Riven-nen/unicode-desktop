@@ -156,6 +156,9 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | TRK-15 | History hydration                  | Loads recent snapshots/pastes for the signed-in user                                             | Implemented     |
 | TRK-16 | Typing rhythm data                 | Edit-gap samples available to the professor heatmap                                              | Implemented     |
 | TRK-17 | Paste count                        | Submission summaries count paste events                                                          | Implemented     |
+| TRK-18 | Snapshot retention                 | Opt-in dry-run/apply pruning of redundant auto snapshots after evaluation                        | Implemented     |
+| TRK-19 | Frozen ICS                         | Pruning keeps the final/paste/manual evidence and blocks recompute on pruned submissions         | Implemented     |
+| TRK-20 | 30 s snapshot cadence              | Minimum automatic snapshot spacing cut from 10 s to 30 s                                         | Implemented     |
 
 ### Tracking scope note
 
@@ -166,23 +169,26 @@ snapshots. It is not a raw per-keystroke surveillance log.
 
 ## 7. ICS — Integrity Confidence Score
 
-| ID     | Feature             | Description                                                                                                | Status      |
-| ------ | ------------------- | ---------------------------------------------------------------------------------------------------------- | ----------- |
-| ICS-01 | Weighted score      | ICS v3 evidence ledger: 50 + 45 × (authored − negative evidence); v2 weights retained only for legacy rows | Implemented |
-| ICS-02 | Bands               | `pass` ≥ 80 with ≥300 chars, `review` ≥ 40, otherwise `flag`; low confidence or short work cannot pass     | Implemented |
-| ICS-03 | Server recompute    | `recompute_ics` RPC                                                                                        | Implemented |
-| ICS-04 | Bulk recompute      | `recompute_ics_for_assignment` RPC                                                                         | Implemented |
-| ICS-05 | Stored terms        | `ics_scores` stores score, band, confidence, evidence JSON, band reason, model, timestamp                  | Implemented |
-| ICS-06 | Professor ICS panel | Score, band, evidence ledger, confidence, band reason                                                      | Implemented |
-| ICS-07 | Typing heatmap      | Clicking Typing rhythm opens the typing-rhythm scatter plot                                                | Implemented |
-| ICS-08 | ICS demo            | Student-facing live Monaco playground; typing/pasting/idle update metrics                                  | Implemented |
-| ICS-09 | Demo responsiveness | Gauge and active signal highlight update in real time                                                      | Implemented |
-| ICS-10 | Novel paste term    | Only pasted text that did not exist in an earlier snapshot counts; internal moves are excluded             | Implemented |
-| ICS-11 | Authorship signal   | Corrections, reworks, one revisit per excursion, and line chunks; pauses are neutral                       | Implemented |
-| ICS-12 | Transcription cap   | Strong line-chunk pattern cannot pass; corroborated pattern flags                                          | Implemented |
-| ICS-13 | Confidence gate     | Volume/coverage confidence; limited evidence is held at review                                             | Implemented |
-| ICS-14 | Demo recording      | Scenario name → Start/Stop, score timeline sampled every 500 ms, saved runs                                | Implemented |
-| ICS-15 | Demo keylog         | Change events, raw keydown/keyup, cursor/selection, focus/blur, copy/cut/paste; JSON export                | Implemented |
+| ID     | Feature             | Description                                                                                              | Status      |
+| ------ | ------------------- | -------------------------------------------------------------------------------------------------------- | ----------- |
+| ICS-01 | Weighted score      | ICS v3 evidence ledger: 50 + 45 × (authored − negative evidence) by default; admin-adjustable            | Implemented |
+| ICS-02 | Bands               | Default `pass` ≥ 80 with ≥300 chars, `review` ≥ 40, otherwise `flag`; admin-adjustable                   | Implemented |
+| ICS-03 | Server recompute    | `recompute_ics` RPC                                                                                      | Implemented |
+| ICS-04 | Bulk recompute      | `recompute_ics_for_assignment` RPC                                                                       | Implemented |
+| ICS-05 | Stored terms        | `ics_scores` stores score, band, confidence, evidence JSON, band reason, model, timestamp                | Implemented |
+| ICS-06 | Professor ICS panel | Score, band, evidence ledger, confidence, band reason                                                    | Implemented |
+| ICS-07 | Typing heatmap      | Clicking Typing rhythm opens the typing-rhythm scatter plot                                              | Implemented |
+| ICS-08 | ICS demo            | Student-facing live Monaco playground; typing/pasting/idle update metrics                                | Implemented |
+| ICS-09 | Demo responsiveness | Gauge and active signal highlight update in real time                                                    | Implemented |
+| ICS-10 | Novel paste term    | Only pasted text that did not exist in an earlier snapshot counts; internal moves are excluded           | Implemented |
+| ICS-11 | Authorship signal   | Corrections, reworks, one revisit per excursion, and line chunks; pauses are neutral                     | Implemented |
+| ICS-12 | Transcription cap   | Strong line-chunk pattern cannot pass; corroborated pattern flags                                        | Implemented |
+| ICS-13 | Confidence gate     | Volume/coverage confidence; limited evidence is held at review                                           | Implemented |
+| ICS-14 | Demo recording      | Scenario name → Start/Stop, score timeline sampled every 500 ms, saved runs                              | Implemented |
+| ICS-15 | Demo keylog         | Change events, raw keydown/keyup, cursor/selection, focus/blur, copy/cut/paste; JSON export              | Implemented |
+| ICS-16 | Admin metric        | Admin console panel for base score, weights, floor/ceiling, band thresholds, pass floor, confidence gate | Implemented |
+| ICS-17 | Settings snapshot   | Every v3 score stores `settings_version` and `settings_snapshot` for the metric that produced it         | Implemented |
+| ICS-18 | Re-apply scores     | Admin action re-scores stored v3 evidence without re-reading snapshots; legacy v2 rows are unchanged     | Implemented |
 
 ### ICS caveat
 

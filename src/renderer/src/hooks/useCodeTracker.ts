@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { snapshotQueue } from '../lib/snapshotQueue'
 import { AuthorshipTracker } from '../lib/authorship'
+import { AUTO_SNAPSHOT_DEBOUNCE_MS, autoSnapshotCooldownMs } from '../lib/snapshotCadence'
 import type {
   CodeSnapshot,
   DetectionSource,
@@ -13,10 +14,6 @@ import type {
   SyncStatus
 } from '../types/tracker'
 
-// Idle window after the last keystroke before an auto snapshot is captured.
-const DEBOUNCE_MS = 1500
-// Minimum spacing between consecutive auto snapshots.
-const MIN_AUTO_INTERVAL_MS = 10_000
 // A burst of inserted text at least this large, with no matching onDidPaste
 // event, is treated as a suspected paste (drag-drop, middle-click, ...).
 const VELOCITY_PASTE_THRESHOLD = 120
@@ -366,17 +363,14 @@ export function useCodeTracker({
       }
 
       const last = lastSnapshotRef.current.get(fileName)
-      const elapsed = last ? Date.now() - Date.parse(last.created_at) : Infinity
-      if (elapsed < MIN_AUTO_INTERVAL_MS) {
+      const cooldown = autoSnapshotCooldownMs(last?.created_at ?? null)
+      if (cooldown !== null) {
         // Too soon for another auto snapshot — re-arm after the cooldown so
         // the latest change is never silently dropped. The ref indirection
         // avoids a self-referential callback dependency.
         timersRef.current.set(
           fileName,
-          setTimeout(
-            () => finalizeWindowRef.current(fileName),
-            MIN_AUTO_INTERVAL_MS - elapsed + DEBOUNCE_MS
-          )
+          setTimeout(() => finalizeWindowRef.current(fileName), cooldown)
         )
         return
       }
@@ -480,7 +474,7 @@ export function useCodeTracker({
       if (timer) clearTimeout(timer)
       timersRef.current.set(
         fileName,
-        setTimeout(() => finalizeWindow(fileName), DEBOUNCE_MS)
+        setTimeout(() => finalizeWindow(fileName), AUTO_SNAPSHOT_DEBOUNCE_MS)
       )
     },
     [captureSnapshot, finalizeWindow]

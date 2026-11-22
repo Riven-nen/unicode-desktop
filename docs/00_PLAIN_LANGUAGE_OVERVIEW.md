@@ -26,11 +26,11 @@ In one sentence:
 
 ## 2. The three users
 
-| User | What they use | What they do |
-|---|---|---|
-| **Student** | Desktop app | Join classes, write code, run it locally, submit assignments, read feedback, see released grades |
-| **Professor** | Desktop app | Create classes and assignments, review submissions, compare versions, grade, release grades, monitor the lab |
-| **Admin** | Separate web console | Manage users and roles, review classes, create professor invite codes |
+| User          | What they use        | What they do                                                                                                 |
+| ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Student**   | Desktop app          | Join classes, write code, run it locally, submit assignments, read feedback, see released grades             |
+| **Professor** | Desktop app          | Create classes and assignments, review submissions, compare versions, grade, release grades, monitor the lab |
+| **Admin**     | Separate web console | Manage users and roles, review classes, create professor invite codes                                        |
 
 ---
 
@@ -198,7 +198,10 @@ Admins can:
 - create professor invitation codes;
 - choose how long a code lasts (hours or days);
 - choose how many people can use it;
-- copy or revoke a code.
+- copy or revoke a code;
+- adjust the global ICS metric (weights, score range, band thresholds) with a
+  live preview;
+- re-apply the metric to stored v3 scores without reading student code.
 
 Admins **cannot** read student submissions, code, snapshots, paste events, or
 grades. Their access is intentionally limited.
@@ -297,22 +300,22 @@ time is what holds a submission at review.
 
 ## 10. What is ready for the capstone demo
 
-| Area | Status |
-|---|---|
-| Student dashboard, classes, assignments, feedback | Ready |
-| Workspace, file management, Monaco editor | Ready |
-| Automatic snapshots, paste capture, typing intervals | Ready |
-| Local terminal, toolchain checks, Run file | Ready |
-| Professor class/assignment management | Ready |
-| Timeline, diff, typing heatmap, paste similarity | Ready |
-| Grade save/release, bulk release | Ready |
-| Live Lab | Ready |
-| Admin roles and professor invites | Ready |
-| Security rules and RLS checks | Ready |
-| Windows installer | Ready, unsigned |
-| Judge0 remote execution | Implemented, but needs an external server |
-| Exact ICS formula accuracy | Implemented, but under review |
-| macOS/Linux packages | Scripts exist, not validated |
+| Area                                                 | Status                                    |
+| ---------------------------------------------------- | ----------------------------------------- |
+| Student dashboard, classes, assignments, feedback    | Ready                                     |
+| Workspace, file management, Monaco editor            | Ready                                     |
+| Automatic snapshots, paste capture, typing intervals | Ready                                     |
+| Local terminal, toolchain checks, Run file           | Ready                                     |
+| Professor class/assignment management                | Ready                                     |
+| Timeline, diff, typing heatmap, paste similarity     | Ready                                     |
+| Grade save/release, bulk release                     | Ready                                     |
+| Live Lab                                             | Ready                                     |
+| Admin roles and professor invites                    | Ready                                     |
+| Security rules and RLS checks                        | Ready                                     |
+| Windows installer                                    | Ready, unsigned                           |
+| Judge0 remote execution                              | Implemented, but needs an external server |
+| Exact ICS formula accuracy                           | Implemented, but under review             |
+| macOS/Linux packages                                 | Scripts exist, not validated              |
 
 ---
 
@@ -356,24 +359,24 @@ time is what holds a submission at review.
 
 ## 13. Plain-English glossary
 
-| Term | Plain meaning |
-|---|---|
-| **Snapshot** | An automatic copy of the code at a point in time |
-| **Paste event** | A record that text was pasted in, including the pasted text |
-| **Typing rhythm / IKI** | The time gaps between edits |
-| **ICS** | Integrity Confidence Score, a 0–100 review aid |
-| **RLS** | Database rules that decide who can see which rows |
-| **RPC** | A controlled database action the app can request |
-| **Realtime** | The app updates automatically when data changes |
-| **Judge0** | An external service that runs code against test cases |
-| **Monaco** | The code editor component used by the app |
-| **Electron** | The framework that turns the app into a desktop program |
-| **Supabase** | The hosted database and login service |
-| **Service-role key** | A very powerful database key; never shipped in the app |
-| **Snapshot diff** | A side-by-side/combined view of what changed between versions |
-| **Live Lab** | A professor’s live student-activity monitor |
-| **Token similarity** | A structural comparison of final code |
-| **pg_trgm** | A database tool for measuring text similarity |
+| Term                    | Plain meaning                                                 |
+| ----------------------- | ------------------------------------------------------------- |
+| **Snapshot**            | An automatic copy of the code at a point in time              |
+| **Paste event**         | A record that text was pasted in, including the pasted text   |
+| **Typing rhythm / IKI** | The time gaps between edits                                   |
+| **ICS**                 | Integrity Confidence Score, a 0–100 review aid                |
+| **RLS**                 | Database rules that decide who can see which rows             |
+| **RPC**                 | A controlled database action the app can request              |
+| **Realtime**            | The app updates automatically when data changes               |
+| **Judge0**              | An external service that runs code against test cases         |
+| **Monaco**              | The code editor component used by the app                     |
+| **Electron**            | The framework that turns the app into a desktop program       |
+| **Supabase**            | The hosted database and login service                         |
+| **Service-role key**    | A very powerful database key; never shipped in the app        |
+| **Snapshot diff**       | A side-by-side/combined view of what changed between versions |
+| **Live Lab**            | A professor’s live student-activity monitor                   |
+| **Token similarity**    | A structural comparison of final code                         |
+| **pg_trgm**             | A database tool for measuring text similarity                 |
 
 ---
 

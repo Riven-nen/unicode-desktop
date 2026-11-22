@@ -139,6 +139,14 @@ export interface IcsEvidenceValues {
   e_minus: number | string
 }
 
+export interface IcsSettingsSnapshot {
+  version?: number
+  min_confidence?: number
+  pass_threshold?: number
+  review_threshold?: number
+  pass_min_chars?: number
+}
+
 export interface IcsScoreRow {
   submissionId: string
   pasteTerm: number
@@ -153,6 +161,8 @@ export interface IcsScoreRow {
   bandReason?: string | null
   model?: string | null
   examMode?: boolean
+  settingsVersion?: number | null
+  settingsSnapshot?: IcsSettingsSnapshot | null
 }
 
 export interface CommentEntry {

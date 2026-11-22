@@ -26,8 +26,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(900px 500px at 15% -10%, rgba(91, 140, 255, 0.12), transparent),
-    var(--bg);
+    radial-gradient(900px 500px at 15% -10%, rgba(91, 140, 255, 0.12), transparent), var(--bg);
   color: var(--text);
 }
 
@@ -718,4 +717,145 @@ tbody tr:hover {
   .invite-form {
     grid-template-columns: 1fr;
   }
+}
+
+/* ICS metric settings ------------------------------------------------------- */
+
+.ics-settings-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ics-settings-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ics-settings-title .muted {
+  font-size: 10.5px;
+}
+
+.ics-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 15px;
+}
+
+.ics-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.ics-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ics-settings-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ics-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ics-settings-field input {
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #17191c;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+
+.ics-settings-field input:focus {
+  border-color: var(--accent);
+}
+
+.ics-field-hint {
+  font-size: 9.5px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.ics-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 10px;
+}
+
+.ics-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ics-preview-card .eyebrow {
+  flex: 1;
+  font-size: 9px;
+}
+
+.ics-preview-card strong {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.badge.ics-band-pass {
+  background: rgba(127, 176, 105, 0.16);
+  color: var(--success);
+}
+
+.badge.ics-band-review {
+  background: rgba(229, 181, 103, 0.15);
+  color: var(--warn);
+}
+
+.badge.ics-band-flag {
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--error);
+}
+
+.ics-settings-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.ics-settings-footer .muted {
+  font-size: 10.5px;
+}
+
+.ics-settings-body .footer-note {
+  margin: 0;
 }

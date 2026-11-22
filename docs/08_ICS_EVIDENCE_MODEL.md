@@ -62,6 +62,14 @@ The score starts at 50 because "no evidence" is not a pass. Every point above 50
 must be earned by authored behaviour; every point below 50 must be caused by a
 specific negative signal.
 
+The values above are the shipped defaults. An administrator can adjust the base
+score, the authored weight, the five negative weights, the score floor and
+ceiling, the pass/review thresholds, the pass minimum characters, and the
+minimum confidence from the admin console's **ICS metric** panel. Each recomputed
+v3 row stores the applied `settings_version` and `settings_snapshot`. Re-applying
+settings re-scores the stored evidence ledger without re-reading snapshots, so it
+also works after snapshot retention.
+
 ### 3.2 Confidence
 
 ```text
@@ -76,14 +84,14 @@ coverage = 1.0  ≥3 snapshots or ≥2 files
 
 `C` does **not** move the score. It controls the band:
 
-| Condition                         | Band                         |
-| --------------------------------- | ---------------------------- |
-| hard rule corroborated            | `flag`                       |
-| `C < 0.30`                        | `review` — limited evidence  |
-| `score ≥ 80` and `chars < 300`    | `review` — short submission  |
-| `score ≥ 80`                      | `pass`                       |
-| `score ≥ 40`                      | `review`                     |
-| otherwise                         | `flag`                       |
+| Condition                      | Band                        |
+| ------------------------------ | --------------------------- |
+| hard rule corroborated         | `flag`                      |
+| `C < 0.30`                     | `review` — limited evidence |
+| `score ≥ 80` and `chars < 300` | `review` — short submission |
+| `score ≥ 80`                   | `pass`                      |
+| `score ≥ 40`                   | `review`                    |
+| otherwise                      | `flag`                      |
 
 A short but perfectly authored snippet therefore cannot pass. Below 120
 characters there is no confidence at all; between 120 and 299 characters the
@@ -224,17 +232,17 @@ until it repeats alongside a rework or an undo.
 
 ## 5. Worked examples
 
-| Scenario                                       | A    | P    | T    | W    | Score | Band                       |
-| ---------------------------------------------- | ---- | ---- | ---- | ---- | ----- | -------------------------- |
+| Scenario                                           | A    | P    | T    | W    | Score | Band                       |
+| -------------------------------------------------- | ---- | ---- | ---- | ---- | ----- | -------------------------- |
 | Authored 320 chars, 4 fixes, 2 reworks, 2 revisits | 1.00 | 0    | 0.10 | 0    | 95.0  | pass (C=1)                 |
-| Authored 250 chars, perfect evidence           | 1.00 | 0    | 0    | 0    | 95.0  | review (short submission)  |
-| Authored 300 chars, 4 fixes, 2 revisits only   | 0.67 | 0    | 0.10 | 0    | 76.4  | review                     |
-| Short honest 100 chars, 1 fix                  | 0.10 | 0    | 0    | 0    | 54.5  | review (C=0)               |
-| Hand-copy 160 chars, no fixes, 1 chunk         | 0    | 0    | 0.70 | 0    | 24.8  | review (floor)             |
-| Paste 80% of final code                        | 0    | 1.00 | 0    | 0    | 9.5   | flag                       |
-| Refactor with deletions/revisits               | 1.00 | 0    | 0.05 | 0    | 93.2  | pass                       |
-| IME/voice, many edits, irregular rhythm        | 0.90 | 0    | 0.10 | 0    | 86.9  | pass (R alone cannot flag) |
-| Alt-tab → line chunk ×4                        | 0.10 | 0    | 0.60 | 0.80 | 22.1  | flag (T+W)                 |
+| Authored 250 chars, perfect evidence               | 1.00 | 0    | 0    | 0    | 95.0  | review (short submission)  |
+| Authored 300 chars, 4 fixes, 2 revisits only       | 0.67 | 0    | 0.10 | 0    | 76.4  | review                     |
+| Short honest 100 chars, 1 fix                      | 0.10 | 0    | 0    | 0    | 54.5  | review (C=0)               |
+| Hand-copy 160 chars, no fixes, 1 chunk             | 0    | 0    | 0.70 | 0    | 24.8  | review (floor)             |
+| Paste 80% of final code                            | 0    | 1.00 | 0    | 0    | 9.5   | flag                       |
+| Refactor with deletions/revisits                   | 1.00 | 0    | 0.05 | 0    | 93.2  | pass                       |
+| IME/voice, many edits, irregular rhythm            | 0.90 | 0    | 0.10 | 0    | 86.9  | pass (R alone cannot flag) |
+| Alt-tab → line chunk ×4                            | 0.10 | 0    | 0.60 | 0.80 | 22.1  | flag (T+W)                 |
 
 ## 6. Edge-case matrix
 
@@ -252,12 +260,12 @@ until it repeats alongside a rework or an undo.
 | Pair programming / group work          | Assignment policy disables `A` penalty and `S`; display "collaboration allowed".                                                  |
 | Timed seatwork                         | Paste allowance 0; rhythm weight raised slightly; blur weight raised.                                                             |
 | Take-home / open book                  | Paste allowance 0.15; `W` weight lowered.                                                                                         |
-| Very short submission (<300 chars)     | `<120` → review (no confidence); `120–299` → review (short submission), never pass.                                              |
+| Very short submission (<300 chars)     | `<120` → review (no confidence); `120–299` → review (short submission), never pass.                                               |
 | Multi-file submission                  | Aggregate counts; cap each file's contribution so one large file cannot dominate.                                                 |
 | Offline / clock skew                   | Server clamps timestamps; queued events keep monotonic ordering.                                                                  |
 | Snapshot gaps (app closed)             | Gaps >30 min start a new session; no focus penalty.                                                                               |
 | Legacy submissions without counters    | Fall back to v2 interval estimate; label "legacy evidence".                                                                       |
-| Deliberate fake corrections             | One revisit or a few typos cannot pass: the cap stays at 0.5 until two structural events. `T`/`P` need corroboration to flag.                                    |
+| Deliberate fake corrections            | One revisit or a few typos cannot pass: the cap stays at 0.5 until two structural events. `T`/`P` need corroboration to flag.     |
 | AI-generated code pasted in            | Same as paste: `P` high, `A` low.                                                                                                 |
 | AI-generated code typed by hand        | `T` may fire; not distinguishable from a fast author. Review, not proof.                                                          |
 | Student deletes everything and retypes | Bulk delete excluded; retyping is `A` evidence.                                                                                   |

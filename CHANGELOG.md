@@ -38,6 +38,15 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   filters, class-wide exam analytics, and a WEB102 CSS/JavaScript course.
 - **Paste audit:** submission review now lists every recorded paste with its
   full text, character count, detection source, mode, file, and timestamp.
+- **Snapshot retention:** automatic snapshots now use a 30 s minimum cadence,
+  and an opt-in dry-run/apply pruning workflow removes only redundant auto
+  snapshots after the ICS is frozen. Final, paste, manual, restore,
+  comment-anchored, and paste-event snapshots are always kept.
+- **Admin ICS metric:** a global, admin-only settings row now controls the v3
+  base score, authored and negative weights, score range, band thresholds, pass
+  minimum, and confidence gate. The admin console previews the effect, saves
+  versioned settings, and can re-apply them to stored v3 evidence without
+  re-reading snapshots. Legacy v2 rows are unchanged.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a

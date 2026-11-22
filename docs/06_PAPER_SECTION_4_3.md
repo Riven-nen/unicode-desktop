@@ -117,7 +117,10 @@ design follows five findings from the literature:
 The score starts at 50 and moves only with evidence; confidence gates the band so
 a short session cannot pass, and a hard 300-character floor keeps
 120–299-character snippets at review even when the authored evidence is perfect.
-Judge0 results are reported separately as quality.
+Judge0 results are reported separately as quality. For calibration, the weights
+and thresholds live in a single admin-managed `ics_settings` row. Each score
+records the settings version and snapshot that produced it, and an administrator
+can re-apply the metric to stored v3 evidence without re-reading student code.
 
 ## 4.3.3 Backend and Data Storage
 

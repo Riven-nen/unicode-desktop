@@ -120,7 +120,7 @@ export default function IcsPanel({
                     <span style={{ width: `${Math.round(score.confidence * 100)}%` }} />
                   </div>
                   <span className="ics-confidence-note">
-                    {score.confidence < 0.3
+                    {score.confidence < (score.settingsSnapshot?.min_confidence ?? 0.3)
                       ? 'Limited evidence — the band is held at Review.'
                       : 'Evidence volume is sufficient for a band.'}
                   </span>

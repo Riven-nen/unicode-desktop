@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rls": "node --env-file=.env scripts/rls-check.mjs",
+    "prune:snapshots": "node --env-file=.env scripts/prune-snapshots.mjs",
     "start": "electron-vite preview",
     "dev": "concurrently -k -n desktop,admin -c blue,magenta \"npm run dev:desktop\" \"npm run dev:admin\"",
     "dev:desktop": "electron-vite dev",

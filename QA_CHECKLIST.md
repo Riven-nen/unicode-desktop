@@ -287,6 +287,10 @@ should pass before the demo.
 - [ ] Submission detail opens: read-only code, snapshot timeline, comments,
       grade box, ICS panel.
 - [ ] Paste audit lists every paste with its full text and timestamp.
+- [ ] `npm run prune:snapshots -- --days 0` is a dry run; `--apply` removes only redundant auto snapshots.
+- [ ] A pruned submission keeps its ICS and cannot be recomputed.
+- [ ] Admin ICS metric saves a new version and the preview reflects the weights.
+- [ ] Re-applying the metric re-scores v3 rows but leaves v2 rows unchanged.
 - [ ] Local terminal opens for the selected snapshot in a temporary directory;
       Run file uses the local toolchain, shows output, and closing it removes
       the temporary copy.

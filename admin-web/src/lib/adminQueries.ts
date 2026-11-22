@@ -199,3 +199,118 @@ export async function revokeProfessorInvite(inviteId: string): Promise<void> {
   })
   if (error) throw new Error(error.message)
 }
+
+export interface IcsMetricValues {
+  baseScore: number
+  minScore: number
+  maxScore: number
+  authoredWeight: number
+  pasteWeight: number
+  transcriptionWeight: number
+  rhythmWeight: number
+  awayWeight: number
+  similarityWeight: number
+  passThreshold: number
+  reviewThreshold: number
+  passMinChars: number
+  minConfidence: number
+}
+
+export interface IcsSettings extends IcsMetricValues {
+  id: number
+  version: number
+  updatedAt: string
+  updatedByEmail: string | null
+}
+
+export const ICS_METRIC_DEFAULTS: IcsMetricValues = {
+  baseScore: 50,
+  minScore: 5,
+  maxScore: 95,
+  authoredWeight: 45,
+  pasteWeight: 0.9,
+  transcriptionWeight: 0.8,
+  rhythmWeight: 0.2,
+  awayWeight: 0.3,
+  similarityWeight: 0.5,
+  passThreshold: 80,
+  reviewThreshold: 40,
+  passMinChars: 300,
+  minConfidence: 0.3
+}
+
+interface IcsSettingsRow {
+  id: number | string
+  version: number | string
+  base_score: number | string
+  min_score: number | string
+  max_score: number | string
+  authored_weight: number | string
+  paste_weight: number | string
+  transcription_weight: number | string
+  rhythm_weight: number | string
+  away_weight: number | string
+  similarity_weight: number | string
+  pass_threshold: number | string
+  review_threshold: number | string
+  pass_min_chars: number | string
+  min_confidence: number | string
+  updated_at: string
+  updated_by_email: string | null
+}
+
+const mapIcsSettings = (row: IcsSettingsRow): IcsSettings => ({
+  id: Number(row.id),
+  version: Number(row.version),
+  baseScore: Number(row.base_score),
+  minScore: Number(row.min_score),
+  maxScore: Number(row.max_score),
+  authoredWeight: Number(row.authored_weight),
+  pasteWeight: Number(row.paste_weight),
+  transcriptionWeight: Number(row.transcription_weight),
+  rhythmWeight: Number(row.rhythm_weight),
+  awayWeight: Number(row.away_weight),
+  similarityWeight: Number(row.similarity_weight),
+  passThreshold: Number(row.pass_threshold),
+  reviewThreshold: Number(row.review_threshold),
+  passMinChars: Number(row.pass_min_chars),
+  minConfidence: Number(row.min_confidence),
+  updatedAt: row.updated_at,
+  updatedByEmail: row.updated_by_email
+})
+
+export async function fetchIcsSettings(): Promise<IcsSettings> {
+  const { data, error } = await client().rpc('admin_fetch_ics_settings')
+  if (error) throw new Error(error.message)
+  const row = firstOf((data ?? []) as unknown as IcsSettingsRow[])
+  if (!row) throw new Error('The ICS settings row is missing.')
+  return mapIcsSettings(row)
+}
+
+export async function updateIcsSettings(values: IcsMetricValues): Promise<IcsSettings> {
+  const { data, error } = await client().rpc('admin_update_ics_settings', {
+    new_base_score: values.baseScore,
+    new_min_score: values.minScore,
+    new_max_score: values.maxScore,
+    new_authored_weight: values.authoredWeight,
+    new_paste_weight: values.pasteWeight,
+    new_transcription_weight: values.transcriptionWeight,
+    new_rhythm_weight: values.rhythmWeight,
+    new_away_weight: values.awayWeight,
+    new_similarity_weight: values.similarityWeight,
+    new_pass_threshold: values.passThreshold,
+    new_review_threshold: values.reviewThreshold,
+    new_pass_min_chars: values.passMinChars,
+    new_min_confidence: values.minConfidence
+  })
+  if (error) throw new Error(error.message)
+  const row = firstOf((data ?? []) as unknown as IcsSettingsRow[])
+  if (!row) throw new Error('The ICS settings update returned no row.')
+  return mapIcsSettings(row)
+}
+
+export async function reapplyIcsSettings(): Promise<number> {
+  const { data, error } = await client().rpc('admin_reapply_ics_settings')
+  if (error) throw new Error(error.message)
+  return Number(data ?? 0)
+}

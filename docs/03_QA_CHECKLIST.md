@@ -353,6 +353,45 @@ Expected:
 
 ---
 
+## 6D. Snapshot retention
+
+- [ ] **P0** Automatic snapshots are spaced at least 30 s apart during active typing.
+- [ ] **P0** `npm run prune:snapshots -- --days 0` is a dry run and deletes nothing.
+- [ ] **P0** The dry-run report shows candidate rows, kept rows, and content bytes.
+- [ ] **P0** Dry-run output matches the rows that `--apply` removes.
+- [ ] **P0** Apply keeps the final snapshot, paste snapshots, manual snapshots, and restore snapshots.
+- [ ] **P0** Apply keeps snapshots referenced by paste events and inline comments.
+- [ ] **P0** Apply keeps the first and last snapshot of each file.
+- [ ] **P0** Apply removes only `snapshot_type = 'auto'` rows.
+- [ ] **P0** A pruned submission keeps its stored ICS score, band, confidence, and evidence.
+- [ ] **P0** `recompute_ics` on a pruned submission raises the "ICS is frozen" error.
+- [ ] **P0** Bulk recompute skips pruned submissions and returns the recomputed count.
+- [ ] **P0** Reopening a pruned attempt creates a new submission with new snapshots.
+- [ ] **P0** `snapshots_pruned_at` and `snapshots_pruned_count` are recorded.
+- [ ] **P1** `--auto-per-hour 0` keeps only milestones and the first/last snapshot.
+- [ ] **P1** `--class`, `--assignment`, and `--submission` scopes select the expected rows.
+
+---
+
+## 6E. Admin ICS metric
+
+- [ ] **P0** Admin console shows the ICS metric panel with version and last editor.
+- [ ] **P0** The live preview updates when a weight or threshold changes.
+- [ ] **P0** The pass threshold must be above the review threshold.
+- [ ] **P0** The score floor must be below the ceiling.
+- [ ] **P0** Saving increments the settings version and shows a success notice.
+- [ ] **P0** Defaults button reloads the shipped v3 values without saving.
+- [ ] **P0** A professor recompute uses the new weights and records `settings_version`.
+- [ ] **P0** `ics_scores.settings_snapshot` contains the applied metric values.
+- [ ] **P0** “Apply to existing v3 scores” re-scores stored v3 evidence.
+- [ ] **P0** Changing the pass threshold can move a score between Review and Pass.
+- [ ] **P0** Legacy v2 rows keep their original score and null `settings_version`.
+- [ ] **P0** Re-applying still works on a submission whose snapshots were pruned.
+- [ ] **P0** An admin token can read/update settings; a professor or student token cannot.
+- [ ] **P1** Settings survive a console reload and a new sign-in.
+
+---
+
 ## 7. Editor and language intelligence
 
 - [ ] **P0** Monaco opens with syntax highlighting for Python/Java/C/C++.

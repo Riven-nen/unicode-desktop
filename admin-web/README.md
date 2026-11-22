@@ -14,6 +14,10 @@ not part of the Electron app:
 - Generate professor invite codes with a lifespan and usage limit; copy or
   revoke them from the invite panel.
 - Review classes, professors, join codes, student counts, and assignment counts.
+- Adjust the global ICS v3 metric: base score, authored/negative weights, score
+  floor and ceiling, pass/review thresholds, pass minimum characters, and the
+  confidence gate. A live preview shows the effect on three evidence scenarios.
+- Re-apply the metric to stored v3 evidence rows without re-reading snapshots.
 - Never reads submissions or code.
 
 Invite holders create/sign in to a desktop account and redeem the code from the
@@ -59,9 +63,12 @@ where email = 'you@school.edu';
 
 ## Safety rules
 
-- Admin RLS policies expose only profiles, classes, enrollments, and assignment
-  metadata. Submissions, snapshots, paste events, and code are not readable by
-  admins.
+- Admin RLS policies expose only profiles, classes, enrollments, assignment
+  metadata, and the single ICS settings row. Submissions, snapshots, paste
+  events, and code are not readable by admins.
+- ICS changes go through guarded admin RPCs. Re-applying a metric reads only the
+  stored `ics_scores.evidence` ledger, never student code. Legacy v2 rows keep
+  their original formula.
 - Role changes go through the `admin_set_role` RPC. Admins cannot change their
   own role, the last admin cannot be demoted, and a professor with classes must
   have those classes reassigned or deleted before demotion.

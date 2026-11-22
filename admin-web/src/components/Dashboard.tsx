@@ -29,6 +29,7 @@ import type {
   ProfessorInvite,
   Role
 } from '../lib/adminQueries'
+import IcsSettingsPanel from './IcsSettingsPanel'
 
 interface DashboardProps {
   profile: AdminProfile
@@ -336,6 +337,8 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
 
         {error && <div className="notice error">{error}</div>}
         {roleError && <div className="notice error">{roleError}</div>}
+
+        <IcsSettingsPanel />
 
         <section className="panel">
           <header className="panel-head">

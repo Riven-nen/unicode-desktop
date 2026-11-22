@@ -247,11 +247,12 @@ docs/                 Paper and QA documentation
 | `assessment_sessions` | `id`, `assignment_id`, `student_id`, `status`, `started_at`, `expires_at`, `submitted_at`, `last_saved_at`, `draft_revision`, `final_submission_id`                                                                                                         | One server-owned timed attempt per student/assessment |
 | `assessment_drafts`   | `session_id` PK, `content`, `revision`, `updated_at`                                                                                                                                                                                                        | Latest autosaved content for a timed attempt          |
 | `test_cases`          | `id`, `assignment_id`, `stdin`, `expected_stdout`, `ordinal`, `is_hidden`                                                                                                                                                                                   | Judge0 test definitions                               |
-| `submissions`         | `id`, `assignment_id`, `student_id`, `final_snapshot_id`, `status`, `submitted_at`, `grade`, `graded_at`, `graded_by`, `client_token`, `grade_released`, `grade_released_at`                                                                                | Submission record                                     |
+| `submissions`         | `id`, `assignment_id`, `student_id`, `final_snapshot_id`, `status`, `submitted_at`, `grade`, `graded_at`, `graded_by`, `client_token`, `grade_released`, `grade_released_at`, `snapshots_pruned_at`, `snapshots_pruned_count`                               | Submission record                                     |
 | `submission_grades`   | `submission_id` PK, `grade`, `graded_at`, `graded_by`                                                                                                                                                                                                       | Professor-only private mark                           |
 | `code_snapshots`      | `id`, `user_id`, `submission_id`, `file_name`, `content`, `snapshot_type`, `version`, `char_count`, `line_count`, `language`, `typing_intervals`, `edit_stats`, `focus_stats`, `created_at`                                                                 | Edit history                                          |
 | `paste_events`        | `id`, `snapshot_id`, `user_id`, `file_name`, `pasted_text`, `pasted_chars`, `paste_mode`, `detected_via`, `created_at`                                                                                                                                      | Paste audit trail                                     |
-| `ics_scores`          | `submission_id` PK, term fields, `ics`, `band`, `computed_at`                                                                                                                                                                                               | Integrity score                                       |
+| `ics_scores`          | `submission_id` PK, term fields, `ics`, `band`, `computed_at`, `settings_version`, `settings_snapshot`                                                                                                                                                      | Integrity score                                       |
+| `ics_settings`        | `id = 1`, version, base/floor/ceiling, authored and negative weights, band thresholds, pass minimum, confidence gate                                                                                                                                        | Admin-managed metric                                  |
 | `comments`            | `id`, `submission_id`, `author_id`, `snapshot_id`, `parent_id`, `anchor_line`, `body`, `created_at`                                                                                                                                                         | Feedback threads                                      |
 | `code_runs`           | submission/test/snapshot references, status, outputs, timing                                                                                                                                                                                                | Judge0 execution history                              |
 | `professor_invites`   | `id`, `code`, `note`, `created_by`, `expires_at`, `max_uses`, `uses`, `revoked_at`, timestamps                                                                                                                                                              | Professor onboarding                                  |
@@ -285,7 +286,11 @@ profiles (admin) 1 ─── * professor_invites (created_by)
 | `join_class_by_code`                             | Student           | Join active class by code                                             |
 | `rotate_class_join_code`                         | Professor         | Rotate class code                                                     |
 | `add_student_to_class` / `add_students_to_class` | Professor         | Roster management                                                     |
-| `recompute_ics` / `recompute_ics_for_assignment` | Professor         | Integrity score computation                                           |
+| `recompute_ics` / `recompute_ics_for_assignment` | Professor         | Integrity score computation with the current admin metric             |
+| `prune_submission_snapshots`                     | Professor/Service | Dry-run or apply evaluation-safe snapshot retention                   |
+| `admin_fetch_ics_settings`                       | Admin             | Read the global ICS metric                                            |
+| `admin_update_ics_settings`                      | Admin             | Validate, version, and save the ICS metric                            |
+| `admin_reapply_ics_settings`                     | Admin             | Re-score stored v3 evidence with the current metric                   |
 | `save_submission_grade`                          | Professor         | Save private mark and hide public copy                                |
 | `set_submission_grade_release`                   | Professor         | Release/hide one grade                                                |
 | `release_assignment_grades`                      | Professor         | Bulk release                                                          |
@@ -682,6 +687,13 @@ are still populated as projections for analytics: paste, authorship in
 `cadence_term`, away in `focus_term`, and Judge0 quality. They do not sum to
 `ics` in v3.
 
+The formula values shown above are the shipped defaults. `ics_settings` holds
+the live base score, authored/negative weights, score range, band thresholds,
+pass minimum, and confidence gate. Each v3 row records `settings_version` and
+`settings_snapshot`. An admin can re-apply the metric to stored v3 evidence via
+`admin_reapply_ics_settings`; this reads only the evidence ledger, so it remains
+available after snapshot retention. Legacy v2 rows keep their original formula.
+
 ![Current ICS formula](ics-formula.png)
 
 ### 13.3 Presentation
@@ -690,8 +702,9 @@ are still populated as projections for analytics: paste, authorship in
   model (`v3` or legacy `v2`).
 - The typing-rhythm heatmap is available as a diagnostic view; intervals are not
   scored directly.
-- Student-facing ICS demo uses the same v3 evidence rules. The workflow is:
-  name a scenario → **Start recording** → type/paste → **Stop & save**. While
+- Student-facing ICS demo uses the shipped default v3 evidence rules; the live
+  database metric may be admin-adjusted. The workflow is: name a scenario →
+  **Start recording** → type/paste → **Stop & save**. While
   recording, the demo samples score, band, confidence, evidence, and counts twice
   a second and plots the score timeline. The saved run includes that timeline and
   a compact keylog (change events plus raw keydown/keyup, cursor/selection,
@@ -776,8 +789,9 @@ are still populated as projections for analytics: paste, authorship in
 - Sign-in uses Supabase Auth.
 - Profile role must be `admin`; students/professors see “Not authorized”.
 - Admin data policies expose profiles, classes, enrollments, assignment metadata,
-  and professor invites.
+  professor invites, and the single `ics_settings` row.
 - Admin policies do not expose submissions, snapshots, paste events, or code.
+- Re-applying the ICS metric reads only the stored v3 evidence ledger.
 
 ### 15.3 Operations
 
@@ -785,6 +799,8 @@ are still populated as projections for analytics: paste, authorship in
 - Change roles through `admin_set_role`.
 - Review classes, professors, join codes, counts.
 - Create professor invites with note, lifespan, and max uses.
+- Adjust the global ICS metric, preview its effect, and re-apply it to stored v3
+  evidence.
 - Copy/revoke invites.
 - See active/total invite counts.
 
