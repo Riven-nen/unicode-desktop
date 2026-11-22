@@ -128,9 +128,10 @@ longer sum to `ics`.
 ### UI
 
 - Professor panel: evidence ledger, confidence bar, band reason, model tag, and a
-  separate "quality only" Judge0 figure. Legacy rows still render the v2 bars.
-- Student demo: v3 gauge and ledger, plus a recording workflow. Name a scenario,
-  press **Start recording**, type/paste, then **Stop & save**. The demo samples
+  separate "quality only" Judge0 figure. Legacy rows keep their stored score and
+  show a v2 notice instead of the old term bars.
+- Admin console demo: v3 gauge and ledger, plus a recording workflow. Name a
+  scenario, press **Start recording**, type/paste, then **Stop & save**. The demo samples
   score and evidence twice a second, plots the score timeline, and stores the
   timeline with the run. Runs are stored under `unicode.icsDemoRuns.v1` in local
   storage; nothing is sent to the server.

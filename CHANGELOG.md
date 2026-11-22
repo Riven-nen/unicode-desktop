@@ -48,6 +48,9 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   value-aware explanations, a live Flag/Review/Pass band map, and three scenario
   previews. It saves versioned settings and can re-apply them to stored v3
   evidence without re-reading snapshots. Legacy v2 rows are unchanged.
+- **ICS demo moved to admin:** the live Monaco playground now opens from the
+  admin console, reads the current metric version, and is lazy-loaded with
+  locally bundled Monaco workers. The student dashboard no longer exposes it.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a

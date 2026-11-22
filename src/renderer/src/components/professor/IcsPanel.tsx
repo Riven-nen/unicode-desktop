@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import BandBadge from './BandBadge'
 import TypingHeatmap from './TypingHeatmap'
-import { TERM_META, deriveRawInputs, describeIcs, termValue } from '../../lib/ics'
 import type { IcsScoreRow, SnapshotEntry } from '../../types/professor'
 
 interface IcsPanelProps {
@@ -151,68 +150,32 @@ export default function IcsPanel({
             </>
           ) : (
             <>
-              <div className="ics-bars">
-                {TERM_META.map((term) => {
-                  const termPoints = termValue(score, term.key)
-                  const pct = Math.max(0, Math.min(100, (termPoints / term.max) * 100))
-                  const isCadence = term.key === 'cadence'
-                  return (
-                    <div
-                      className={`ics-term ${isCadence ? 'is-clickable' : ''}`}
-                      key={term.key}
-                      role={isCadence ? 'button' : undefined}
-                      tabIndex={isCadence ? 0 : undefined}
-                      aria-expanded={isCadence ? heatmapOpen : undefined}
-                      title={isCadence ? 'Show typing rhythm' : undefined}
-                      onClick={() => {
-                        if (isCadence) setHeatmapOpen((open) => !open)
-                      }}
-                      onKeyDown={(event) => {
-                        if (!isCadence) return
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          setHeatmapOpen((open) => !open)
-                        }
-                      }}
-                    >
-                      <div className="ics-term-label">
-                        <span>
-                          {isCadence &&
-                            (heatmapOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />)}
-                          {term.label}
-                          {isCadence && <em className="ics-term-hint">typing behaviour</em>}
-                        </span>
-                        <span>
-                          {termPoints.toFixed(1)} / {term.max} · {Math.round(term.weight * 100)}%
-                        </span>
-                      </div>
-                      <div className="ics-bar">
-                        <span style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {heatmapOpen && <TypingHeatmap snapshots={snapshots} />}
-
-              <p className="ics-explainer">{describeIcs(score)}</p>
-
-              <div className="ics-raw" aria-label="Raw ICS inputs">
-                <span>P {Math.round(deriveRawInputs(score).pasteRatio * 100)}%</span>
-                <span>A {Math.round(deriveRawInputs(score).authorship)}</span>
-                <span>F {Math.round(deriveRawInputs(score).focus)}</span>
-                <span>K {Math.round(deriveRawInputs(score).compilation)}</span>
-              </div>
+              <p className="ics-explainer">
+                Legacy v2 estimate — this submission predates authorship counters. Recompute after
+                new activity to score it with the v3 evidence ledger.
+              </p>
 
               <div className="ics-actions">
+                <button
+                  className="icon-text-btn"
+                  onClick={() => setHeatmapOpen((open) => !open)}
+                  aria-expanded={heatmapOpen}
+                >
+                  {heatmapOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Typing
+                  rhythm
+                </button>
                 <button className="icon-text-btn" onClick={onRecompute} disabled={busy}>
                   <RefreshCw size={12} /> {busy ? 'Recomputing…' : 'Recompute'}
                 </button>
                 <span className="ics-note">
-                  {score.bandReason ?? 'Legacy v2 score — recompute for authorship evidence.'}
+                  Quality only: {Math.round(score.compilationTerm * 5)}% tests (not counted in
+                  integrity).
                 </span>
               </div>
+
+              {heatmapOpen && <TypingHeatmap snapshots={snapshots} />}
+
+              {score.bandReason && <p className="ics-note">{score.bandReason}</p>}
             </>
           )}
         </>

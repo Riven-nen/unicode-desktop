@@ -20,6 +20,8 @@ not part of the Electron app:
   practical effect as it moves, and a live band map plus three scenario previews
   show the result.
 - Re-apply the metric to stored v3 evidence rows without re-reading snapshots.
+- Open a lazy-loaded Monaco **ICS demo** that types and pastes against the live
+  metric version, with score history, saved runs, and a keylog.
 - Never reads submissions or code.
 
 Invite holders create/sign in to a desktop account and redeem the code from the

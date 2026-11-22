@@ -113,7 +113,6 @@ src/
         AssignmentDetailModal.tsx
         JoinClassModal.tsx
         ProfessorInviteModal.tsx
-        IntegrityDemo.tsx
         EditorPane.tsx
         WorkspacePanel.tsx
         BottomPanel.tsx
@@ -702,8 +701,8 @@ available after snapshot retention. Legacy v2 rows keep their original formula.
   model (`v3` or legacy `v2`).
 - The typing-rhythm heatmap is available as a diagnostic view; intervals are not
   scored directly.
-- Student-facing ICS demo uses the shipped default v3 evidence rules; the live
-  database metric may be admin-adjusted. The workflow is: name a scenario →
+- Admin-console ICS demo uses the live `ics_settings` metric and shows the metric
+  version in its header. The workflow is: name a scenario →
   **Start recording** → type/paste → **Stop & save**. While
   recording, the demo samples score, band, confidence, evidence, and counts twice
   a second and plots the score timeline. The saved run includes that timeline and
@@ -783,6 +782,8 @@ available after snapshot retention. Legacy v2 rows keep their original formula.
 - `admin-web/` is a separate Vite/React project.
 - It is deployed as a static site and is not part of the Electron bundle.
 - It uses the same Supabase URL/publishable key as the desktop app.
+- The ICS demo is lazy-loaded. Monaco and its workers ship as a separate chunk,
+  so the accounts/classes dashboard does not pay that cost until the demo opens.
 
 ### 15.2 Admin-only gate
 
@@ -801,6 +802,7 @@ available after snapshot retention. Legacy v2 rows keep their original formula.
 - Create professor invites with note, lifespan, and max uses.
 - Adjust the global ICS metric, preview its effect, and re-apply it to stored v3
   evidence.
+- Open the live ICS demo, which types against the current metric version.
 - Copy/revoke invites.
 - See active/total invite counts.
 

@@ -301,10 +301,11 @@ Implemented in this build:
 - `recompute_ics` — v3 scoring in
   `supabase/migrations/20261122120000_ics_evidence.sql`, with `confidence`,
   `evidence`, `band_reason`, and `model` stored on `ics_scores`.
-- Professor panel — evidence ledger and confidence; legacy v2 rows still render
-  the old term bars.
-- Student demo — v3 scoring, a scenario input, and a **Track** button that keeps
-  labelled runs in local storage with a copyable JSON export.
+- Professor panel — evidence ledger and confidence; legacy v2 rows keep their
+  stored score and show a legacy notice instead of the old term bars.
+- Admin console demo — v3 scoring against the live metric, a scenario input, and
+  a **Track** button that keeps labelled runs in local storage with a copyable
+  JSON export.
 
 Still open:
 

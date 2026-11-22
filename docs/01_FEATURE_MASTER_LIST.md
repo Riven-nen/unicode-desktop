@@ -178,7 +178,7 @@ snapshots. It is not a raw per-keystroke surveillance log.
 | ICS-05 | Stored terms        | `ics_scores` stores score, band, confidence, evidence JSON, band reason, model, timestamp            | Implemented |
 | ICS-06 | Professor ICS panel | Score, band, evidence ledger, confidence, band reason                                                | Implemented |
 | ICS-07 | Typing heatmap      | Clicking Typing rhythm opens the typing-rhythm scatter plot                                          | Implemented |
-| ICS-08 | ICS demo            | Student-facing live Monaco playground; typing/pasting/idle update metrics                            | Implemented |
+| ICS-08 | ICS demo            | Admin-console live Monaco playground; typing/pasting/idle update metrics against the live metric     | Implemented |
 | ICS-09 | Demo responsiveness | Gauge and active signal highlight update in real time                                                | Implemented |
 | ICS-10 | Novel paste term    | Only pasted text that did not exist in an earlier snapshot counts; internal moves are excluded       | Implemented |
 | ICS-11 | Authorship signal   | Corrections, reworks, one revisit per excursion, and line chunks; pauses are neutral                 | Implemented |
@@ -363,6 +363,8 @@ integrity.
 | ADM-13 | Invite copy/revoke       | Copy code; revoke stops future redemption                    | Implemented |
 | ADM-14 | Invite stats             | Active invite count                                          | Implemented |
 | ADM-15 | Admin data boundary      | No submissions, snapshots, paste events, or code             | Implemented |
+| ADM-16 | ICS metric editor        | Sliders, live hints, band map, versioned save, re-apply      | Implemented |
+| ADM-17 | ICS demo                 | Lazy-loaded Monaco playground using the live admin metric    | Implemented |
 
 ---
 

@@ -201,7 +201,8 @@ Admins can:
 - copy or revoke a code;
 - adjust the global ICS metric (weights, score range, band thresholds) with a
   live preview;
-- re-apply the metric to stored v3 scores without reading student code.
+- re-apply the metric to stored v3 scores without reading student code;
+- open the live ICS demo to type or paste and see the current metric react.
 
 Admins **cannot** read student submissions, code, snapshots, paste events, or
 grades. Their access is intentionally limited.

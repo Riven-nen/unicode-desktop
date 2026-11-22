@@ -14,14 +14,12 @@ import {
   MessageSquare,
   PlayCircle,
   RefreshCw,
-  ShieldCheck,
   UserPlus,
   WifiOff
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import AppearancePanel from './AppearancePanel'
 import AssignmentDetailModal from './AssignmentDetailModal'
-import IntegrityDemo from './IntegrityDemo'
 import JoinClassModal from './JoinClassModal'
 import RedeemOverrideCodeModal from './RedeemOverrideCodeModal'
 import StudentSeatworkCard from './StudentSeatworkCard'
@@ -129,7 +127,6 @@ export default function StudentDashboard({
   })
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
-  const [demoOpen, setDemoOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   // Re-renders after marking feedback or a class as seen.
   const [, bumpSeenVersion] = useState(0)
@@ -408,9 +405,6 @@ export default function StudentDashboard({
                   </p>
                 </div>
                 <div className="student-class-detail-actions">
-                  <button className="btn-secondary" onClick={() => setDemoOpen(true)}>
-                    <ShieldCheck size={13} /> ICS demo
-                  </button>
                   <button className="btn-secondary" onClick={openFeedbackPanel}>
                     <MessageSquare size={13} /> Feedback
                     {unreadForClass(selectedClass.course.code) > 0 && (
@@ -777,9 +771,6 @@ export default function StudentDashboard({
                   <button className="btn-secondary" onClick={() => setJoinOpen(true)}>
                     <UserPlus size={13} /> Join class
                   </button>
-                  <button className="btn-secondary" onClick={() => setDemoOpen(true)}>
-                    <ShieldCheck size={13} /> ICS demo
-                  </button>
                   <button className="btn-secondary" onClick={openFeedbackPanel}>
                     <MessageSquare size={13} />
                     Feedback
@@ -1001,8 +992,6 @@ export default function StudentDashboard({
           }}
         />
       )}
-
-      <IntegrityDemo open={demoOpen} onClose={() => setDemoOpen(false)} />
 
       {joinOpen && (
         <JoinClassModal onClose={() => setJoinOpen(false)} onJoined={() => onJoinedClass()} />

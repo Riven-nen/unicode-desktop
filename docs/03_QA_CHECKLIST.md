@@ -506,18 +506,22 @@ Expected:
 - [ ] **P1** Timeline scrolls horizontally when snapshots exceed the card width;
       every snapshot is reachable and the selected dot stays visible.
 - [ ] **P1** Heatmap empty state is readable for old/no-interval data.
-- [ ] **P1** Student ICS demo opens from dashboard.
+- [ ] **P1** Student dashboard no longer shows an ICS demo button.
+- [ ] **P1** Admin console header shows an **ICS demo** button.
+- [ ] **P1** The demo loads lazily; the accounts/classes dashboard still works before it opens.
 - [ ] **P1** Demo editor uses Monaco Python highlighting.
+- [ ] **P1** The demo header shows the live metric version, or “shipped defaults” if loading fails.
 - [ ] **P1** Typing updates gauge/authored evidence.
 - [ ] **P1** Pasting drops paste evidence and highlights Paste.
 - [ ] **P1** Leaving and returning to the window updates the Away signal.
 - [ ] **P1** Scenario input + Start recording runs a timer; Stop & save stores score, band, confidence, counts, and the score timeline.
-- [ ] **P1** The score timeline updates while recording and marks the final band.
+- [ ] **P1** The score timeline updates while recording and uses the live pass/review thresholds.
 - [ ] **P1** Keylog records change events plus keydown/keyup, cursor, focus, and paste; Copy keylog exports it.
 - [ ] **P1** Stalling mid-line does not raise the score.
 - [ ] **P1** Saved runs survive closing/reopening the demo.
 - [ ] **P1** Copy JSON exports the tracked runs.
 - [ ] **P1** Reset clears the playground and metrics.
+- [ ] **P1** HTML mode previews inline with an iframe and no desktop preview server.
 - [ ] **P2** Demo copy states it is a simulator.
 
 ---

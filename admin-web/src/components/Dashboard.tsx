@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Ban,
   BookOpen,
@@ -30,6 +30,8 @@ import type {
   Role
 } from '../lib/adminQueries'
 import IcsSettingsPanel from './IcsSettingsPanel'
+
+const IcsDemo = lazy(() => import('./IcsDemo'))
 
 interface DashboardProps {
   profile: AdminProfile
@@ -73,6 +75,7 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [demoOpen, setDemoOpen] = useState(false)
 
   // Invite builder state.
   const [inviteNote, setInviteNote] = useState('')
@@ -294,17 +297,22 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
               student code are never exposed here.
             </p>
           </div>
-          <button
-            className="btn"
-            onClick={() => {
-              setLoading(true)
-              setError(null)
-              void load()
-            }}
-            disabled={loading}
-          >
-            <RefreshCw size={13} /> {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
+          <div className="page-head-actions">
+            <button className="btn" onClick={() => setDemoOpen(true)}>
+              <ShieldCheck size={13} /> ICS demo
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                setLoading(true)
+                setError(null)
+                void load()
+              }}
+              disabled={loading}
+            >
+              <RefreshCw size={13} /> {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         <section className="stat-grid">
@@ -651,6 +659,18 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
           after their usage limit.
         </p>
       </main>
+
+      {demoOpen && (
+        <Suspense
+          fallback={
+            <div className="auth-overlay">
+              <div className="loading-card">Loading ICS demo…</div>
+            </div>
+          }
+        >
+          <IcsDemo open={demoOpen} onClose={() => setDemoOpen(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }

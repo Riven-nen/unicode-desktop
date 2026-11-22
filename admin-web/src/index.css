@@ -301,6 +301,13 @@ code {
   margin-bottom: 20px;
 }
 
+.page-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .page-head h1 {
   margin: 4px 0 6px;
   font-size: 28px;

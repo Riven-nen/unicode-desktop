@@ -1,20 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import type { OnMount } from '@monaco-editor/react'
-import { Eye, EyeOff, RefreshCw, RotateCcw, ShieldCheck, X } from 'lucide-react'
-import { extensionForLanguage } from '../lib/assignments'
-import { AuthorshipTracker, emptyEditStats } from '../lib/authorship'
-import type { EditStats } from '../lib/authorship'
-import { DEFAULT_ICS_POLICY, evaluateEvidence } from '../lib/icsEvidence'
-import type { DemoKeystroke, EvidenceResult, TimelinePoint, TrackedRun } from '../lib/icsEvidence'
-import { writeClipboardText } from '../lib/clipboard'
-import { EDITOR_TYPING_OPTIONS } from '../lib/editorOptions'
-import { registerHtmlCompletions } from '../lib/htmlCompletions'
-import { useTheme } from '../themes/useTheme'
-import { defineMonacoThemes } from '../themes/themes'
-import { useFont } from '../fonts/useFont'
+import { Eye, EyeOff, RotateCcw, ShieldCheck, X } from 'lucide-react'
+import { fetchIcsSettings } from '../lib/adminQueries'
+import { extensionForLanguage } from '../lib/icsDemo/assignments'
+import { AuthorshipTracker, emptyEditStats } from '../lib/icsDemo/authorship'
+import type { EditStats } from '../lib/icsDemo/authorship'
+import {
+  DEFAULT_ICS_METRIC,
+  DEFAULT_ICS_POLICY,
+  evaluateEvidence
+} from '../lib/icsDemo/icsEvidence'
+import type {
+  DemoKeystroke,
+  EvidenceResult,
+  IcsMetricConfig,
+  TimelinePoint,
+  TrackedRun
+} from '../lib/icsDemo/icsEvidence'
+import { writeClipboardText } from '../lib/icsDemo/clipboard'
+import { EDITOR_TYPING_OPTIONS } from '../lib/icsDemo/editorOptions'
+import { registerHtmlCompletions } from '../lib/icsDemo/htmlCompletions'
+import '../lib/icsDemo/monaco'
+import '../icsDemo.css'
 
-interface IntegrityDemoProps {
+const DEMO_THEME = 'vs-dark'
+const DEMO_FONT_FAMILY = "'Cascadia Code', Consolas, monospace"
+const DEMO_FONT_SIZE = 13
+const DEMO_FONT_LIGATURES = false
+
+interface IcsDemoProps {
   open: boolean
   onClose: () => void
 }
@@ -103,7 +118,8 @@ function evidenceFor(
   edits: EditStats,
   pastedChars: number,
   focus: { returns: number },
-  intervals: number[]
+  intervals: number[],
+  metric: IcsMetricConfig
 ): EvidenceResult {
   return evaluateEvidence(
     {
@@ -127,7 +143,8 @@ function evidenceFor(
       intervals,
       coverage: 1
     },
-    DEFAULT_ICS_POLICY
+    DEFAULT_ICS_POLICY,
+    metric
   )
 }
 
@@ -136,10 +153,7 @@ function evidenceFor(
  * the same weighted terms as the real pipeline, and the metric that just
  * changed is highlighted.
  */
-export default function IntegrityDemo({
-  open,
-  onClose
-}: IntegrityDemoProps): React.ReactElement | null {
+export default function IcsDemo({ open, onClose }: IcsDemoProps): React.ReactElement | null {
   const [language, setLanguage] = useState<DemoLanguage>('python')
   const [text, setText] = useState('')
   const [stats, setStats] = useState<LiveStats>(initialStats)
@@ -158,9 +172,8 @@ export default function IntegrityDemo({
   } | null>(null)
   const [event, setEvent] = useState<string | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [previewVersion, setPreviewVersion] = useState(0)
-  const [previewBusy, setPreviewBusy] = useState(false)
+  const [metric, setMetric] = useState<IcsMetricConfig>(DEFAULT_ICS_METRIC)
+  const [metricVersion, setMetricVersion] = useState<number | null>(null)
   const pastePending = useRef(0)
   const statsRef = useRef(stats)
   const idleFlag = useRef(false)
@@ -194,33 +207,35 @@ export default function IntegrityDemo({
   }
   /** The next controlled value change is starter replacement, not user input. */
   const resetPending = useRef<string | null>(null)
-  const previewIdRef = useRef<string | null>(null)
-  const previewContentRef = useRef<string | null>(null)
-  const previewEpochRef = useRef(0)
-  const { monacoTheme } = useTheme()
-  const { font, fontSize, ligatures } = useFont()
-
-  const stopPreviewSession = useCallback((): void => {
-    // Invalidate an in-flight start so it cannot install a session after close.
-    previewEpochRef.current += 1
-    const id = previewIdRef.current
-    if (!id) return
-    previewIdRef.current = null
-    previewContentRef.current = null
-    window.api.preview.stop(id)
-  }, [])
 
   const closeDemo = useCallback((): void => {
-    stopPreviewSession()
-    setPreviewBusy(false)
     setPreviewOpen(false)
-    setPreviewUrl(null)
     onClose()
-  }, [onClose, stopPreviewSession])
+  }, [onClose])
 
   useEffect(() => {
     statsRef.current = stats
   }, [stats])
+
+  // The demo runs against the live admin metric, not a frozen copy.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    void fetchIcsSettings()
+      .then((settings) => {
+        if (cancelled) return
+        setMetric(settings)
+        setMetricVersion(settings.version)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setMetric(DEFAULT_ICS_METRIC)
+        setMetricVersion(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   useEffect(() => {
     return () => {
@@ -228,9 +243,8 @@ export default function IntegrityDemo({
       pasteDisposer.current = null
       changeDisposer.current?.()
       changeDisposer.current = null
-      stopPreviewSession()
     }
-  }, [stopPreviewSession])
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -283,7 +297,7 @@ export default function IntegrityDemo({
   useEffect(() => {
     if (!open) return
     const auth = authorshipRef.current.snapshot()
-    const ev = evidenceFor(auth, stats.pastedChars, focusStats, intervals)
+    const ev = evidenceFor(auth, stats.pastedChars, focusStats, intervals, metric)
     liveRef.current = {
       t: 0,
       score: Math.round(ev.score),
@@ -304,7 +318,7 @@ export default function IntegrityDemo({
         immediateChunks: auth.immediateChunks
       }
     }
-  }, [open, authorshipStats, stats, focusStats, intervals])
+  }, [open, authorshipStats, stats, focusStats, intervals, metric])
 
   // Sample the live score twice a second while recording.
   useEffect(() => {
@@ -351,33 +365,13 @@ export default function IntegrityDemo({
     return () => clearTimeout(timer)
   }, [active])
 
-  // Debounced live update: the loopback server rewrites index.html, then the
-  // iframe URL version bumps so Chromium reloads the latest document.
-  useEffect(() => {
-    if (!open || !previewOpen || language !== 'html' || !previewUrl) return
-    const id = previewIdRef.current
-    if (!id || text === previewContentRef.current) return
-    const timer = window.setTimeout(() => {
-      void window.api.preview
-        .update(id, text)
-        .then(() => {
-          previewContentRef.current = text
-          setPreviewVersion((version) => version + 1)
-        })
-        .catch((error) => {
-          setEvent(error instanceof Error ? error.message : 'Could not update the preview.')
-        })
-    }, 700)
-    return () => window.clearTimeout(timer)
-  }, [open, previewOpen, language, previewUrl, text])
-
   if (!open) return null
 
   const pasteRatio =
     stats.typedChars + stats.pastedChars === 0
       ? 0
       : stats.pastedChars / (stats.typedChars + stats.pastedChars)
-  const evidence = evidenceFor(authorshipStats, stats.pastedChars, focusStats, intervals)
+  const evidence = evidenceFor(authorshipStats, stats.pastedChars, focusStats, intervals, metric)
   const score = Math.round(evidence.score)
   const band = evidence.band
   const activeKey = active?.key ?? null
@@ -580,47 +574,8 @@ export default function IntegrityDemo({
     }
   }
 
-  const startPreview = async (): Promise<void> => {
-    const epoch = previewEpochRef.current + 1
-    previewEpochRef.current = epoch
-    setPreviewBusy(true)
-    try {
-      const session = await window.api.preview.start(text)
-      if (previewEpochRef.current !== epoch) {
-        window.api.preview.stop(session.id)
-        return
-      }
-      previewIdRef.current = session.id
-      previewContentRef.current = text
-      setPreviewUrl(session.url)
-      setPreviewVersion((version) => version + 1)
-      setEvent('Local preview started on the loopback server.')
-    } catch (error) {
-      if (previewEpochRef.current === epoch) {
-        setPreviewOpen(false)
-        setPreviewUrl(null)
-        setEvent(error instanceof Error ? error.message : 'Could not start the local preview.')
-      }
-    } finally {
-      if (previewEpochRef.current === epoch) setPreviewBusy(false)
-    }
-  }
-
   const togglePreview = (): void => {
-    if (previewOpen) {
-      stopPreviewSession()
-      setPreviewBusy(false)
-      setPreviewOpen(false)
-      setPreviewUrl(null)
-      return
-    }
-    setPreviewOpen(true)
-    void startPreview()
-  }
-
-  const refreshPreview = (): void => {
-    if (!previewUrl) return
-    setPreviewVersion((version) => version + 1)
+    setPreviewOpen((open) => !open)
   }
 
   const resetPlayground = (message: string | null): void => {
@@ -653,10 +608,7 @@ export default function IntegrityDemo({
 
   const changeLanguage = (next: DemoLanguage): void => {
     if (next === language) return
-    stopPreviewSession()
-    setPreviewBusy(false)
     setPreviewOpen(false)
-    setPreviewUrl(null)
     setLanguage(next)
     const label = DEMO_LANGUAGES.find((option) => option.id === next)?.label ?? next
     resetPlayground(`Switched to ${label} — the live score starts fresh.`)
@@ -764,7 +716,13 @@ export default function IntegrityDemo({
       setEvent('No edits recorded — nothing saved.')
       return
     }
-    const liveEvidence = evidenceFor(liveStats, stats.pastedChars, focusStats, intervalsRef.current)
+    const liveEvidence = evidenceFor(
+      liveStats,
+      stats.pastedChars,
+      focusStats,
+      intervalsRef.current,
+      metric
+    )
     const counts = {
       insertedChars: liveStats.insertedChars,
       pastedChars: stats.pastedChars,
@@ -851,7 +809,7 @@ export default function IntegrityDemo({
       >
         <header className="auth-header">
           <span className="auth-title">
-            <ShieldCheck size={15} /> Live integrity demo
+            <ShieldCheck size={15} /> ICS metric demo
           </span>
           <button className="diff-close" onClick={closeDemo} title="Close">
             <X size={14} />
@@ -859,8 +817,9 @@ export default function IntegrityDemo({
         </header>
 
         <p className="auth-sub">
-          Type or paste in the playground. The score recalculates on every edit and flashes the
-          signal that just changed.
+          Type or paste in the playground. The score uses the live admin metric
+          {metricVersion === null ? ' (shipped defaults)' : ` version ${metricVersion}`} and
+          recalculates on every edit, flashing the signal that just changed.
         </p>
 
         <div className="ics-live">
@@ -887,11 +846,10 @@ export default function IntegrityDemo({
                   <button
                     className={`icon-text-btn ${previewOpen ? 'is-active' : ''}`}
                     onClick={togglePreview}
-                    disabled={previewBusy}
-                    title={previewOpen ? 'Stop the local preview' : 'Preview on a local server'}
+                    title={previewOpen ? 'Hide the inline preview' : 'Preview the HTML inline'}
                   >
                     {previewOpen ? <EyeOff size={11} /> : <Eye size={11} />}
-                    {previewBusy ? 'Starting…' : previewOpen ? 'Stop preview' : 'Preview'}
+                    {previewOpen ? 'Hide preview' : 'Preview'}
                   </button>
                 )}
                 <button className="icon-text-btn" onClick={reset}>
@@ -905,10 +863,9 @@ export default function IntegrityDemo({
                 height="100%"
                 language={language}
                 path={`inmemory://ics-demo/playground${extensionForLanguage(language)}`}
-                theme={monacoTheme}
+                theme={DEMO_THEME}
                 value={text}
                 beforeMount={(monacoInstance) => {
-                  defineMonacoThemes(monacoInstance)
                   registerHtmlCompletions(monacoInstance)
                 }}
                 onMount={handleMount}
@@ -926,9 +883,9 @@ export default function IntegrityDemo({
                   lineNumbersMinChars: 0,
                   scrollBeyondLastLine: false,
                   wordWrap: 'on',
-                  fontSize,
-                  fontFamily: font.family,
-                  fontLigatures: ligatures,
+                  fontSize: DEMO_FONT_SIZE,
+                  fontFamily: DEMO_FONT_FAMILY,
+                  fontLigatures: DEMO_FONT_LIGATURES,
                   padding: { top: 10, bottom: 10 },
                   renderLineHighlight: 'none',
                   overviewRulerLanes: 0,
@@ -941,30 +898,22 @@ export default function IntegrityDemo({
             {previewOpen && language === 'html' && (
               <div className="ics-preview">
                 <div className="ics-preview-head">
-                  <span>Local preview</span>
-                  <span className="ics-preview-url">
-                    {previewUrl ? '127.0.0.1 loopback' : 'Starting server…'}
-                  </span>
+                  <span>Inline preview</span>
+                  <span className="ics-preview-url">Rendered from the editor</span>
                   <button
                     className="icon-text-btn"
-                    onClick={refreshPreview}
-                    disabled={!previewUrl || previewBusy}
+                    onClick={() => setPreviewOpen(false)}
+                    title="Hide the inline preview"
                   >
-                    <RefreshCw size={11} /> Refresh
+                    <EyeOff size={11} /> Hide
                   </button>
                 </div>
-                {previewUrl ? (
-                  <iframe
-                    key={`${previewUrl}-${previewVersion}`}
-                    className="ics-preview-frame"
-                    src={`${previewUrl}?v=${previewVersion}`}
-                    title="HTML preview"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="ics-preview-loading">Starting local preview…</div>
-                )}
+                <iframe
+                  className="ics-preview-frame"
+                  srcDoc={text}
+                  title="HTML preview"
+                  sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                />
               </div>
             )}
 
@@ -998,8 +947,9 @@ export default function IntegrityDemo({
               <p className="ics-gauge-note">
                 <strong>{score}</strong> is the evidence score. {authorshipStats.insertedChars}{' '}
                 characters and {authorshipStats.bursts} bursts give{' '}
-                {Math.round(evidence.confidence * 100)}% confidence; below 30% the band is always
-                Review, even when the evidence itself is positive.
+                {Math.round(evidence.confidence * 100)}% confidence; below{' '}
+                {Math.round(metric.minConfidence * 100)}% the band is always Review, even when the
+                evidence itself is positive.
               </p>
             )}
 
@@ -1026,7 +976,11 @@ export default function IntegrityDemo({
                   samples · {keylogCount} key events
                 </div>
               )}
-              <TimelineChart points={timeline} />
+              <TimelineChart
+                points={timeline}
+                passThreshold={metric.passThreshold}
+                reviewThreshold={metric.reviewThreshold}
+              />
               <details className="ics-runs" open={runs.length > 0}>
                 <summary>
                   Saved runs ({runs.length}) · keylog {keylogCount}
@@ -1143,16 +1097,25 @@ export default function IntegrityDemo({
         </div>
 
         <p className="ics-demo-note">
-          Bands: <strong>Pass</strong> 80+, <strong>Review</strong> 40+, <strong>Flag</strong> below
-          40. Tests are quality, not integrity. Pauses are neutral; corrections and revisits raise
-          the score, while line chunks and paste lower it.
+          Bands: <strong>Pass</strong> {metric.passThreshold}+, <strong>Review</strong>{' '}
+          {metric.reviewThreshold}+, <strong>Flag</strong> below {metric.reviewThreshold}. Tests are
+          quality, not integrity. Pauses are neutral; corrections and revisits raise the score,
+          while line chunks and paste lower it.
         </p>
       </div>
     </div>
   )
 }
 
-function TimelineChart({ points }: { points: TimelinePoint[] }): React.ReactElement {
+function TimelineChart({
+  points,
+  passThreshold,
+  reviewThreshold
+}: {
+  points: TimelinePoint[]
+  passThreshold: number
+  reviewThreshold: number
+}): React.ReactElement {
   if (points.length < 2) {
     return <div className="ics-timeline-empty">Score samples appear while recording.</div>
   }
@@ -1173,8 +1136,20 @@ function TimelineChart({ points }: { points: TimelinePoint[] }): React.ReactElem
         role="img"
         aria-label="Score over time"
       >
-        <line x1="0" y1={y(80)} x2={width} y2={y(80)} className="ics-timeline-pass" />
-        <line x1="0" y1={y(40)} x2={width} y2={y(40)} className="ics-timeline-review" />
+        <line
+          x1="0"
+          y1={y(passThreshold)}
+          x2={width}
+          y2={y(passThreshold)}
+          className="ics-timeline-pass"
+        />
+        <line
+          x1="0"
+          y1={y(reviewThreshold)}
+          x2={width}
+          y2={y(reviewThreshold)}
+          className="ics-timeline-review"
+        />
         <polyline points={line} className="ics-timeline-line" />
       </svg>
       <div className="ics-timeline-meta">

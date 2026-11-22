@@ -249,17 +249,19 @@ should pass before the demo.
       it, and a later submission brings it back.
 - [ ] Realtime badge counts stay correct after clock/timezone changes.
 
-## 8. ICS demo (display only)
+## 8. ICS demo (admin console)
 
-> Formula values are in progress; test the interaction and clarity, not whether
-> the weights are final.
+> The demo is now an admin tool. Test that it uses the live metric version and
+> that the student dashboard no longer exposes it.
 
-- [ ] ICS demo opens from the dashboard and class page.
-- [ ] The demo editor is Monaco with Python syntax highlighting; typing and
-      pasting still update the metrics.
+- [ ] Student dashboard has no ICS demo button.
+- [ ] Admin console header opens the ICS demo.
+- [ ] The demo lazily loads Monaco and shows the live metric version.
 - [ ] Typing updates the gauge, authorship metric, and event line.
 - [ ] Pasting updates the paste metric, drops the score, and highlights Paste.
 - [ ] Idling highlights Focus and lowers it.
+- [ ] The timeline uses the live pass/review thresholds.
+- [ ] HTML mode previews inline in the demo.
 - [ ] Reset clears the playground, metrics, and highlight.
 - [ ] Compact layout works at a narrow window width.
 - [ ] Copy clearly says the real score comes from submission telemetry.

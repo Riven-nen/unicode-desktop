@@ -393,7 +393,7 @@ submission in an assignment. See
 - The local PowerShell terminal is pipe-based, not a full PTY. It runs commands and scripts well, but interactive stdin-heavy programs are better tested through Judge0.
 - `courses_legacy` and `enrollments_legacy` remain from the pre-migration schema.
 - **Similarity** is a token-sequence heuristic (renamed identifiers are normalized); it highlights pairs to review, not a plagiarism verdict.
-- The **ICS demo** is a simulator for students; real scores are recomputed from submission telemetry on the server.
+- The **ICS demo** is an admin-console simulator; real scores are recomputed from submission telemetry on the server.
 - **Realtime** refresh depends on Supabase Realtime; **queued submissions** retry while the app is running (or on the next launch).
 - **Typing rhythm** stores edit-burst gaps with each snapshot, not raw per-key events. It is a rhythm approximation used by the heatmap; the scored Authorship term uses separate edit counters.
 - **Live Lab** depends on the 30-second heartbeat and treats a student as offline after 90 seconds without one. Flagged means a paste was recorded in the last 15 minutes.
