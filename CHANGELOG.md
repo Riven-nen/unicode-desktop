@@ -60,6 +60,9 @@ All notable changes to Unicode Lab are recorded here. The format is based on
   configured duration short, auto-submit shows a final-submission notice, drafts
   autosave every 10 seconds and 5 seconds before the deadline, and review opens
   at the final snapshot.
+- **Physical interruption keys:** a tab-out locks the exam until the professor
+  issues a one-time resume key at the student’s station. No written explanation
+  is stored, the interruption still counts, and the next one auto-submits.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a

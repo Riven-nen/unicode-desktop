@@ -286,6 +286,7 @@ profiles (admin) 1 ─── * professor_invites (created_by)
 | `rotate_class_join_code`                         | Professor         | Rotate class code                                                     |
 | `add_student_to_class` / `add_students_to_class` | Professor         | Roster management                                                     |
 | `recompute_ics` / `recompute_ics_for_assignment` | Professor         | Integrity score computation with the current admin metric             |
+| `redeem_interruption_key`                        | Student           | Redeem a physical-intervention key and resume an interrupted attempt  |
 | `prune_submission_snapshots`                     | Professor/Service | Dry-run or apply evaluation-safe snapshot retention                   |
 | `admin_fetch_ics_settings`                       | Admin             | Read the global ICS metric                                            |
 | `admin_update_ics_settings`                      | Admin             | Validate, version, and save the ICS metric                            |

@@ -58,7 +58,8 @@ export interface AssessmentExamState {
 export type AssessmentEventType =
   'tab_out' | 'fullscreen_exit' | 'paste_blocked' | 'warning' | 'focus_return'
 
-export type AssessmentEventKind = AssessmentEventType | 'override' | 'auto_submit'
+export type AssessmentEventKind =
+  AssessmentEventType | 'override' | 'auto_submit' | 'interruption_excused'
 
 export interface AssessmentEventEntry {
   id: string

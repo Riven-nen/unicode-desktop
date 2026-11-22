@@ -1,8 +1,8 @@
 # UniCode Demo Script — Exam Integrity and Grading
 
-**Target runtime:** 13:30–14:30  
+**Target runtime:** 13:00–14:00  
 **Narrators:** Mau (lead), Ella, CJ, Laurence  
-**Focus:** exam mode, suspicious-activity review, and faster grading.  
+**Focus:** exam mode, interruption keys, suspicious-activity review, and faster grading.  
 **Tone:** Short sentences, conversational, light jargon. Do not read the UI.
 
 ---
@@ -20,7 +20,7 @@ Have these ready:
 - CS101 with a roster and assignments.
 - An **Exam Mode Demo** seatwork:
   - 5-minute duration
-  - **2 allowed interruptions**
+  - **1 allowed interruption**
   - fullscreen optional — turn it off for recording stability, then show the
     checkbox in the professor segment
   - paste blocked
@@ -28,7 +28,6 @@ Have these ready:
   - one attempt
 - One scheduled seatwork for the countdown modal.
 - One submitted seatwork with snapshots, a paste event, and a computed ICS.
-- One active session for the professor monitor.
 - Admin console open on the ICS metric panel.
 
 **Do not demo:**
@@ -43,25 +42,25 @@ Have these ready:
 
 ## Run of show
 
-| Time        | Segment                                                | Lead           | Main screen                |
-| ----------- | ------------------------------------------------------ | -------------- | -------------------------- |
-| 0:00–4:45   | Student experience and exam mode                       | Mau + Ella     | Student desktop app        |
-| 4:45–9:45   | Professor monitoring, grading, and suspicious activity | Mau + CJ       | Professor desktop app      |
-| 9:45–13:15  | Admin console and metric                               | Mau + Laurence | Admin web console          |
-| 13:15–13:45 | Recap                                                  | Mau            | Split screen or title card |
+| Time        | Segment                                                   | Lead           | Main screen                |
+| ----------- | --------------------------------------------------------- | -------------- | -------------------------- |
+| 0:00–3:45   | Student experience and first interruption                 | Mau + Ella     | Student desktop app        |
+| 3:45–9:15   | Professor key, second interruption, grading, and evidence | Mau + CJ       | Professor desktop app      |
+| 9:15–12:45  | Admin console and metric                                  | Mau + Laurence | Admin web console          |
+| 12:45–13:15 | Recap                                                     | Mau            | Split screen or title card |
 
 ---
 
-# Segment 1 — Student Experience and Exam Mode
+# Segment 1 — Student Experience and First Interruption
 
 ### 0:00 — Opening
 
 **SCREEN:** Student dashboard.
 
 **MAU:**  
-“This is UniCode — a desktop lab for programming coursework. Three sides: student, professor, and admin. We’ll start with the student, then show how the professor uses the same data for grading and exam integrity.”
+“This is UniCode — a desktop lab for programming coursework. Three sides: student, professor, and admin. We’ll follow one seatwork from starting it to grading it.”
 
-### 0:25 — Dashboard
+### 0:20 — Dashboard
 
 **SCREEN:** Point to class cards and stats.
 
@@ -73,7 +72,7 @@ Have these ready:
 **ELLA:**  
 “Assignments hold the instructions, starter code, due date, and attempts. Seatworks are separate because they’re in-person and timed.”
 
-### 1:00 — Workspace
+### 0:55 — Workspace
 
 **SCREEN:** Open a class file. Show the tree, tabs, and Monaco editor.
 
@@ -85,14 +84,14 @@ Have these ready:
 **MAU:**  
 “Python runs locally. No upload step needed just to test the code.”
 
-### 1:45 — HTML preview
+### 1:35 — HTML preview
 
 **SCREEN:** Open an HTML file and show the live preview.
 
 **ELLA:**  
 “For web lessons, the preview updates from the editor. Relative CSS and images work because the class folder is served locally.”
 
-### 2:15 — Enter exam mode
+### 2:00 — Enter exam mode
 
 **SCREEN:** Go to **Seatworks**, open **Exam Mode Demo**, click **Start seatwork**. Show the assessment bar.
 
@@ -102,61 +101,48 @@ Have these ready:
 **SCREEN:** Point to the exam controls in the bar or the assignment settings.
 
 **MAU:**  
-“The professor can require fullscreen, block paste, and restrict the terminal to running files only. I’ll keep fullscreen off for the recording and trigger a tab-out instead. These settings are snapshotted when the attempt starts.”
+“The professor can require fullscreen, block paste, and restrict the terminal to running files only. I’ll keep fullscreen off for the recording and trigger a tab-out instead.”
 
-### 2:50 — Tab-out warning
-
-**SCREEN:** Switch to another window for about three seconds, then return.
-
-**MAU:**  
-“I just left the exam window. UniCode records that as an interruption and shows a warning. This demo allows two interruptions. The third one submits the attempt automatically.”
-
-**SCREEN:** Let the warning modal show. Close it. Point to the interruption counter.
-
-**MAU:**  
-“The warning is immediate, and the professor sees the same event in real time.”
-
-### 3:30 — Paste block and run-only terminal
+### 2:30 — Paste block and run-only terminal
 
 **SCREEN:** Try to paste into the editor. Show the blocked toast. Then show the terminal with shell input disabled.
 
 **MAU:**  
-“Paste is blocked during the seatwork, and the terminal is run-only. The student can still run the file, but cannot type arbitrary shell commands.”
+“Paste is blocked, and the terminal is run-only. The student can run the file, but cannot type arbitrary shell commands.”
 
-### 3:55 — Autosave and scheduled countdown
+### 2:50 — Autosave and scheduled countdown
 
-**SCREEN:** Type a few characters. Point to the draft indicator. Then open the scheduled seatwork and click **Starts in …**.
-
-**MAU:**  
-“Drafts save every ten seconds, again five seconds before the deadline, and when the window is hidden. If the app closes, the same attempt and deadline come back.”
-
-**SCREEN:** Show the countdown modal ticking.
+**SCREEN:** Type a few characters. Point to the draft indicator. Then briefly show the scheduled seatwork’s **Starts in …** countdown modal, and close it.
 
 **MAU:**  
-“A scheduled seatwork is still pressable. It opens a live countdown. Start unlocks when the server window opens.”
+“Drafts save every ten seconds, again five seconds before the deadline, and when the window is hidden. A scheduled seatwork shows a live countdown until Start unlocks.”
 
-### 4:25 — Submit and feedback
+**SCREEN:** Return to the active exam.
 
-**SCREEN:** Open a submitted assignment or the feedback panel.
+### 3:15 — First interruption
 
-**ELLA:**  
-“Submissions keep the snapshot history. Grades and feedback come back in the same dashboard.”
+**SCREEN:** Switch to another window for about three seconds, then return.
 
 **MAU:**  
-“Now the professor side — where this becomes useful for marking and integrity review.”
+“I just left the exam window. This demo allows one interruption. The attempt is now locked until the professor comes over and gives me a resume key. The timer keeps running.”
+
+**SCREEN:** Show the interruption modal with the professor-key input. Point to the countdown.
+
+**MAU:**  
+“The next interruption will submit the attempt automatically. We’ll get the key from the professor side. No written explanation is stored — this is a physical intervention.”
 
 ---
 
-# Segment 2 — Professor Monitoring, Grading, and Suspicious Activity
+# Segment 2 — Professor Key, Second Interruption, and Grading
 
-### 4:45 — Professor dashboard
+### 3:45 — Professor dashboard
 
 **SCREEN:** Professor window. Show class grid and roster.
 
 **MAU:**  
 “The professor sees only their classes. Each class has a roster, join code, assignments, and seatworks.”
 
-### 5:10 — Creating work
+### 4:10 — Creating work
 
 **SCREEN:** Open **New Seatwork**. Show title, language, starter code, duration, attempts, and exam controls.
 
@@ -165,50 +151,57 @@ Have these ready:
 
 **SCREEN:** Close without saving.
 
-### 5:45 — Live monitor
+### 4:40 — Monitor and generate the key
 
-**SCREEN:** Open CS101, then the **Exam Mode Demo** monitor.
-
-**MAU:**  
-“This is the live monitor. It shows who is active, their attempt, deadline, interruptions, and blocked pastes.”
-
-**SCREEN:** Point to the student’s row: interruption 1 of 2, blocked paste count.
+**SCREEN:** Open CS101, then the **Exam Mode Demo** monitor. Point to the student’s interruption count.
 
 **MAU:**  
-“The interruption from the student demo is already here. The professor can see it while the exam is still running, not after the fact.”
+“The student’s interruption is already here. The attempt is locked, and the timer is still running. I’ll generate a resume key.”
 
-**SCREEN:** Click **Refresh** and let the icon spin.
-
-**MAU:**  
-“Realtime updates handle most changes. Refresh gives manual feedback while it reloads.”
-
-### 6:30 — Event timeline
-
-**SCREEN:** Click **Events** on the same session.
+**SCREEN:** Click **Code**, choose **Resume after interruption**, and generate the key.
 
 **MAU:**  
-“Events gives the full timeline: tab-outs, warnings, fullscreen exits, blocked paste, overrides, and auto-submits. It exports to CSV.”
+“The key is one-time, expiring, and tied to this session. I’ll copy it and give it to the student.”
 
-**SCREEN:** Point to the tab-out and warning entries.
+### 5:25 — CUT BACK TO STUDENT: redeem the key
 
-**MAU:**  
-“This is the difference between ‘the student looked away’ and ‘here is exactly when it happened and what the system did about it.’”
-
-### 7:00 — Override and one-time code
-
-**SCREEN:** Close the timeline. Click **Override** or **Code** on the session.
+**SCREEN:** Student window with the interruption modal.
 
 **MAU:**  
-“The professor can extend time, excuse an interruption, or reopen an attempt. Every override has a reason and an audit entry.”
+“The professor comes to the station and gives the key. The student enters it and continues. The intervention stays physical — nothing is typed into a confession box.”
 
-**SCREEN:** Generate a one-time code and show it.
+**SCREEN:** Enter the key and click **Unlock and continue**.
 
 **MAU:**  
-“A one-time code lets the student apply the exception themselves. It expires, works once, and is logged.”
+“The attempt continues, but the interruption still counts. This was their one allowed interruption.”
 
-### 7:45 — Grading workflow
+### 6:00 — Second interruption auto-submits
 
-**SCREEN:** Open **Submissions**, then one submission. Show the final snapshot, timeline, and diff.
+**SCREEN:** Switch away from the exam window for about three seconds, then return.
+
+**MAU:**  
+“If they leave again, the next interruption submits the attempt automatically.”
+
+**SCREEN:** Show the **Time is up** modal.
+
+**MAU:**  
+“That is the consequence. The draft is final, and later edits are not included.”
+
+### 6:25 — CUT BACK TO PROFESSOR: audit trail
+
+**SCREEN:** Professor monitor. Open **Events** on the session.
+
+**MAU:**  
+“This is the audit trail: the first tab-out, the resume key used, the second tab-out, and the auto-submit. It exports to CSV.”
+
+**SCREEN:** Point to the **Resume key used** entry and the auto-submit entry.
+
+**MAU:**  
+“This is the difference between ‘the student looked away’ and ‘here is exactly when it happened, what they said, and what the system did about it.’”
+
+### 7:00 — Grading workflow
+
+**SCREEN:** Open the auto-submitted submission. Show the final snapshot, timeline, and diff.
 
 **CJ:**  
 “Review starts at the final snapshot. The timeline shows how the work was built, and the diff compares two stops.”
@@ -216,9 +209,9 @@ Have these ready:
 **SCREEN:** Add a short line comment.
 
 **CJ:**  
-“Comments are line-anchored. Grades stay private until the professor releases them, so marking can happen before students see the result.”
+“Comments are line-anchored. Grades stay private until the professor releases them.”
 
-### 8:30 — Suspicious activity review
+### 7:45 — Suspicious activity review
 
 **SCREEN:** Point to the **Integrity Score** panel, then scroll to the **Paste audit**.
 
@@ -238,7 +231,7 @@ Have these ready:
 **MAU:**  
 “Important: this is a review aid, not proof. The system surfaces evidence. The professor makes the judgment.”
 
-### 9:30 — Transition
+### 8:45 — Transition
 
 **MAU:**  
 “The professor handles teaching, monitoring, and review. Account management and the global metric live in the admin console.”
@@ -247,28 +240,28 @@ Have these ready:
 
 # Segment 3 — Admin Console
 
-### 9:45 — Admin console
+### 9:15 — Admin console
 
 **SCREEN:** Admin browser. Show accounts and roles.
 
 **MAU:**  
 “The admin console is a separate web app on the same backend. It is not part of the desktop bundle.”
 
-### 10:10 — Accounts and roles
+### 9:40 — Accounts and roles
 
 **SCREEN:** Search a user, show the role dropdown.
 
 **MAU:**  
 “Admins manage accounts and roles. Guards prevent changing your own role or demoting the last admin.”
 
-### 10:30 — Classes and join codes
+### 10:00 — Classes and join codes
 
 **SCREEN:** Scroll to **Classes**.
 
 **LAURENCE:**  
 “Admins can review every class, see the professor, and copy the join code students use to enroll.”
 
-### 10:50 — ICS metric
+### 10:20 — ICS metric
 
 **SCREEN:** Scroll to **ICS metric**. Drag **Authored weight**, then **Paste**. Point to the changing hint and band map.
 
@@ -283,7 +276,7 @@ Have these ready:
 **MAU:**  
 “Saving creates a version. Re-applying re-scores stored v3 evidence without reading student code. Legacy v2 rows stay unchanged.”
 
-### 11:45 — ICS demo
+### 11:15 — ICS demo
 
 **SCREEN:** Click **ICS demo**. Type or paste a few lines.
 
@@ -297,7 +290,7 @@ Have these ready:
 
 **SCREEN:** Close the demo.
 
-### 12:30 — Security boundary
+### 12:00 — Security boundary
 
 **SCREEN:** Return to the dashboard.
 
@@ -307,7 +300,7 @@ Have these ready:
 **MAU:**  
 “That is enforced with Row-Level Security and guarded database functions, not just hidden buttons.”
 
-### 13:00 — Recap
+### 12:30 — Recap
 
 **SCREEN:** Split screen or title card.
 
@@ -325,8 +318,8 @@ Have these ready:
 ## Narration notes
 
 - Keep each line short. Pause after clicks.
-- Let warnings and counters land before explaining them.
+- Let the interruption modal and the second tab-out land before explaining them.
 - Use only Python and HTML in the recording.
 - Do not say “caught cheating” or “proof.” Say “signals,” “evidence,” and “review aid.”
 - If a label differs slightly, follow the visual intent instead of reading it word-for-word.
-- Mau carries the exam-mode, grading, ICS, metric, and security explanations. Ella, CJ, and Laurence take the easier visual features.
+- Mau carries the exam-mode, key, grading, ICS, metric, and security explanations. Ella, CJ, and Laurence take the easier visual features.

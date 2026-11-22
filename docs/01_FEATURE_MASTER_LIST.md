@@ -290,6 +290,9 @@ integrity.
 | PRO-29 | One-time override codes     | Hashed, expiring, single-use codes for extend, excuse, or reopen                     | Implemented |
 | PRO-30 | Exam templates/bulk policy  | Reusable seatwork policies and one-click class-wide application                      | Implemented |
 | PRO-31 | Proctoring analytics        | Monitor filters plus class-wide attempts/interruption/override totals                | Implemented |
+| PRO-32 | Interruption key lock       | A tab-out locks the attempt until a professor-issued resume key is entered           | Implemented |
+| PRO-33 | Physical intervention       | Resume keys are given at the station; no student explanation is stored               | Implemented |
+| PRO-34 | Second interruption submits | The interruption after the allowed count auto-submits the attempt                    | Implemented |
 
 ---
 

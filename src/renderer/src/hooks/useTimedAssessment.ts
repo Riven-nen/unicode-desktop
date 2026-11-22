@@ -38,6 +38,9 @@ export interface TimedAssessmentApi {
     metadata?: Record<string, unknown>
   ) => Promise<AssessmentEventResult | null>
   enterFullscreen: () => Promise<boolean>
+  /** Stop counting window blur while the interruption key modal is open. */
+  pauseGuard: () => void
+  resumeGuard: () => void
   reset: () => void
 }
 
@@ -73,6 +76,7 @@ export function useTimedAssessment({
   const finalizingRef = useRef(false)
   const expiredRef = useRef(false)
   const finalSaveRef = useRef(false)
+  const guardPausedRef = useRef(false)
   const revisionRef = useRef(0)
   const readRef = useRef(readContent)
   const submittedRef = useRef(onSubmitted)
@@ -152,6 +156,14 @@ export function useTimedAssessment({
     } catch {
       return false
     }
+  }, [])
+
+  const pauseGuard = useCallback((): void => {
+    guardPausedRef.current = true
+  }, [])
+
+  const resumeGuard = useCallback((): void => {
+    guardPausedRef.current = false
   }, [])
 
   const recordEvent = useCallback(
@@ -322,9 +334,11 @@ export function useTimedAssessment({
       }
     }
     const schedule = (): void => {
+      if (guardPausedRef.current) return
       clearTimer()
       timer = window.setTimeout(() => {
         timer = null
+        if (guardPausedRef.current) return
         // A fullscreen exam is still the assessment surface even if the window
         // reports a transient blur while entering/leaving fullscreen.
         if (
@@ -380,6 +394,8 @@ export function useTimedAssessment({
     saveNow,
     recordEvent,
     enterFullscreen,
+    pauseGuard,
+    resumeGuard,
     reset
   }
 }

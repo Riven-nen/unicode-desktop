@@ -25,6 +25,8 @@ const eventLabel = (type: AssessmentEventEntry['eventType']): string => {
       return 'Professor override'
     case 'auto_submit':
       return 'Auto-submitted'
+    case 'interruption_excused':
+      return 'Resume key used'
   }
 }
 
@@ -126,8 +128,13 @@ export default function AssessmentEventLog({
               <div>
                 <strong>{eventLabel(event.eventType)}</strong>
                 <time>{formatMoment(event.occurredAt)}</time>
-                {Object.keys(event.metadata).length > 0 && (
-                  <code>{JSON.stringify(event.metadata)}</code>
+                {event.eventType === 'interruption_excused' &&
+                typeof event.metadata.reason === 'string' ? (
+                  <p className="assessment-event-reason">{event.metadata.reason}</p>
+                ) : (
+                  Object.keys(event.metadata).length > 0 && (
+                    <code>{JSON.stringify(event.metadata)}</code>
+                  )
                 )}
               </div>
             </li>

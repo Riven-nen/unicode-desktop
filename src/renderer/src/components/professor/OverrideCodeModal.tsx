@@ -14,9 +14,9 @@ export default function OverrideCodeModal({
   onClose
 }: OverrideCodeModalProps): React.ReactElement {
   const active = session.status === 'active'
-  const [action, setAction] = useState<'extend_time' | 'excuse_interruption' | 'reopen'>(
-    active ? 'extend_time' : 'reopen'
-  )
+  const [action, setAction] = useState<
+    'extend_time' | 'excuse_interruption' | 'reopen' | 'resume_interruption'
+  >(active ? 'extend_time' : 'reopen')
   const [minutes, setMinutes] = useState(active ? '5' : '10')
   const [validMinutes, setValidMinutes] = useState('15')
   const [reason, setReason] = useState('')
@@ -31,7 +31,10 @@ export default function OverrideCodeModal({
       const next = await createAssessmentOverrideCode({
         sessionId: session.sessionId,
         action,
-        minutes: action === 'excuse_interruption' ? undefined : Number(minutes),
+        minutes:
+          action === 'excuse_interruption' || action === 'resume_interruption'
+            ? undefined
+            : Number(minutes),
         reason: reason.trim() || undefined,
         validMinutes: Number(validMinutes)
       })
@@ -89,11 +92,12 @@ export default function OverrideCodeModal({
               >
                 {active && <option value="extend_time">Extend time</option>}
                 {active && <option value="excuse_interruption">Excuse interruptions</option>}
+                {active && <option value="resume_interruption">Resume after interruption</option>}
                 {!active && <option value="reopen">Reopen attempt</option>}
               </select>
             </div>
-            {action !== 'excuse_interruption' && (
-              <div className="form-row">
+            <div className="form-row">
+              {(action === 'extend_time' || action === 'reopen') && (
                 <div className="form-field">
                   <label htmlFor="code-minutes">
                     {action === 'reopen' ? 'Attempt length' : 'Extension'}
@@ -107,18 +111,24 @@ export default function OverrideCodeModal({
                     onChange={(event) => setMinutes(event.target.value)}
                   />
                 </div>
-                <div className="form-field">
-                  <label htmlFor="code-valid">Code valid for (minutes)</label>
-                  <input
-                    id="code-valid"
-                    type="number"
-                    min={1}
-                    max={1440}
-                    value={validMinutes}
-                    onChange={(event) => setValidMinutes(event.target.value)}
-                  />
-                </div>
+              )}
+              <div className="form-field">
+                <label htmlFor="code-valid">Code valid for (minutes)</label>
+                <input
+                  id="code-valid"
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={validMinutes}
+                  onChange={(event) => setValidMinutes(event.target.value)}
+                />
               </div>
+            </div>
+            {action === 'resume_interruption' && (
+              <p className="ics-note">
+                This is a physical intervention key. Issue it at the student’s station. The student
+                must enter it to continue, and the interruption still counts toward their limit.
+              </p>
             )}
             <div className="form-field">
               <label htmlFor="code-reason">Reason</label>

@@ -8321,3 +8321,74 @@ input:focus-visible,
   flex-direction: column;
   gap: 14px;
 }
+
+.assessment-event-reason {
+  margin: 4px 0 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+  font-size: 10.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* Exam interruption lock ---------------------------------------------------- */
+
+.assessment-interruption-overlay {
+  z-index: 80;
+}
+
+.assessment-interruption-modal {
+  display: flex;
+  width: min(500px, 94vw);
+  flex-direction: column;
+  gap: 12px;
+}
+
+.assessment-interruption-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.assessment-interruption-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.assessment-interruption-meta strong {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.assessment-interruption-warning {
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.assessment-interruption-physical {
+  margin: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}

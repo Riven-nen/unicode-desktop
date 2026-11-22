@@ -244,7 +244,7 @@ export async function fetchAssessmentEvents(sessionId: string): Promise<Assessme
 
 export async function createAssessmentOverrideCode(input: {
   sessionId: string
-  action: 'extend_time' | 'excuse_interruption' | 'reopen'
+  action: 'extend_time' | 'excuse_interruption' | 'reopen' | 'resume_interruption'
   minutes?: number
   reason?: string
   validMinutes?: number
@@ -283,6 +283,25 @@ export async function redeemAssessmentOverrideCode(
     expiresAt: row.expires_at,
     overrideNote: row.override_note
   }
+}
+
+export async function redeemInterruptionKey(
+  sessionId: string,
+  code: string
+): Promise<{ status: string; expiresAt: string | null }> {
+  const { data, error } = await client().rpc('redeem_interruption_key', {
+    target_session: sessionId,
+    override_code: code
+  })
+  if (error) throw new Error(error.message)
+  const row = firstRow(
+    (data ?? []) as unknown as Array<{
+      status: string
+      expires_at: string | null
+    }>
+  )
+  if (!row) throw new Error('The interruption key could not be redeemed.')
+  return { status: row.status, expiresAt: row.expires_at }
 }
 
 export async function applyAssessmentOverride(input: {

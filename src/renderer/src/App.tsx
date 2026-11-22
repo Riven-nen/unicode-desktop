@@ -20,8 +20,8 @@ import {
 } from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
 import AssessmentBar from './components/AssessmentBar'
+import AssessmentInterruptionModal from './components/AssessmentInterruptionModal'
 import AssessmentSubmittedModal from './components/AssessmentSubmittedModal'
-import AssessmentWarningModal from './components/AssessmentWarningModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import EditorPane from './components/EditorPane'
 import MenuBar from './components/MenuBar'
@@ -201,7 +201,7 @@ export default function App(): React.ReactElement {
   // Timed assessment state. The server owns the deadline; this only displays
   // the countdown, autosaves drafts, and asks the server to finalize on time.
   const [activeAssessment, setActiveAssessment] = useState<StudentAssignment | null>(null)
-  const [assessmentWarning, setAssessmentWarning] = useState<string | null>(null)
+  const [assessmentInterruption, setAssessmentInterruption] = useState<string | null>(null)
   const [assessmentResult, setAssessmentResult] = useState<{ auto: boolean } | null>(null)
   const activeAssessmentRef = useRef<StudentAssignment | null>(null)
   const assessmentFileRef = useRef<{ key: string | null; path: string | null }>({
@@ -300,7 +300,7 @@ export default function App(): React.ReactElement {
       activeAssessmentRef.current = null
       assessmentFileRef.current = { key: null, path: null }
       lastAssessmentContentRef.current = null
-      setAssessmentWarning(null)
+      setAssessmentInterruption(null)
       const auto = result.status === 'auto_submitted' || reason === 'auto'
       if (auto) setAssessmentResult({ auto: true })
       showToast(auto ? 'Time is up — the latest saved draft was submitted.' : 'Seatwork submitted.')
@@ -312,12 +312,20 @@ export default function App(): React.ReactElement {
   const timedAssessment = useTimedAssessment({
     readContent: readAssessmentContent,
     onSubmitted: handleAssessmentSubmitted,
-    onWarning: setAssessmentWarning
+    onWarning: setAssessmentInterruption
   })
 
   useEffect(() => {
     activeAssessmentRef.current = activeAssessment
   }, [activeAssessment])
+
+  const { pauseGuard, resumeGuard } = timedAssessment
+  useEffect(() => {
+    // While the student is explaining the interruption or fetching the key,
+    // leaving the window must not create another interruption.
+    if (assessmentInterruption) pauseGuard()
+    else resumeGuard()
+  }, [assessmentInterruption, pauseGuard, resumeGuard])
 
   // Monaco models are created one render after a tab is added. If a draft was
   // restored before the model existed, retry on each render until it lands.
@@ -1181,7 +1189,7 @@ export default function App(): React.ReactElement {
     timedAssessment.reset()
     setActiveAssessment(null)
     activeAssessmentRef.current = null
-    setAssessmentWarning(null)
+    setAssessmentInterruption(null)
     setAssessmentResult(null)
     assessmentFileRef.current = { key: null, path: null }
     lastAssessmentContentRef.current = null
@@ -1458,10 +1466,19 @@ export default function App(): React.ReactElement {
               />
             )}
 
-            {assessmentWarning && (
-              <AssessmentWarningModal
-                message={assessmentWarning}
-                onClose={() => setAssessmentWarning(null)}
+            {assessmentInterruption && timedAssessment.session && (
+              <AssessmentInterruptionModal
+                sessionId={timedAssessment.session.sessionId}
+                message={assessmentInterruption}
+                remainingMs={timedAssessment.remainingMs}
+                interruptionCount={timedAssessment.session.interruptionCount}
+                allowedTabOuts={timedAssessment.session.allowedTabOuts}
+                submitting={timedAssessment.submitting}
+                onUnlocked={() => {
+                  setAssessmentInterruption(null)
+                  showToast('Interruption acknowledged. Keep the exam window focused.')
+                }}
+                onSubmit={() => void handleSubmitTimedAssessment()}
               />
             )}
 
