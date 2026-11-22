@@ -896,10 +896,10 @@ export default function IcsDemo({ open, onClose }: IcsDemoProps): React.ReactEle
             </div>
 
             {previewOpen && language === 'html' && (
-              <div className="ics-preview">
-                <div className="ics-preview-head">
+              <div className="ics-html-preview">
+                <div className="ics-html-preview-head">
                   <span>Inline preview</span>
-                  <span className="ics-preview-url">Rendered from the editor</span>
+                  <span className="ics-html-preview-url">Rendered from the editor</span>
                   <button
                     className="icon-text-btn"
                     onClick={() => setPreviewOpen(false)}
@@ -909,7 +909,7 @@ export default function IcsDemo({ open, onClose }: IcsDemoProps): React.ReactEle
                   </button>
                 </div>
                 <iframe
-                  className="ics-preview-frame"
+                  className="ics-html-preview-frame"
                   srcDoc={text}
                   title="HTML preview"
                   sandbox="allow-scripts allow-forms allow-modals allow-popups"

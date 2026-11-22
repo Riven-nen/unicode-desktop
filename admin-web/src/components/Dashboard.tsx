@@ -29,9 +29,11 @@ import type {
   ProfessorInvite,
   Role
 } from '../lib/adminQueries'
+import DemoErrorBoundary from './DemoErrorBoundary'
 import IcsSettingsPanel from './IcsSettingsPanel'
 
-const IcsDemo = lazy(() => import('./IcsDemo'))
+const loadDemo = (): Promise<typeof import('./IcsDemo')> => import('./IcsDemo')
+const IcsDemo = lazy(loadDemo)
 
 interface DashboardProps {
   profile: AdminProfile
@@ -298,7 +300,12 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
             </p>
           </div>
           <div className="page-head-actions">
-            <button className="btn" onClick={() => setDemoOpen(true)}>
+            <button
+              className="btn"
+              onClick={() => setDemoOpen(true)}
+              onMouseEnter={() => void loadDemo()}
+              onFocus={() => void loadDemo()}
+            >
               <ShieldCheck size={13} /> ICS demo
             </button>
             <button
@@ -661,15 +668,28 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
       </main>
 
       {demoOpen && (
-        <Suspense
-          fallback={
-            <div className="auth-overlay">
-              <div className="loading-card">Loading ICS demo…</div>
-            </div>
-          }
-        >
-          <IcsDemo open={demoOpen} onClose={() => setDemoOpen(false)} />
-        </Suspense>
+        <DemoErrorBoundary>
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 50,
+                  display: 'grid',
+                  placeItems: 'center',
+                  padding: 24,
+                  background: 'rgba(0, 0, 0, 0.62)',
+                  backdropFilter: 'blur(6px)'
+                }}
+              >
+                <div className="loading-card">Loading ICS demo…</div>
+              </div>
+            }
+          >
+            <IcsDemo open={demoOpen} onClose={() => setDemoOpen(false)} />
+          </Suspense>
+        </DemoErrorBoundary>
       )}
     </div>
   )

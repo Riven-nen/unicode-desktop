@@ -1,4 +1,6 @@
-/* ICS demo overlay and metric playground (ported from the desktop app). */
+/* ICS demo overlay and metric playground (ported from the desktop app).
+   Keep demo-only class names distinct from IcsSettingsPanel; notably the HTML
+   preview uses ics-html-preview, not ics-preview (the metric preview grid). */
 
 .auth-overlay {
   position: fixed;
@@ -705,7 +707,7 @@
   height: 240px;
 }
 
-.ics-preview {
+.ics-html-preview {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -714,7 +716,7 @@
   background: #ffffff;
 }
 
-.ics-preview-head {
+.ics-html-preview-head {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -727,13 +729,13 @@
   text-transform: uppercase;
 }
 
-.ics-preview-head .icon-text-btn {
+.ics-html-preview-head .icon-text-btn {
   margin-left: auto;
   letter-spacing: 0;
   text-transform: none;
 }
 
-.ics-preview-url {
+.ics-html-preview-url {
   overflow: hidden;
   color: var(--text-muted);
   font-size: 9px;
@@ -743,7 +745,7 @@
   white-space: nowrap;
 }
 
-.ics-preview-frame {
+.ics-html-preview-frame {
   display: block;
   width: 100%;
   height: 240px;
@@ -751,7 +753,7 @@
   background: #ffffff;
 }
 
-.ics-preview-loading {
+.ics-html-preview-loading {
   display: grid;
   height: 240px;
   place-items: center;

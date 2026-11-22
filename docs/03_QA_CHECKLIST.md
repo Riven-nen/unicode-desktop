@@ -509,6 +509,8 @@ Expected:
 - [ ] **P1** Student dashboard no longer shows an ICS demo button.
 - [ ] **P1** Admin console header shows an **ICS demo** button.
 - [ ] **P1** The demo loads lazily; the accounts/classes dashboard still works before it opens.
+- [ ] **P1** Clicking **ICS demo** immediately shows a visible loading overlay while Monaco loads.
+- [ ] **P1** A failed demo chunk shows a “Could not open the ICS demo” card with Try again.
 - [ ] **P1** Demo editor uses Monaco Python highlighting.
 - [ ] **P1** The demo header shows the live metric version, or “shipped defaults” if loading fails.
 - [ ] **P1** Typing updates gauge/authored evidence.
@@ -522,6 +524,7 @@ Expected:
 - [ ] **P1** Copy JSON exports the tracked runs.
 - [ ] **P1** Reset clears the playground and metrics.
 - [ ] **P1** HTML mode previews inline with an iframe and no desktop preview server.
+- [ ] **P1** Opening and closing the demo leaves the ICS metric sliders and the three preview cards unchanged.
 - [ ] **P2** Demo copy states it is a simulator.
 
 ---

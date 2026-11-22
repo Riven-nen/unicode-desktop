@@ -255,13 +255,15 @@ should pass before the demo.
 > that the student dashboard no longer exposes it.
 
 - [ ] Student dashboard has no ICS demo button.
-- [ ] Admin console header opens the ICS demo.
+- [ ] Admin console header opens the ICS demo with an immediate loading overlay.
 - [ ] The demo lazily loads Monaco and shows the live metric version.
+- [ ] A failed demo load shows an error card instead of silently doing nothing.
 - [ ] Typing updates the gauge, authorship metric, and event line.
 - [ ] Pasting updates the paste metric, drops the score, and highlights Paste.
 - [ ] Idling highlights Focus and lowers it.
 - [ ] The timeline uses the live pass/review thresholds.
 - [ ] HTML mode previews inline in the demo.
+- [ ] Opening/closing the demo does not restyle the ICS metric preview cards.
 - [ ] Reset clears the playground, metrics, and highlight.
 - [ ] Compact layout works at a narrow window width.
 - [ ] Copy clearly says the real score comes from submission telemetry.
