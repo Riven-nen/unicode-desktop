@@ -1,6 +1,6 @@
 # Unicode Lab
 
-**A desktop lab for programming coursework — real files, automatic edit history, paste analytics, and a professor review dashboard.**
+**A desktop lab for programming coursework real files, automatic edit history, paste analytics, telemetry used to identify cheating, and a professor review dashboard.**
 
 [![Status: in development](https://img.shields.io/badge/status-in%20development-orange)](#status)
 [![Electron](https://img.shields.io/badge/Electron-44-47848f)](https://www.electronjs.org/)
