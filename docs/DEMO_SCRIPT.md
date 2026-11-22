@@ -1,6 +1,6 @@
 # UniCode Demo Script — Exam Integrity and Grading
 
-**Target runtime:** 13:00–14:00  
+**Target runtime:** 14:00–14:30  
 **Narrators:** Mau (lead), Ella, CJ, Laurence  
 **Focus:** exam mode, interruption keys, suspicious-activity review, and faster grading.  
 **Tone:** Short sentences, conversational, light jargon. Do not read the UI.
@@ -27,7 +27,13 @@ Have these ready:
   - run-only terminal
   - one attempt
 - One scheduled seatwork for the countdown modal.
-- One submitted seatwork with snapshots, a paste event, and a computed ICS.
+- The seeded **Fibonacci** submissions:
+  - Student One — 95.0, pass
+  - Student Two — 79.6, review, one 156-character paste with a 100% match to
+    Student Three
+  - Student Three — 5.0, flag, two pastes and a line-chunk/away pattern
+- Use the seeded **Fibonacci** submissions for the cases. Recent manual test files
+  may contain extra paste noise.
 - Admin console open on the ICS metric panel.
 
 **Do not demo:**
@@ -42,12 +48,21 @@ Have these ready:
 
 ## Run of show
 
-| Time        | Segment                                                   | Lead           | Main screen                |
-| ----------- | --------------------------------------------------------- | -------------- | -------------------------- |
-| 0:00–3:45   | Student experience and first interruption                 | Mau + Ella     | Student desktop app        |
-| 3:45–9:15   | Professor key, second interruption, grading, and evidence | Mau + CJ       | Professor desktop app      |
-| 9:15–12:45  | Admin console and metric                                  | Mau + Laurence | Admin web console          |
-| 12:45–13:15 | Recap                                                     | Mau            | Split screen or title card |
+| Time        | Segment                                                | Lead           | Main screen                |
+| ----------- | ------------------------------------------------------ | -------------- | -------------------------- |
+| 0:00–3:45   | Student experience and first interruption              | Mau + Ella     | Student desktop app        |
+| 3:45–10:30  | Professor key, second interruption, grading, and cases | Mau + CJ       | Professor desktop app      |
+| 10:30–13:45 | Admin console and metric                               | Mau + Laurence | Admin web console          |
+| 13:45–14:15 | Recap                                                  | Mau            | Split screen or title card |
+
+### Case files at a glance
+
+| Case | What it shows                           | Where to click                                        |
+| ---- | --------------------------------------- | ----------------------------------------------------- |
+| 1    | Same pasted block across two students   | Student Two → **Paste similarity**                    |
+| 2    | Paste-heavy flag with full pasted text  | Student Three → **Integrity Score** + **Paste audit** |
+| 3    | How the code changed between snapshots  | Student Two → **Timeline** → **Diff**                 |
+| 4    | No paste, but a line-chunk/away pattern | Student Three → **Integrity Score** ledger            |
 
 ---
 
@@ -197,7 +212,7 @@ Have these ready:
 **SCREEN:** Point to the **Resume key used** entry and the auto-submit entry.
 
 **MAU:**  
-“This is the difference between ‘the student looked away’ and ‘here is exactly when it happened, what they said, and what the system did about it.’”
+“This is the difference between ‘the student looked away’ and ‘here is exactly when it happened, which key was used, and what the system did about it.’”
 
 ### 7:00 — Grading workflow
 
@@ -211,27 +226,64 @@ Have these ready:
 **CJ:**  
 “Comments are line-anchored. Grades stay private until the professor releases them.”
 
-### 7:45 — Suspicious activity review
+### 7:45 — Case 1: same pasted block, two students
 
-**SCREEN:** Point to the **Integrity Score** panel, then scroll to the **Paste audit**.
-
-**MAU:**  
-“This is the suspicious-activity view. The score is an evidence ledger: authorship raises it; paste, transcription shape, rhythm, and away patterns lower it. Confidence gates the band.”
-
-**SCREEN:** Show the paste audit entries with full text and timestamps.
+**SCREEN:** Open **Student Two’s Fibonacci submission**. Point to the **Paste similarity** panel.
 
 **MAU:**  
-“Every paste is visible — the full text, when it happened, and which file. That is much more useful than a single number.”
+“This is a seeded case. Student Two pasted a 156-character Fibonacci block. The class-scoped similarity run finds a **100% match** in Student Three’s submission.”
+
+**SCREEN:** Point to the two paste timestamps.
+
+**MAU:**  
+“The system doesn’t decide who copied whom. It shows the match and the timing — Student Two pasted first, Student Three about a day later. That’s the starting point for a conversation.”
+
+**MAU:**  
+“This is the difference between a suspicion and a lead you can actually act on.”
+
+### 8:30 — Case 2: paste-heavy flag
+
+**SCREEN:** Open **Student Three’s submission**. Show the **Integrity Score** — 5.0, flag. Point to the evidence ledger.
+
+**MAU:**  
+“Student Three is flagged. The evidence ledger shows two large pastes and very little authored evidence. Confidence is low, but the signals agree.”
+
+**SCREEN:** Scroll to the **Paste audit** and show both pasted blocks with full text.
+
+**MAU:**  
+“The paste audit shows the exact text of both blocks, the file, the size, and the timestamp. You are reading the pasted content, not guessing from a paste count.”
+
+**SCREEN:** Select the paste snapshot on the timeline. Click **Diff** to compare it with the previous stop.
+
+**MAU:**  
+“The diff shows the block landing in one moment. That is much clearer than staring at the final file and wondering how it got there.”
+
+### 9:15 — Case 3: snapshot history and the diff
+
+**SCREEN:** Open **Student Two’s timeline**. Select the second stop, then click **Diff**.
+
+**MAU:**  
+“The snapshot history is the time machine. Pick a stop and see exactly what changed from the one before it.”
+
+**MAU:**  
+“Normal revision looks gradual — small edits, corrections, a little backtracking. A paste stop looks like a sudden block. The professor can tell the difference without reading every line from scratch.”
+
+### 9:50 — Case 4: no paste, still suspicious
+
+**SCREEN:** Return to Student Three’s **Integrity Score** panel. Point to the transcription and away evidence.
+
+**MAU:**  
+“Not every case has a paste. Student Three also shows a line-chunk transcription pattern after a refocus. That is a review signal, not proof.”
 
 **SCREEN:** Show the class **Exam overview** or analytics totals.
 
 **MAU:**  
-“At class level, the professor can see attempts, interruptions, blocked pastes, and overrides across the whole class. That helps spot patterns without opening every file.”
+“At class level, the professor can see attempts, interruptions, blocked pastes, and overrides across the whole class. That helps prioritize which files to open.”
 
 **MAU:**  
 “Important: this is a review aid, not proof. The system surfaces evidence. The professor makes the judgment.”
 
-### 8:45 — Transition
+### 10:30 — Transition
 
 **MAU:**  
 “The professor handles teaching, monitoring, and review. Account management and the global metric live in the admin console.”
@@ -240,28 +292,28 @@ Have these ready:
 
 # Segment 3 — Admin Console
 
-### 9:15 — Admin console
+### 10:30 - Admin console
 
 **SCREEN:** Admin browser. Show accounts and roles.
 
 **MAU:**  
 “The admin console is a separate web app on the same backend. It is not part of the desktop bundle.”
 
-### 9:40 — Accounts and roles
+### 10:55 - Accounts and roles
 
 **SCREEN:** Search a user, show the role dropdown.
 
 **MAU:**  
 “Admins manage accounts and roles. Guards prevent changing your own role or demoting the last admin.”
 
-### 10:00 — Classes and join codes
+### 11:15 - Classes and join codes
 
 **SCREEN:** Scroll to **Classes**.
 
 **LAURENCE:**  
 “Admins can review every class, see the professor, and copy the join code students use to enroll.”
 
-### 10:20 — ICS metric
+### 11:35 - ICS metric
 
 **SCREEN:** Scroll to **ICS metric**. Drag **Authored weight**, then **Paste**. Point to the changing hint and band map.
 
@@ -276,7 +328,7 @@ Have these ready:
 **MAU:**  
 “Saving creates a version. Re-applying re-scores stored v3 evidence without reading student code. Legacy v2 rows stay unchanged.”
 
-### 11:15 — ICS demo
+### 12:30 - ICS demo
 
 **SCREEN:** Click **ICS demo**. Type or paste a few lines.
 
@@ -290,7 +342,7 @@ Have these ready:
 
 **SCREEN:** Close the demo.
 
-### 12:00 — Security boundary
+### 13:15 - Security boundary
 
 **SCREEN:** Return to the dashboard.
 
@@ -300,7 +352,7 @@ Have these ready:
 **MAU:**  
 “That is enforced with Row-Level Security and guarded database functions, not just hidden buttons.”
 
-### 12:30 — Recap
+### 13:45 - Recap
 
 **SCREEN:** Split screen or title card.
 
