@@ -61,6 +61,7 @@ export default function SubmissionDetail({
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(
     detail.finalSnapshotId ?? lastSnapshot?.id ?? null
   )
+
   const [editor, setEditor] = useState<monacoTypes.editor.IStandaloneCodeEditor | null>(null)
   const [monaco, setMonaco] = useState<typeof monacoTypes | null>(null)
   const [cursorLine, setCursorLine] = useState(1)

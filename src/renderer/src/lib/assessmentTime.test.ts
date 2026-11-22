@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { assessmentAvailability, assessmentRemainingMs, formatCountdown } from './assessmentTime'
+import {
+  assessmentAvailability,
+  assessmentRemainingMs,
+  formatCountdown,
+  liveWindowError,
+  timingSummary
+} from './assessmentTime'
 
 const NOW = Date.parse('2026-11-23T10:00:00.000Z')
 
@@ -41,6 +47,62 @@ describe('assessmentAvailability', () => {
         NOW
       )
     ).toBe('closed')
+  })
+})
+
+describe('timingSummary', () => {
+  it('shows the effective short window instead of the configured duration', () => {
+    const summary = timingSummary({
+      timingMode: 'live_window',
+      durationMinutes: 60,
+      opensAt: '2026-11-23T10:00:00.000Z',
+      closesAt: '2026-11-23T10:02:00.000Z'
+    })
+    expect(summary).toMatch(/^Shared 2 min window /)
+    expect(summary).toContain('→')
+  })
+
+  it('shows the configured duration when the close time allows it', () => {
+    const summary = timingSummary({
+      timingMode: 'live_window',
+      durationMinutes: 60,
+      opensAt: '2026-11-23T10:00:00.000Z',
+      closesAt: '2026-11-23T11:00:00.000Z'
+    })
+    expect(summary).toMatch(/^Shared 60 min window /)
+  })
+
+  it('keeps the take-home wording for duration mode', () => {
+    expect(
+      timingSummary({
+        timingMode: 'duration',
+        durationMinutes: 60,
+        opensAt: null,
+        closesAt: null
+      })
+    ).toBe('60 min · starts when you open it')
+  })
+})
+
+describe('liveWindowError', () => {
+  it('rejects a close time that truncates the configured duration', () => {
+    expect(liveWindowError(60, '2026-11-23T15:00', '2026-11-23T15:02')).toContain(
+      'cuts the 60-minute window to 2 minutes'
+    )
+  })
+
+  it('allows a close time that covers the full duration', () => {
+    expect(liveWindowError(60, '2026-11-23T15:00', '2026-11-23T16:00')).toBeNull()
+  })
+
+  it('rejects a close time before the open time', () => {
+    expect(liveWindowError(60, '2026-11-23T15:00', '2026-11-23T14:00')).toBe(
+      'The closing time must be after the opening time.'
+    )
+  })
+
+  it('allows missing times so the required-field check owns that case', () => {
+    expect(liveWindowError(60, null, '2026-11-23T15:00')).toBeNull()
   })
 })
 

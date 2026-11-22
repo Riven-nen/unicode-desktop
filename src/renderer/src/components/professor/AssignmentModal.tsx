@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ProfessorModal from './ProfessorModal'
 import { defaultAssignmentFileName } from '../../lib/assignments'
+import { liveWindowError } from '../../lib/assessmentTime'
 import { createAssignment, updateAssignment } from '../../lib/professorQueries'
 import { createExamTemplate, fetchExamTemplates } from '../../lib/examTemplates'
 import type { ExamTemplate } from '../../lib/examTemplates'
@@ -183,6 +184,13 @@ export default function AssignmentModal({
     if (opensAt && closesAt && new Date(closesAt).getTime() <= new Date(opensAt).getTime()) {
       setError('The closing time must be after the opening time.')
       return
+    }
+    if (timingMode === 'live_window' && Number.isFinite(parsedDuration)) {
+      const windowError = liveWindowError(parsedDuration, opensAt || null, closesAt || null)
+      if (windowError) {
+        setError(windowError)
+        return
+      }
     }
     const parsedTabOuts = Number(allowedTabOuts)
     if (

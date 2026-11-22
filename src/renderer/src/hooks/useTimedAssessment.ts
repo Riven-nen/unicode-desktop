@@ -41,7 +41,9 @@ export interface TimedAssessmentApi {
   reset: () => void
 }
 
-const AUTOSAVE_INTERVAL_MS = 8_000
+// Keep the draft close to the live editor. The server finalizes at the
+// deadline, so a long interval can lose the last several seconds of typing.
+const AUTOSAVE_INTERVAL_MS = 2_000
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : 'The assessment session could not be saved.'

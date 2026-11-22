@@ -8314,3 +8314,10 @@ input:focus-visible,
   line-height: 1.45;
   color: var(--text-muted);
 }
+
+.assessment-result-modal {
+  display: flex;
+  width: min(470px, 94vw);
+  flex-direction: column;
+  gap: 14px;
+}

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import AppearancePanel from './components/AppearancePanel'
 import AssessmentBar from './components/AssessmentBar'
+import AssessmentSubmittedModal from './components/AssessmentSubmittedModal'
 import AssessmentWarningModal from './components/AssessmentWarningModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import EditorPane from './components/EditorPane'
@@ -201,6 +202,7 @@ export default function App(): React.ReactElement {
   // the countdown, autosaves drafts, and asks the server to finalize on time.
   const [activeAssessment, setActiveAssessment] = useState<StudentAssignment | null>(null)
   const [assessmentWarning, setAssessmentWarning] = useState<string | null>(null)
+  const [assessmentResult, setAssessmentResult] = useState<{ auto: boolean } | null>(null)
   const activeAssessmentRef = useRef<StudentAssignment | null>(null)
   const assessmentFileRef = useRef<{ key: string | null; path: string | null }>({
     key: null,
@@ -299,11 +301,9 @@ export default function App(): React.ReactElement {
       assessmentFileRef.current = { key: null, path: null }
       lastAssessmentContentRef.current = null
       setAssessmentWarning(null)
-      showToast(
-        result.status === 'auto_submitted' || reason === 'auto'
-          ? 'Time is up — the latest saved draft was submitted.'
-          : 'Seatwork submitted.'
-      )
+      const auto = result.status === 'auto_submitted' || reason === 'auto'
+      if (auto) setAssessmentResult({ auto: true })
+      showToast(auto ? 'Time is up — the latest saved draft was submitted.' : 'Seatwork submitted.')
       reloadAssignments()
     },
     [showToast, reloadAssignments]
@@ -1182,6 +1182,7 @@ export default function App(): React.ReactElement {
     setActiveAssessment(null)
     activeAssessmentRef.current = null
     setAssessmentWarning(null)
+    setAssessmentResult(null)
     assessmentFileRef.current = { key: null, path: null }
     lastAssessmentContentRef.current = null
     setStudentViewState(null)
@@ -1461,6 +1462,17 @@ export default function App(): React.ReactElement {
               <AssessmentWarningModal
                 message={assessmentWarning}
                 onClose={() => setAssessmentWarning(null)}
+              />
+            )}
+
+            {assessmentResult && (
+              <AssessmentSubmittedModal
+                auto={assessmentResult.auto}
+                onClose={() => setAssessmentResult(null)}
+                onDashboard={() => {
+                  setAssessmentResult(null)
+                  showStudentView('dashboard')
+                }}
               />
             )}
 

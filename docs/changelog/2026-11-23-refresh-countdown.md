@@ -37,7 +37,7 @@ modal and unlock Start at zero.
 
 - Desktop typecheck, lint, tests, and build pass.
 - Admin typecheck and build pass.
-- Tests: 20 files, 133 tests.
+- Tests: 20 files, 140 tests.
 - Live Electron check: the scheduled button opened the modal, the countdown
   changed from 06:16 to 06:14 over two seconds, and no page errors were raised.
 - Headless admin check: Refresh showed the spinning icon and “Refreshing…” state,

@@ -72,7 +72,7 @@ external, so execution can also use the locally installed toolchain.
   dependency and is not guaranteed in the demo environment.
 - HTML coursework: HTML101 lessons and project with a loopback live preview that serves the class folder and overlays unsaved editor content.
 - Workspace tree: nested project folders, class folders, and image assets, with in-tree folder and image import actions.
-- Automated checks: 121 Vitest tests and 41 live RLS regression checks.
+- Automated checks: 140 Vitest tests and 41 live RLS regression checks.
 - Windows installer: `dist/unicode-desktop-1.0.0-setup.exe` (126.16 MB).
 - Installer SHA-256:
   `3106491895F542977C47A87D0876BE1E47775468DB24506247D0AA64FA905A81`.

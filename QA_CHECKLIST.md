@@ -111,9 +111,12 @@ should pass before the demo.
 - [ ] Student class page has Assignments and Seatworks tabs.
 - [ ] A scheduled seatwork stays pressable and opens a live start countdown;
       Start unlocks at zero.
+- [ ] A live seatwork whose close time shortens the duration is rejected.
+- [ ] Auto-submit shows a final “Time is up” notice; later edits are excluded.
+- [ ] Professor review opens a submission at its final snapshot.
 - [ ] Starting a seatwork opens the workspace with the draft and a countdown
       bar; changing the system clock does not extend the deadline.
-- [ ] Edits autosave within 8 seconds; restarting the app and resuming returns
+- [ ] Edits autosave within 2 seconds; restarting the app and resuming returns
       the draft and the original deadline.
 - [ ] Submit creates one submission with the live content and blocks a second
       attempt.

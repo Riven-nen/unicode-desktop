@@ -194,6 +194,7 @@ Expected:
       message.
 - [ ] **P0** Saving a live-window seatwork without an opening time is rejected.
 - [ ] **P0** A closing time at or before the opening time is rejected.
+- [ ] **P0** A live seatwork whose close time cuts the configured duration short is rejected with the available window.
 - [ ] **P0** The assignment header shows type, duration, window, and auto-submit
       policy.
 - [ ] **P0** The session monitor lists started students with status, start,
@@ -212,7 +213,7 @@ Expected:
       shows the countdown bar.
 - [ ] **P0** The countdown uses server time; changing the Windows clock does not
       extend the displayed deadline.
-- [ ] **P0** Editing for at least 8 seconds then refreshing/restarting returns the
+- [ ] **P0** Editing for at least 3 seconds then refreshing/restarting returns the
       same draft and the same deadline.
 - [ ] **P0** Window hide triggers a draft save.
 - [ ] **P0** Submit asks for confirmation and creates one submission with the live
@@ -220,6 +221,8 @@ Expected:
 - [ ] **P0** The submitted seatwork becomes Submitted and no second attempt can
       start.
 - [ ] **P0** A draft left past the deadline auto-submits the latest saved content.
+- [ ] **P0** Auto-submit shows a final “Time is up” modal; later editor typing is not in the submission.
+- [ ] **P1** Switching submissions opens the new submission at its final snapshot.
 - [ ] **P0** Starting a second timed assessment while one is active is blocked
       with a readable message.
 - [ ] **P1** Hiding the countdown keeps the deadline enforced but removes the
