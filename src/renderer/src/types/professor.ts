@@ -91,6 +91,17 @@ export interface SnapshotEntry {
   typingIntervals: number[]
 }
 
+export interface PasteEntry {
+  id: string
+  snapshotId: string | null
+  fileName: string
+  text: string
+  chars: number
+  mode: string | null
+  detectedVia: string
+  createdAt: string
+}
+
 export interface PasteSimilarityMatch {
   pasteId: string
   pastedText: string
@@ -188,6 +199,7 @@ export interface SubmissionDetailData {
   classCode: string
   finalSnapshotId: string | null
   snapshots: SnapshotEntry[]
+  pastes: PasteEntry[]
   icsScore: IcsScoreRow | null
   comments: CommentEntry[]
   testCases: TestCaseEntry[]

@@ -14,6 +14,7 @@ import BandBadge from './BandBadge'
 import CommentMargin from './CommentMargin'
 import GradeBox from './GradeBox'
 import IcsPanel from './IcsPanel'
+import PasteAuditPanel from './PasteAuditPanel'
 import PasteSimilarityPanel from './PasteSimilarityPanel'
 import RunHistory from './RunHistory'
 import SnapshotTimeline from './SnapshotTimeline'
@@ -518,6 +519,7 @@ export default function SubmissionDetail({
             busy={icsBusy}
             error={icsError}
           />
+          <PasteAuditPanel pastes={detail.pastes} />
           <PasteSimilarityPanel
             pasteCount={detail.summary.pasteCount}
             matches={pasteMatches}

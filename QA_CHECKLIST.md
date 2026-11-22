@@ -286,6 +286,7 @@ should pass before the demo.
 - [ ] Submission CSV export downloads with the visible rows.
 - [ ] Submission detail opens: read-only code, snapshot timeline, comments,
       grade box, ICS panel.
+- [ ] Paste audit lists every paste with its full text and timestamp.
 - [ ] Local terminal opens for the selected snapshot in a temporary directory;
       Run file uses the local toolchain, shows output, and closing it removes
       the temporary copy.

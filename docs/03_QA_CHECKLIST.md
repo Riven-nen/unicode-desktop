@@ -509,6 +509,8 @@ Expected:
 ## 12. Submission review, diff, timeline, heatmap, paste similarity
 
 - [ ] **P0** Submissions table loads with grade/ICS/band/pastes/comments.
+- [ ] **P0** Paste audit lists every paste with its full text and metadata.
+- [ ] **P0** Large pastes scroll inside their entry instead of breaking the layout.
 - [ ] **P0** Sort by ICS/time works.
 - [ ] **P0** Filter Pass/Review/Flag works.
 - [ ] **P0** Submission CSV export downloads.

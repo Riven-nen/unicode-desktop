@@ -8172,3 +8172,54 @@ input:focus-visible,
   flex-basis: 100%;
   margin: 0;
 }
+
+.paste-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.paste-audit-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--paste) 5%, transparent);
+}
+
+.paste-audit-entry header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.paste-audit-entry header strong {
+  color: var(--paste);
+  font-size: 10.5px;
+}
+
+.paste-audit-entry header time {
+  margin-left: auto;
+}
+
+.paste-audit-entry .paste-snippet {
+  max-height: 150px;
+  overflow: auto;
+  margin: 0;
+}
+
+.paste-audit-file {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -8,6 +8,7 @@ import type {
   IcsEvidenceValues,
   IcsScoreRow,
   LiveLabStudent,
+  PasteEntry,
   PasteSimilarityMatch,
   RosterStudent,
   SnapshotEntry,
@@ -818,9 +819,14 @@ interface SnapshotRow {
 }
 
 interface PasteRow {
-  snapshot_id: string
-  detected_via: string
+  id: string
+  snapshot_id: string | null
+  file_name: string
+  pasted_text: string
   pasted_chars: number
+  paste_mode: string | null
+  detected_via: string
+  created_at: string
 }
 
 interface CommentRow {
@@ -902,26 +908,42 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
   const testRows = (testRes.data ?? []) as unknown as TestCaseRow[]
 
   const pasteMeta = new Map<string, { sources: Set<string>; chars: number; events: number }>()
+  const pasteEntries: PasteEntry[] = []
   if (snapshotRows.length > 0) {
     const pasteRes = await client()
       .from('paste_events')
-      .select('snapshot_id, detected_via, pasted_chars')
+      .select(
+        'id, snapshot_id, file_name, pasted_text, pasted_chars, paste_mode, detected_via, created_at'
+      )
       .in(
         'snapshot_id',
         snapshotRows.map((snapshot) => snapshot.id)
       )
     if (pasteRes.error) throw new Error(pasteRes.error.message)
     for (const paste of (pasteRes.data ?? []) as unknown as PasteRow[]) {
-      const meta = pasteMeta.get(paste.snapshot_id) ?? {
-        sources: new Set<string>(),
-        chars: 0,
-        events: 0
+      if (paste.snapshot_id) {
+        const meta = pasteMeta.get(paste.snapshot_id) ?? {
+          sources: new Set<string>(),
+          chars: 0,
+          events: 0
+        }
+        meta.sources.add(paste.detected_via)
+        meta.chars += paste.pasted_chars
+        meta.events += 1
+        pasteMeta.set(paste.snapshot_id, meta)
       }
-      meta.sources.add(paste.detected_via)
-      meta.chars += paste.pasted_chars
-      meta.events += 1
-      pasteMeta.set(paste.snapshot_id, meta)
+      pasteEntries.push({
+        id: paste.id,
+        snapshotId: paste.snapshot_id,
+        fileName: paste.file_name,
+        text: paste.pasted_text,
+        chars: paste.pasted_chars,
+        mode: paste.paste_mode,
+        detectedVia: paste.detected_via,
+        createdAt: paste.created_at
+      })
     }
+    pasteEntries.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   }
 
   const snapshots: SnapshotEntry[] = snapshotRows.map((snapshot) => {
@@ -1010,6 +1032,7 @@ export async function fetchSubmissionDetail(submissionId: string): Promise<Submi
     classCode: klass?.code ?? '',
     finalSnapshotId: row.final_snapshot_id,
     snapshots,
+    pastes: pasteEntries,
     icsScore,
     comments,
     testCases

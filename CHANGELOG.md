@@ -36,6 +36,8 @@ All notable changes to Unicode Lab are recorded here. The format is based on
 - **Phase 5 product features:** multiple attempts with history, one-time
   override codes, saved exam templates, bulk class exam policy, proctoring
   filters, class-wide exam analytics, and a WEB102 CSS/JavaScript course.
+- **Paste audit:** submission review now lists every recorded paste with its
+  full text, character count, detection source, mode, file, and timestamp.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a

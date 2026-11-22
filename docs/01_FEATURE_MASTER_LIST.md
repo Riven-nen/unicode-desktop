@@ -308,6 +308,7 @@ integrity.
 | REV-19 | Recompute ICS             | Single submission or all submissions                                                            | Implemented                     |
 | REV-20 | Live Lab                  | Active/idle/flagged/offline student monitor with current file                                   | Implemented                     |
 | REV-21 | Local submission terminal | Writes the selected snapshot to a temporary directory and opens a local shell with **Run file** | Implemented (local permissions) |
+| REV-22 | Paste audit               | Every paste event shows its full text, count, source, mode, file, and time                      | Implemented                     |
 
 ### Review caveats
 
