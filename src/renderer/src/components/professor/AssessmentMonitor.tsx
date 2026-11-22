@@ -13,6 +13,7 @@ import { initialsOf } from '../../lib/initials'
 import { sessionStatusLabel, type AssessmentSessionSummary } from '../../types/assessment'
 import AssessmentEventLog from './AssessmentEventLog'
 import AssessmentOverrideModal from './AssessmentOverrideModal'
+import OverrideCodeModal from './OverrideCodeModal'
 
 interface AssessmentMonitorProps {
   assignmentId: string
@@ -54,8 +55,13 @@ export default function AssessmentMonitor({
   const [overrideBusy, setOverrideBusy] = useState<string | null>(null)
   const [overrideSession, setOverrideSession] = useState<AssessmentSessionSummary | null>(null)
   const [eventSession, setEventSession] = useState<AssessmentSessionSummary | null>(null)
+  const [codeSession, setCodeSession] = useState<AssessmentSessionSummary | null>(null)
   const [version, setVersion] = useState(0)
   const [clock, setClock] = useState(() => Date.now())
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [interruptionsOnly, setInterruptionsOnly] = useState(false)
+  const [overridesOnly, setOverridesOnly] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -96,7 +102,22 @@ export default function AssessmentMonitor({
   const submittedCount = sessions.filter(
     (session) => session.status === 'submitted' || session.status === 'auto_submitted'
   ).length
-  const notStarted = Math.max(0, rosterCount - sessions.length)
+  const distinctStudents = new Set(sessions.map((session) => session.studentId)).size
+  const notStarted = Math.max(0, rosterCount - distinctStudents)
+  const visibleSessions = sessions.filter((session) => {
+    if (statusFilter !== 'all' && session.status !== statusFilter) return false
+    const query = search.trim().toLowerCase()
+    if (
+      query &&
+      !session.studentName.toLowerCase().includes(query) &&
+      !session.studentEmail.toLowerCase().includes(query)
+    ) {
+      return false
+    }
+    if (interruptionsOnly && session.interruptionCount === 0) return false
+    if (overridesOnly && !session.overrideNote && session.reopenCount === 0) return false
+    return true
+  })
 
   const applyOverride = async (
     sessionId: string,
@@ -157,6 +178,36 @@ export default function AssessmentMonitor({
         </span>
       </div>
 
+      <div className="assessment-monitor-filters">
+        <input
+          value={search}
+          placeholder="Search student…"
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="active">In progress</option>
+          <option value="submitted">Submitted</option>
+          <option value="auto_submitted">Auto-submitted</option>
+        </select>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={interruptionsOnly}
+            onChange={(event) => setInterruptionsOnly(event.target.checked)}
+          />
+          <span>Interruptions</span>
+        </label>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={overridesOnly}
+            onChange={(event) => setOverridesOnly(event.target.checked)}
+          />
+          <span>Overrides</span>
+        </label>
+      </div>
+
       {error && <div className="professor-error">{error}</div>}
       {!error && items === null && (
         <div className="professor-empty">Loading assessment sessions…</div>
@@ -165,12 +216,17 @@ export default function AssessmentMonitor({
         <div className="professor-empty">No student has started this assessment yet.</div>
       )}
 
-      {sessions.length > 0 && (
+      {sessions.length > 0 && visibleSessions.length === 0 && (
+        <div className="professor-empty">No sessions match these filters.</div>
+      )}
+
+      {visibleSessions.length > 0 && (
         <div className="assessment-monitor-table-wrap">
           <table className="assessment-monitor-table">
             <thead>
               <tr>
                 <th>Student</th>
+                <th>Attempt</th>
                 <th>Status</th>
                 <th>Started</th>
                 <th>Deadline</th>
@@ -182,7 +238,7 @@ export default function AssessmentMonitor({
               </tr>
             </thead>
             <tbody>
-              {sessions.map((session) => {
+              {visibleSessions.map((session) => {
                 const deadline = session.expiresAt ? Date.parse(session.expiresAt) : null
                 const remaining =
                   deadline !== null ? deadline - (clock + session.serverOffsetMs) : null
@@ -198,6 +254,12 @@ export default function AssessmentMonitor({
                           <span>{session.studentEmail}</span>
                         </span>
                       </span>
+                    </td>
+                    <td>
+                      {session.attemptNumber}/{session.maxAttempts}
+                      {session.reopenCount > 0 && (
+                        <span className="assessment-muted"> · reopens {session.reopenCount}</span>
+                      )}
                     </td>
                     <td>
                       <span
@@ -285,6 +347,15 @@ export default function AssessmentMonitor({
                             Override
                           </button>
                         )}
+                        {session.examMode && (
+                          <button
+                            className="icon-text-btn"
+                            onClick={() => setCodeSession(session)}
+                            title="Generate a one-time student code"
+                          >
+                            Code
+                          </button>
+                        )}
                       </span>
                       {session.overrideNote && (
                         <span className="assessment-override-note" title={session.overrideNote}>
@@ -313,6 +384,10 @@ export default function AssessmentMonitor({
 
       {eventSession && (
         <AssessmentEventLog session={eventSession} onClose={() => setEventSession(null)} />
+      )}
+
+      {codeSession && (
+        <OverrideCodeModal session={codeSession} onClose={() => setCodeSession(null)} />
       )}
     </section>
   )

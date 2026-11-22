@@ -195,6 +195,7 @@ interface AssignmentRow {
   fullscreen_required: boolean
   block_paste: boolean
   run_only_terminal: boolean
+  max_attempts: number
   test_cases: Array<{ id: string; is_hidden: boolean }> | null
 }
 
@@ -202,7 +203,7 @@ export async function fetchAssignments(classId: string): Promise<AssignmentSumma
   const { data, error } = await client()
     .from('assignments')
     .select(
-      'id, title, language, description, file_name, starter_code, archived_at, published, publish_at, due_at, auto_test_enabled, kind, timing_mode, duration_minutes, opens_at, closes_at, auto_submit, show_timer, allowed_tab_outs, fullscreen_required, block_paste, run_only_terminal, test_cases(id, is_hidden)'
+      'id, title, language, description, file_name, starter_code, archived_at, published, publish_at, due_at, auto_test_enabled, kind, timing_mode, duration_minutes, opens_at, closes_at, auto_submit, show_timer, allowed_tab_outs, fullscreen_required, block_paste, run_only_terminal, max_attempts, test_cases(id, is_hidden)'
     )
     .eq('class_id', classId)
     .order('created_at', { ascending: true })
@@ -233,6 +234,7 @@ export async function fetchAssignments(classId: string): Promise<AssignmentSumma
       fullscreenRequired: row.fullscreen_required,
       blockPaste: row.block_paste,
       runOnlyTerminal: row.run_only_terminal,
+      maxAttempts: Number(row.max_attempts ?? 1),
       testCaseCount: cases.length,
       hiddenCaseCount: cases.filter((testCase) => testCase.is_hidden).length
     }
@@ -255,6 +257,7 @@ export interface AssignmentTimingInput {
   fullscreenRequired: boolean
   blockPaste: boolean
   runOnlyTerminal: boolean
+  maxAttempts: number
 }
 
 export async function createAssignment(
@@ -290,7 +293,12 @@ export async function createAssignment(
       opens_at: input.opensAt,
       closes_at: input.closesAt,
       auto_submit: input.autoSubmit,
-      show_timer: input.showTimer
+      show_timer: input.showTimer,
+      allowed_tab_outs: input.allowedTabOuts,
+      fullscreen_required: input.fullscreenRequired,
+      block_paste: input.blockPaste,
+      run_only_terminal: input.runOnlyTerminal,
+      max_attempts: input.maxAttempts
     })
     .select('id')
     .single()
@@ -335,7 +343,8 @@ export async function updateAssignment(
       allowed_tab_outs: input.allowedTabOuts,
       fullscreen_required: input.fullscreenRequired,
       block_paste: input.blockPaste,
-      run_only_terminal: input.runOnlyTerminal
+      run_only_terminal: input.runOnlyTerminal,
+      max_attempts: input.maxAttempts
     })
     .eq('id', input.assignmentId)
 

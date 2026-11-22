@@ -34,6 +34,7 @@ import AppearancePanel from '../AppearancePanel'
 import TitleBarControls from '../TitleBarControls'
 import AssignmentModal from './AssignmentModal'
 import AssignmentView from './AssignmentView'
+import BulkExamPolicyModal from './BulkExamPolicyModal'
 import ClassGrid from './ClassGrid'
 import ClassModal from './ClassModal'
 import ClassOverview from './ClassOverview'
@@ -119,6 +120,7 @@ export default function ProfessorDashboard({
   const [showArchivedClasses, setShowArchivedClasses] = useState(false)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [liveLabOpen, setLiveLabOpen] = useState(false)
+  const [bulkPolicyOpen, setBulkPolicyOpen] = useState(false)
 
   const [assignments, setAssignments] = useState<AssignmentState | null>(null)
   const [assignmentVersion, setAssignmentVersion] = useState(0)
@@ -774,6 +776,9 @@ export default function ProfessorDashboard({
                   <button className="btn-secondary" onClick={() => setRosterOpen(true)}>
                     <Users size={13} /> Manage students
                   </button>
+                  <button className="btn-secondary" onClick={() => setBulkPolicyOpen(true)}>
+                    <KeyRound size={13} /> Bulk exam policy
+                  </button>
                   <button
                     className="btn-secondary"
                     onClick={() => void exportGrades()}
@@ -814,6 +819,8 @@ export default function ProfessorDashboard({
             {joinCodeNotice && <div className="auth-info">{joinCodeNotice}</div>}
 
             <ClassOverview
+              classId={selectedClass.id}
+              examRefreshSignal={monitorVersion}
               assignments={visibleAssignmentItems}
               assignmentsLoading={assignmentsLoading}
               assignmentError={assignmentError}
@@ -858,6 +865,24 @@ export default function ProfessorDashboard({
         />
       )}
 
+      {bulkPolicyOpen && selectedClass && (
+        <BulkExamPolicyModal
+          classId={selectedClass.id}
+          className={selectedClass.name}
+          onClose={() => setBulkPolicyOpen(false)}
+          onApplied={(updated) => {
+            setBulkPolicyOpen(false)
+            setAssignmentVersion((version) => version + 1)
+            setMonitorVersion((version) => version + 1)
+            window.alert(
+              updated === 0
+                ? 'No seatworks were updated.'
+                : `Updated ${updated} seatwork${updated === 1 ? '' : 's'}.`
+            )
+          }}
+        />
+      )}
+
       {rosterOpen && selectedClass && (
         <RosterModal
           classId={selectedClass.id}
@@ -873,6 +898,7 @@ export default function ProfessorDashboard({
       {assignmentModal && selectedClass && (
         <AssignmentModal
           classId={selectedClass.id}
+          professorId={userId}
           initial={assignmentModal.initial}
           defaultKind={assignmentModal.defaultKind}
           onClose={() => setAssignmentModal(null)}

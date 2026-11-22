@@ -37,6 +37,7 @@ export interface AssessmentSession {
   runOnlyTerminal: boolean
   overrideNote: string | null
   overrideAt: string | null
+  attemptNumber: number
 }
 
 export interface AssessmentExamState {
@@ -105,6 +106,9 @@ export interface AssessmentSessionSummary {
   runOnlyTerminal: boolean
   overrideNote: string | null
   overrideAt: string | null
+  attemptNumber: number
+  maxAttempts: number
+  reopenCount: number
 }
 
 export interface AssessmentDraftResult {

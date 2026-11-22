@@ -8,6 +8,7 @@ export interface StudentAssessmentSession {
   submittedAt: string | null
   lastSavedAt: string | null
   draftRevision: number
+  attemptNumber: number
   examMode: boolean
   allowedTabOuts: number
   tabOutCount: number
@@ -60,7 +61,10 @@ export interface StudentAssignment {
   fullscreenRequired: boolean
   blockPaste: boolean
   runOnlyTerminal: boolean
+  maxAttempts: number
   latestSubmission: StudentSubmission | null
-  /** The student's single attempt, when this is a timed assessment. */
+  /** The latest attempt, when this is a timed assessment. */
   session: StudentAssessmentSession | null
+  /** Every attempt, oldest first, for the history list. */
+  attempts: StudentAssessmentSession[]
 }

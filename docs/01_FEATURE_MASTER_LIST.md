@@ -276,6 +276,10 @@ integrity.
 | PRO-25 | Realtime exam monitor       | Sessions and events refresh the monitor without a manual reload                      | Implemented |
 | PRO-26 | Event timeline/export       | Per-session audit timeline with CSV export                                           | Implemented |
 | PRO-27 | Reopen attempt              | Terminal session can be reopened with a fresh deadline and audit entry               | Implemented |
+| PRO-28 | Multiple attempts           | Configurable attempts per assessment with latest-attempt resume and history          | Implemented |
+| PRO-29 | One-time override codes     | Hashed, expiring, single-use codes for extend, excuse, or reopen                     | Implemented |
+| PRO-30 | Exam templates/bulk policy  | Reusable seatwork policies and one-click class-wide application                      | Implemented |
+| PRO-31 | Proctoring analytics        | Monitor filters plus class-wide attempts/interruption/override totals                | Implemented |
 
 ---
 

@@ -52,6 +52,7 @@ interface AssignmentRow {
   fullscreen_required: boolean
   block_paste: boolean
   run_only_terminal: boolean
+  max_attempts: number
   class: ClassEmbed | ClassEmbed[] | null
 }
 
@@ -76,7 +77,7 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
     .select(
       `id, class_id, title, description, language, file_name, starter_code, created_at, publish_at, due_at, auto_test_enabled,
        kind, timing_mode, duration_minutes, opens_at, closes_at, auto_submit, show_timer,
-       allowed_tab_outs, fullscreen_required, block_paste, run_only_terminal,
+       allowed_tab_outs, fullscreen_required, block_paste, run_only_terminal, max_attempts,
        class:classes!assignments_class_id_fkey ( id, name, code, archived_at )`
     )
     .eq('published', true)
@@ -114,8 +115,10 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
         fullscreenRequired: row.fullscreen_required,
         blockPaste: row.block_paste,
         runOnlyTerminal: row.run_only_terminal,
+        maxAttempts: Number(row.max_attempts ?? 1),
         latestSubmission: null,
-        session: null
+        session: null,
+        attempts: []
       } satisfies StudentAssignment
     })
 
@@ -123,7 +126,7 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
 
   // Sessions come first: lazy expiry can create an auto-submission, and the
   // submission query below should see it on the same load.
-  let sessions = new Map<string, StudentAssessmentSessionRow>()
+  let sessions = new Map<string, StudentAssessmentSessionRow[]>()
   try {
     sessions = await fetchStudentAssessmentSessions(studentId)
   } catch {
@@ -158,34 +161,35 @@ export async function fetchStudentAssignments(studentId: string): Promise<Studen
   }
 
   return assignments.map((assignment) => {
-    const row = sessions.get(assignment.id)
-    const session: StudentAssessmentSession | null = row
-      ? {
-          id: row.id,
-          status: row.status,
-          startedAt: row.started_at,
-          expiresAt: row.expires_at,
-          submittedAt: row.submitted_at,
-          lastSavedAt: row.last_saved_at,
-          draftRevision: Number(row.draft_revision ?? 0),
-          examMode: row.exam_mode,
-          allowedTabOuts: Number(row.allowed_tab_outs ?? 0),
-          tabOutCount: Number(row.tab_out_count ?? 0),
-          fullscreenExitCount: Number(row.fullscreen_exit_count ?? 0),
-          blockedPasteCount: Number(row.blocked_paste_count ?? 0),
-          interruptionCount: Number(row.interruption_count ?? 0),
-          fullscreenRequired: row.fullscreen_required,
-          blockPaste: row.block_paste,
-          runOnlyTerminal: row.run_only_terminal,
-          overrideNote: row.override_note,
-          overrideAt: row.override_at,
-          serverOffsetMs: row.server_offset_ms
-        }
-      : null
+    const rows = sessions.get(assignment.id) ?? []
+    const attempts: StudentAssessmentSession[] = rows.map((row) => ({
+      id: row.id,
+      status: row.status,
+      startedAt: row.started_at,
+      expiresAt: row.expires_at,
+      submittedAt: row.submitted_at,
+      lastSavedAt: row.last_saved_at,
+      draftRevision: Number(row.draft_revision ?? 0),
+      attemptNumber: Number(row.attempt_number ?? 1),
+      examMode: row.exam_mode,
+      allowedTabOuts: Number(row.allowed_tab_outs ?? 0),
+      tabOutCount: Number(row.tab_out_count ?? 0),
+      fullscreenExitCount: Number(row.fullscreen_exit_count ?? 0),
+      blockedPasteCount: Number(row.blocked_paste_count ?? 0),
+      interruptionCount: Number(row.interruption_count ?? 0),
+      fullscreenRequired: row.fullscreen_required,
+      blockPaste: row.block_paste,
+      runOnlyTerminal: row.run_only_terminal,
+      overrideNote: row.override_note,
+      overrideAt: row.override_at,
+      serverOffsetMs: row.server_offset_ms
+    }))
+    const session = attempts.length > 0 ? attempts[attempts.length - 1] : null
     return {
       ...assignment,
       latestSubmission: latest.get(assignment.id) ?? null,
-      session
+      session,
+      attempts
     }
   })
 }

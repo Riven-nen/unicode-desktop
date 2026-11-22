@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ProfessorModal from './ProfessorModal'
 import { defaultAssignmentFileName } from '../../lib/assignments'
 import { createAssignment, updateAssignment } from '../../lib/professorQueries'
+import { createExamTemplate, fetchExamTemplates } from '../../lib/examTemplates'
+import type { ExamTemplate } from '../../lib/examTemplates'
 import type { AssessmentKind, AssessmentTimingMode } from '../../types/assessment'
 import type { AssignmentSummary } from '../../types/professor'
 
@@ -26,6 +28,7 @@ const LANGUAGES = [
 
 interface AssignmentModalProps {
   classId: string
+  professorId: string
   initial: AssignmentSummary | null
   /** Which class tab opened the modal; new seatworks start timed. */
   defaultKind?: AssessmentKind
@@ -46,6 +49,7 @@ function toDateTimeLocal(iso: string | null): string {
 
 export default function AssignmentModal({
   classId,
+  professorId,
   initial,
   defaultKind = 'assignment',
   onClose,
@@ -71,6 +75,10 @@ export default function AssignmentModal({
   const [fullscreenRequired, setFullscreenRequired] = useState(initial?.fullscreenRequired ?? true)
   const [blockPaste, setBlockPaste] = useState(initial?.blockPaste ?? true)
   const [runOnlyTerminal, setRunOnlyTerminal] = useState(initial?.runOnlyTerminal ?? true)
+  const [maxAttempts, setMaxAttempts] = useState(String(initial?.maxAttempts ?? 1))
+  const [templates, setTemplates] = useState<ExamTemplate[]>([])
+  const [templateName, setTemplateName] = useState('')
+  const [templateBusy, setTemplateBusy] = useState(false)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [language, setLanguage] = useState(initial?.language ?? 'python')
@@ -83,8 +91,61 @@ export default function AssignmentModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let cancelled = false
+    void fetchExamTemplates()
+      .then((items) => {
+        if (!cancelled) setTemplates(items)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const resolvedFileName = fileName.trim() || defaultAssignmentFileName(title, language)
   const timed = timingMode !== 'none'
+
+  const applyTemplate = (templateId: string): void => {
+    const template = templates.find((item) => item.id === templateId)
+    if (!template) return
+    setKind('seatwork')
+    setTimingMode('duration')
+    setDurationMinutes(String(template.durationMinutes))
+    setAllowedTabOuts(String(template.allowedTabOuts))
+    setFullscreenRequired(template.fullscreenRequired)
+    setBlockPaste(template.blockPaste)
+    setRunOnlyTerminal(template.runOnlyTerminal)
+    setAutoSubmit(template.autoSubmit)
+    setShowTimer(template.showTimer)
+  }
+
+  const saveTemplate = async (): Promise<void> => {
+    if (!templateName.trim()) return
+    setTemplateBusy(true)
+    setError(null)
+    try {
+      await createExamTemplate({
+        professorId,
+        name: templateName,
+        durationMinutes: Math.max(1, Number(durationMinutes) || 60),
+        allowedTabOuts: Math.max(0, Number(allowedTabOuts) || 0),
+        fullscreenRequired,
+        blockPaste,
+        runOnlyTerminal,
+        autoSubmit,
+        showTimer
+      })
+      setTemplates(await fetchExamTemplates())
+      setTemplateName('')
+    } catch (templateError) {
+      setError(
+        templateError instanceof Error ? templateError.message : 'Could not save the template.'
+      )
+    } finally {
+      setTemplateBusy(false)
+    }
+  }
   const autoTestsSupported = language !== 'html' && language !== 'css'
 
   const changeLanguage = (next: string): void => {
@@ -131,6 +192,11 @@ export default function AssignmentModal({
       setError('Allowed interruptions must be a whole number from 0 to 10.')
       return
     }
+    const parsedAttempts = Number(maxAttempts)
+    if (!Number.isInteger(parsedAttempts) || parsedAttempts < 1 || parsedAttempts > 10) {
+      setError('Attempts must be a whole number from 1 to 10.')
+      return
+    }
 
     const timingPayload = {
       kind,
@@ -143,7 +209,8 @@ export default function AssignmentModal({
       allowedTabOuts: kind === 'seatwork' ? parsedTabOuts : 1,
       fullscreenRequired: kind === 'seatwork' ? fullscreenRequired : false,
       blockPaste: kind === 'seatwork' ? blockPaste : false,
-      runOnlyTerminal: kind === 'seatwork' ? runOnlyTerminal : false
+      runOnlyTerminal: kind === 'seatwork' ? runOnlyTerminal : false,
+      maxAttempts: parsedAttempts
     }
 
     setBusy(true)
@@ -344,6 +411,42 @@ export default function AssignmentModal({
           <>
             <div className="form-row">
               <div className="form-field">
+                <label htmlFor="assignment-template">Apply exam template</label>
+                <select
+                  id="assignment-template"
+                  value=""
+                  onChange={(event) => applyTemplate(event.target.value)}
+                >
+                  <option value="">Choose a saved template…</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} · {template.durationMinutes} min
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor="assignment-template-name">Save current as template</label>
+                <div className="inline-field">
+                  <input
+                    id="assignment-template-name"
+                    value={templateName}
+                    placeholder="e.g. Locked 60-minute seatwork"
+                    onChange={(event) => setTemplateName(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={templateBusy || !templateName.trim()}
+                    onClick={() => void saveTemplate()}
+                  >
+                    {templateBusy ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-field">
                 <label htmlFor="assignment-tab-outs">Allowed interruptions</label>
                 <input
                   id="assignment-tab-outs"
@@ -398,6 +501,22 @@ export default function AssignmentModal({
                   Shell input is disabled; Run file remains available.
                 </span>
               </div>
+            </div>
+            <div className="form-field">
+              <label htmlFor="assignment-max-attempts">Attempts allowed</label>
+              <input
+                id="assignment-max-attempts"
+                type="number"
+                min={1}
+                max={10}
+                step={1}
+                value={maxAttempts}
+                onChange={(event) => setMaxAttempts(event.target.value)}
+              />
+              <span className="form-hint">
+                1 is a single attempt. After a terminal attempt, students can start the next one
+                until this limit.
+              </span>
             </div>
           </>
         )}

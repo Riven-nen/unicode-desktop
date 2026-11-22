@@ -67,6 +67,9 @@ interface MonitorRow {
   run_only_terminal: boolean
   override_note: string | null
   override_at: string | null
+  attempt_number: number
+  max_attempts: number
+  reopen_count: number
 }
 
 interface ExamStateRow {
@@ -115,6 +118,7 @@ export interface StudentAssessmentSessionRow {
   submitted_at: string | null
   last_saved_at: string | null
   draft_revision: number | string | null
+  attempt_number: number
   exam_mode: boolean
   allowed_tab_outs: number
   tab_out_count: number
@@ -162,7 +166,8 @@ function mapSession(row: SessionRow): AssessmentSession {
     blockPaste: false,
     runOnlyTerminal: false,
     overrideNote: null,
-    overrideAt: null
+    overrideAt: null,
+    attemptNumber: 1
   }
 }
 
@@ -235,6 +240,49 @@ export async function fetchAssessmentEvents(sessionId: string): Promise<Assessme
     metadata: (row.metadata ?? {}) as Record<string, unknown>,
     occurredAt: row.occurred_at as string
   }))
+}
+
+export async function createAssessmentOverrideCode(input: {
+  sessionId: string
+  action: 'extend_time' | 'excuse_interruption' | 'reopen'
+  minutes?: number
+  reason?: string
+  validMinutes?: number
+}): Promise<string> {
+  const { data, error } = await client().rpc('create_assessment_override_code', {
+    target_session: input.sessionId,
+    override_action: input.action,
+    override_minutes: input.minutes ?? null,
+    override_reason: input.reason ?? null,
+    valid_minutes: input.validMinutes ?? 15
+  })
+  if (error) throw new Error(error.message)
+  if (typeof data !== 'string') throw new Error('The override code could not be created.')
+  return data
+}
+
+export async function redeemAssessmentOverrideCode(
+  sessionId: string,
+  code: string
+): Promise<{ status: string; expiresAt: string | null; overrideNote: string | null }> {
+  const { data, error } = await client().rpc('redeem_assessment_override_code', {
+    target_session: sessionId,
+    override_code: code
+  })
+  if (error) throw new Error(error.message)
+  const row = firstRow(
+    (data ?? []) as unknown as Array<{
+      status: string
+      expires_at: string | null
+      override_note: string | null
+    }>
+  )
+  if (!row) throw new Error('The override code could not be redeemed.')
+  return {
+    status: row.status,
+    expiresAt: row.expires_at,
+    overrideNote: row.override_note
+  }
 }
 
 export async function applyAssessmentOverride(input: {
@@ -367,7 +415,10 @@ export async function fetchAssessmentSessions(
     blockPaste: row.block_paste,
     runOnlyTerminal: row.run_only_terminal,
     overrideNote: row.override_note,
-    overrideAt: row.override_at
+    overrideAt: row.override_at,
+    attemptNumber: Number(row.attempt_number ?? 1),
+    maxAttempts: Number(row.max_attempts ?? 1),
+    reopenCount: Number(row.reopen_count ?? 0)
   }))
 }
 
@@ -378,14 +429,14 @@ export async function fetchAssessmentSessions(
  */
 export async function fetchStudentAssessmentSessions(
   studentId: string
-): Promise<Map<string, StudentAssessmentSessionRow>> {
+): Promise<Map<string, StudentAssessmentSessionRow[]>> {
   // Expire first so the rows read below already carry the final status.
   await client().rpc('expire_assessment_sessions')
 
   const { data, error } = await client()
     .from('assessment_sessions')
     .select(
-      'id, assignment_id, status, started_at, expires_at, submitted_at, last_saved_at, draft_revision, exam_mode, allowed_tab_outs, tab_out_count, fullscreen_exit_count, blocked_paste_count, interruption_count, fullscreen_required, block_paste, run_only_terminal, override_note, override_at'
+      'id, assignment_id, status, started_at, expires_at, submitted_at, last_saved_at, draft_revision, attempt_number, exam_mode, allowed_tab_outs, tab_out_count, fullscreen_exit_count, blocked_paste_count, interruption_count, fullscreen_required, block_paste, run_only_terminal, override_note, override_at'
     )
     .eq('student_id', studentId)
     .order('started_at', { ascending: true })
@@ -409,9 +460,11 @@ export async function fetchStudentAssessmentSessions(
     }
   }
 
-  const byAssignment = new Map<string, StudentAssessmentSessionRow>()
+  const byAssignment = new Map<string, StudentAssessmentSessionRow[]>()
   for (const row of rows) {
-    byAssignment.set(row.assignment_id, { ...row, server_offset_ms: offset })
+    const list = byAssignment.get(row.assignment_id) ?? []
+    list.push({ ...row, server_offset_ms: offset })
+    byAssignment.set(row.assignment_id, list)
   }
   return byAssignment
 }

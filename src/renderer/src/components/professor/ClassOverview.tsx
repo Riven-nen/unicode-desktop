@@ -3,8 +3,11 @@ import { ArrowUpRight, Clock, Plus, Users } from 'lucide-react'
 import { initialsOf } from '../../lib/initials'
 import type { AssessmentKind } from '../../types/assessment'
 import type { AssignmentSummary, RosterStudent } from '../../types/professor'
+import ClassExamOverview from './ClassExamOverview'
 
 interface ClassOverviewProps {
+  classId: string
+  examRefreshSignal: number
   assignments: AssignmentSummary[]
   assignmentsLoading: boolean
   assignmentError: string | null
@@ -44,6 +47,8 @@ const formatDue = (iso: string): string =>
   })
 
 export default function ClassOverview({
+  classId,
+  examRefreshSignal,
   assignments,
   assignmentsLoading,
   assignmentError,
@@ -67,137 +72,142 @@ export default function ClassOverview({
   const isSeatwork = tab === 'seatwork'
 
   return (
-    <div className="class-overview-grid">
-      <section className="overview-panel">
-        <header className="panel-head">
-          <div className="coursework-tabs" role="tablist" aria-label="Coursework type">
-            <button
-              role="tab"
-              aria-selected={!isSeatwork}
-              className={`coursework-tab ${!isSeatwork ? 'is-active' : ''}`}
-              onClick={() => setTab('assignment')}
-            >
-              Assignments <span className="panel-count">{assignmentItems.length}</span>
-            </button>
-            <button
-              role="tab"
-              aria-selected={isSeatwork}
-              className={`coursework-tab ${isSeatwork ? 'is-active' : ''}`}
-              onClick={() => setTab('seatwork')}
-            >
-              Seatworks <span className="panel-count">{seatworkItems.length}</span>
-            </button>
-          </div>
-          <div className="panel-head-actions">
-            <button className="icon-text-btn" onClick={onToggleArchivedAssignments}>
-              {showArchivedAssignments ? 'Hide archived' : 'Show archived'}
-            </button>
-            <button className="icon-text-btn" onClick={() => onNewAssignment(tab)}>
-              <Plus size={12} /> New
-            </button>
-          </div>
-        </header>
-
-        {assignmentsLoading && (
-          <div className="professor-empty">Loading {isSeatwork ? 'seatworks' : 'assignments'}…</div>
-        )}
-        {assignmentError && <div className="professor-error">{assignmentError}</div>}
-        {!assignmentsLoading && !assignmentError && visibleItems.length === 0 && (
-          <div className="overview-empty">
-            <p>
-              {isSeatwork
-                ? 'No seatworks yet. Create timed in-person work for this class.'
-                : 'No assignments yet. Create the first take-home task for this class.'}
-            </p>
-            <button className="btn-secondary" onClick={() => onNewAssignment(tab)}>
-              <Plus size={13} /> New {isSeatwork ? 'seatwork' : 'assignment'}
-            </button>
-          </div>
-        )}
-
-        <div className="overview-assignment-grid">
-          {visibleItems.map((assignment) => {
-            const timing = timingLabel(assignment)
-            return (
+    <>
+      <div className="class-overview-grid">
+        <section className="overview-panel">
+          <header className="panel-head">
+            <div className="coursework-tabs" role="tablist" aria-label="Coursework type">
               <button
-                key={assignment.id}
-                className="overview-assignment-card"
-                onClick={() => onSelectAssignment(assignment.id)}
-                aria-label={`Open ${assignment.title}`}
+                role="tab"
+                aria-selected={!isSeatwork}
+                className={`coursework-tab ${!isSeatwork ? 'is-active' : ''}`}
+                onClick={() => setTab('assignment')}
               >
-                <span className="overview-assignment-top">
-                  <span className="assignment-title">{assignment.title}</span>
-                  <span className="assignment-count">{assignment.testCaseCount}</span>
-                </span>
-                <span className="assignment-meta">
-                  <span className="assignment-lang">{assignment.language ?? 'plaintext'}</span>
-                  {!assignment.published && <span className="mini-badge">Draft</span>}
-                  {assignment.published &&
-                    assignment.publishAt &&
-                    new Date(assignment.publishAt).getTime() > now && (
-                      <span className="mini-badge">Scheduled</span>
-                    )}
-                  {assignment.archivedAt && <span className="mini-badge">Archived</span>}
-                  {timing && (
-                    <span className="assignment-lang assignment-timing">
-                      <Clock size={10} /> {timing}
-                    </span>
-                  )}
-                  {assignment.dueAt && (
-                    <span className="assignment-lang">Due {formatDue(assignment.dueAt)}</span>
-                  )}
-                  {assignment.hiddenCaseCount > 0 && (
-                    <span className="assignment-hidden">{assignment.hiddenCaseCount} hidden</span>
-                  )}
-                </span>
-                <span className="overview-open">
-                  Open {isSeatwork ? 'seatwork' : 'assignment'} <ArrowUpRight size={12} />
-                </span>
+                Assignments <span className="panel-count">{assignmentItems.length}</span>
               </button>
-            )
-          })}
-        </div>
-      </section>
+              <button
+                role="tab"
+                aria-selected={isSeatwork}
+                className={`coursework-tab ${isSeatwork ? 'is-active' : ''}`}
+                onClick={() => setTab('seatwork')}
+              >
+                Seatworks <span className="panel-count">{seatworkItems.length}</span>
+              </button>
+            </div>
+            <div className="panel-head-actions">
+              <button className="icon-text-btn" onClick={onToggleArchivedAssignments}>
+                {showArchivedAssignments ? 'Hide archived' : 'Show archived'}
+              </button>
+              <button className="icon-text-btn" onClick={() => onNewAssignment(tab)}>
+                <Plus size={12} /> New
+              </button>
+            </div>
+          </header>
 
-      <section className="overview-panel overview-students">
-        <header className="panel-head">
-          <h3>
-            Students <span className="panel-count">{roster.length}</span>
-          </h3>
-          <button className="icon-text-btn" onClick={onManageStudents}>
-            <Users size={12} /> Manage
-          </button>
-        </header>
+          {assignmentsLoading && (
+            <div className="professor-empty">
+              Loading {isSeatwork ? 'seatworks' : 'assignments'}…
+            </div>
+          )}
+          {assignmentError && <div className="professor-error">{assignmentError}</div>}
+          {!assignmentsLoading && !assignmentError && visibleItems.length === 0 && (
+            <div className="overview-empty">
+              <p>
+                {isSeatwork
+                  ? 'No seatworks yet. Create timed in-person work for this class.'
+                  : 'No assignments yet. Create the first take-home task for this class.'}
+              </p>
+              <button className="btn-secondary" onClick={() => onNewAssignment(tab)}>
+                <Plus size={13} /> New {isSeatwork ? 'seatwork' : 'assignment'}
+              </button>
+            </div>
+          )}
 
-        {rosterLoading && <div className="professor-empty">Loading students…</div>}
-        {rosterError && <div className="professor-error">{rosterError}</div>}
-        {!rosterLoading && !rosterError && roster.length === 0 && (
-          <div className="overview-empty">
-            <p>No students enrolled yet.</p>
-            <button className="btn-secondary" onClick={onManageStudents}>
-              <Users size={13} /> Manage students
-            </button>
+          <div className="overview-assignment-grid">
+            {visibleItems.map((assignment) => {
+              const timing = timingLabel(assignment)
+              return (
+                <button
+                  key={assignment.id}
+                  className="overview-assignment-card"
+                  onClick={() => onSelectAssignment(assignment.id)}
+                  aria-label={`Open ${assignment.title}`}
+                >
+                  <span className="overview-assignment-top">
+                    <span className="assignment-title">{assignment.title}</span>
+                    <span className="assignment-count">{assignment.testCaseCount}</span>
+                  </span>
+                  <span className="assignment-meta">
+                    <span className="assignment-lang">{assignment.language ?? 'plaintext'}</span>
+                    {!assignment.published && <span className="mini-badge">Draft</span>}
+                    {assignment.published &&
+                      assignment.publishAt &&
+                      new Date(assignment.publishAt).getTime() > now && (
+                        <span className="mini-badge">Scheduled</span>
+                      )}
+                    {assignment.archivedAt && <span className="mini-badge">Archived</span>}
+                    {timing && (
+                      <span className="assignment-lang assignment-timing">
+                        <Clock size={10} /> {timing}
+                      </span>
+                    )}
+                    {assignment.dueAt && (
+                      <span className="assignment-lang">Due {formatDue(assignment.dueAt)}</span>
+                    )}
+                    {assignment.hiddenCaseCount > 0 && (
+                      <span className="assignment-hidden">{assignment.hiddenCaseCount} hidden</span>
+                    )}
+                  </span>
+                  <span className="overview-open">
+                    Open {isSeatwork ? 'seatwork' : 'assignment'} <ArrowUpRight size={12} />
+                  </span>
+                </button>
+              )
+            })}
           </div>
-        )}
+        </section>
 
-        <div className="overview-student-list">
-          {roster.map((student) => (
-            <button
-              key={student.studentId}
-              className="overview-student-row"
-              onClick={() => onSelectStudent(student.studentId)}
-              aria-label={`Open ${student.name}`}
-            >
-              <span className="roster-avatar">{initialsOf(student.name)}</span>
-              <span className="roster-who">
-                <span className="roster-name">{student.name}</span>
-                <span className="roster-email">{student.email}</span>
-              </span>
-              <ArrowUpRight size={12} className="overview-student-arrow" />
+        <section className="overview-panel overview-students">
+          <header className="panel-head">
+            <h3>
+              Students <span className="panel-count">{roster.length}</span>
+            </h3>
+            <button className="icon-text-btn" onClick={onManageStudents}>
+              <Users size={12} /> Manage
             </button>
-          ))}
-        </div>
-      </section>
-    </div>
+          </header>
+
+          {rosterLoading && <div className="professor-empty">Loading students…</div>}
+          {rosterError && <div className="professor-error">{rosterError}</div>}
+          {!rosterLoading && !rosterError && roster.length === 0 && (
+            <div className="overview-empty">
+              <p>No students enrolled yet.</p>
+              <button className="btn-secondary" onClick={onManageStudents}>
+                <Users size={13} /> Manage students
+              </button>
+            </div>
+          )}
+
+          <div className="overview-student-list">
+            {roster.map((student) => (
+              <button
+                key={student.studentId}
+                className="overview-student-row"
+                onClick={() => onSelectStudent(student.studentId)}
+                aria-label={`Open ${student.name}`}
+              >
+                <span className="roster-avatar">{initialsOf(student.name)}</span>
+                <span className="roster-who">
+                  <span className="roster-name">{student.name}</span>
+                  <span className="roster-email">{student.email}</span>
+                </span>
+                <ArrowUpRight size={12} className="overview-student-arrow" />
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+      <ClassExamOverview classId={classId} refreshSignal={examRefreshSignal} />
+    </>
   )
 }

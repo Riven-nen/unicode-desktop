@@ -97,7 +97,8 @@ const CLASS_IDS = {
   cs102: 'c1a55000-0000-4000-8000-000000000102',
   cs201: 'c1a55000-0000-4000-8000-000000000201',
   cs301: 'c1a55000-0000-4000-8000-000000000301',
-  html101: 'c1a55000-0000-4000-8000-000000000401'
+  html101: 'c1a55000-0000-4000-8000-000000000401',
+  web102: 'c1a55000-0000-4000-8000-000000000501'
 }
 
 const ASSIGNMENT_IDS = {
@@ -113,7 +114,11 @@ const ASSIGNMENT_IDS = {
   htmlForms: 'a5510000-0000-4000-8000-000000000503',
   htmlCss: 'a5510000-0000-4000-8000-000000000504',
   htmlScript: 'a5510000-0000-4000-8000-000000000505',
-  htmlProject: 'a5510000-0000-4000-8000-000000000506'
+  htmlProject: 'a5510000-0000-4000-8000-000000000506',
+  cssBasics: 'a5510000-0000-4000-8000-000000000601',
+  flexbox: 'a5510000-0000-4000-8000-000000000602',
+  domEvents: 'a5510000-0000-4000-8000-000000000603',
+  gallery: 'a5510000-0000-4000-8000-000000000604'
 }
 
 const TEST_CASE_IDS = {
@@ -411,6 +416,15 @@ async function main() {
         academic_year: '2026-2027',
         join_code: 'HTML101L5V',
         professor_id: professorId
+      },
+      {
+        id: CLASS_IDS.web102,
+        name: 'WEB102 - CSS & JavaScript',
+        code: 'WEB102',
+        year_section: '2 - A',
+        academic_year: '2026-2027',
+        join_code: 'WEB102C4S',
+        professor_id: professorId
       }
     ],
     'id'
@@ -440,7 +454,13 @@ async function main() {
       { class_id: CLASS_IDS.html101, student_id: studentIds.s3 },
       { class_id: CLASS_IDS.html101, student_id: studentIds.s4 },
       { class_id: CLASS_IDS.html101, student_id: studentIds.s5 },
-      { class_id: CLASS_IDS.html101, student_id: studentIds.s6 }
+      { class_id: CLASS_IDS.html101, student_id: studentIds.s6 },
+      { class_id: CLASS_IDS.web102, student_id: studentIds.s1 },
+      { class_id: CLASS_IDS.web102, student_id: studentIds.s2 },
+      { class_id: CLASS_IDS.web102, student_id: studentIds.s3 },
+      { class_id: CLASS_IDS.web102, student_id: studentIds.s4 },
+      { class_id: CLASS_IDS.web102, student_id: studentIds.s5 },
+      { class_id: CLASS_IDS.web102, student_id: studentIds.s6 }
     ],
     'class_id,student_id'
   )
@@ -823,6 +843,191 @@ Preview often, keep the markup readable, and make sure the page still makes sens
   </body>
 </html>
 `
+      },
+      {
+        id: ASSIGNMENT_IDS.cssBasics,
+        class_id: CLASS_IDS.web102,
+        title: 'CSS: Selectors and the Box Model',
+        description: `CSS controls how HTML looks. This lesson introduces selectors, the cascade, and the box model.
+
+- A type selector targets a tag: p { ... }
+- A class selector starts with a dot: .card { ... }
+- An id selector starts with #: #hero { ... }
+- The box model is content, padding, border, and margin.
+- Use color, background, font-family, and line-height for readable text.
+
+Style the card and button row in the starter. Add a class selector, padding, border, border-radius, and margin.`,
+        language: 'html',
+        file_name: 'css-basics/index.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-22T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSS box model</title>
+    <style>
+      body { margin: 2rem; font-family: system-ui, sans-serif; }
+      /* Style .card here. */
+      /* Style the buttons with flex and gap. */
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>CSS box model</h1>
+      <p>Padding is inside the border. Margin is outside it.</p>
+      <div class="actions">
+        <button>Save</button>
+        <button>Cancel</button>
+      </div>
+    </main>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.flexbox,
+        class_id: CLASS_IDS.web102,
+        title: 'CSS: Flexbox Layout',
+        description: `Flexbox lays elements out in one direction while distributing space.
+
+- display: flex creates a flex container.
+- flex-direction chooses row or column.
+- justify-content distributes along the main axis.
+- align-items aligns across the cross axis.
+- gap adds space between children.
+
+Turn the starter into a responsive card row with a header and footer. Use wrap so cards stack on narrow screens.`,
+        language: 'html',
+        file_name: 'flexbox/index.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-24T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flexbox</title>
+    <style>
+      body { margin: 2rem; font-family: system-ui, sans-serif; }
+      .row { /* add display, gap, wrap */ }
+      .card { padding: 1rem; border: 1px solid #cbd5e1; border-radius: 10px; flex: 1 1 180px; }
+    </style>
+  </head>
+  <body>
+    <h1>Flexbox cards</h1>
+    <section class="row">
+      <article class="card"><h2>One</h2><p>First card.</p></article>
+      <article class="card"><h2>Two</h2><p>Second card.</p></article>
+      <article class="card"><h2>Three</h2><p>Third card.</p></article>
+    </section>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.domEvents,
+        class_id: CLASS_IDS.web102,
+        title: 'JavaScript: DOM and Events',
+        description: `JavaScript makes a page respond. This lesson uses the DOM and event listeners.
+
+- document.querySelector selects an element.
+- addEventListener attaches a function to an event.
+- textContent changes visible text.
+- classList.toggle changes styling.
+- event.preventDefault stops a form from navigating.
+
+Build a greeting form. On submit, read the name and show a personalized message.`,
+        language: 'html',
+        file_name: 'dom-events/index.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-27T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DOM and events</title>
+    <style>
+      body { margin: 2rem; font-family: system-ui, sans-serif; }
+      .is-ready { color: #0f766e; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>Greeting form</h1>
+    <form id="greeting">
+      <label for="name">Name</label>
+      <input id="name" />
+      <button type="submit">Greet</button>
+    </form>
+    <p id="output">Submit the form to see a message.</p>
+
+    <script>
+      // Select the form, input, and output.
+      // Prevent the form from navigating.
+      // Read the name, update the output, and toggle .is-ready.
+    </script>
+  </body>
+</html>
+`
+      },
+      {
+        id: ASSIGNMENT_IDS.gallery,
+        class_id: CLASS_IDS.web102,
+        title: 'Project: Interactive Gallery',
+        description: `Build a small interactive gallery that combines CSS and JavaScript.
+
+Requirements:
+- A responsive flex or grid layout for at least three items.
+- A CSS class for the selected item.
+- A JavaScript click handler that changes the selected item.
+- A keyboard-accessible button or link for every action.
+- One image with alt text, added with Add Images.
+- A short description for each item.
+
+Keep the HTML semantic and the CSS in a style block or a linked stylesheet.`,
+        language: 'html',
+        file_name: 'gallery/index.html',
+        published: true,
+        publish_at: null,
+        auto_test_enabled: false,
+        due_at: '2026-12-30T23:59:00.000Z',
+        starter_code: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive gallery</title>
+    <style>
+      body { margin: 2rem; font-family: system-ui, sans-serif; }
+      .gallery { display: flex; flex-wrap: wrap; gap: 1rem; }
+      .item { padding: 1rem; border: 1px solid #cbd5e1; border-radius: 10px; flex: 1 1 180px; }
+      .item.is-selected { outline: 3px solid #0f766e; }
+    </style>
+  </head>
+  <body>
+    <h1>Gallery</h1>
+    <section class="gallery" id="gallery">
+      <button class="item" type="button"><h2>Item one</h2><p>Description.</p></button>
+      <button class="item" type="button"><h2>Item two</h2><p>Description.</p></button>
+      <button class="item" type="button"><h2>Item three</h2><p>Description.</p></button>
+    </section>
+    <p id="status">Select an item.</p>
+
+    <script>
+      // Add a click listener to each .item.
+      // Toggle .is-selected and update #status.
+    </script>
+  </body>
+</html>
+`
       }
     ],
     'id'
@@ -1154,6 +1359,7 @@ Preview often, keep the markup readable, and make sure the page still makes sens
   console.log('  CS201 - Object-Oriented Programming  (student3, student5-student7)')
   console.log('  CS301 - Systems Programming    (student8-student10)')
   console.log('  HTML101 - Web Foundations      (student1-student6, HTML lessons + project)')
+  console.log('  WEB102 - CSS & JavaScript      (student1-student6, CSS/JS lessons + gallery)')
   console.log('\nICS:')
   for (const row of scoreRows) {
     console.log(

@@ -23,6 +23,7 @@ import AppearancePanel from './AppearancePanel'
 import AssignmentDetailModal from './AssignmentDetailModal'
 import IntegrityDemo from './IntegrityDemo'
 import JoinClassModal from './JoinClassModal'
+import RedeemOverrideCodeModal from './RedeemOverrideCodeModal'
 import StudentSeatworkCard from './StudentSeatworkCard'
 import TitleBarControls from './TitleBarControls'
 import { useStudentFeedback } from '../hooks/useStudentFeedback'
@@ -136,6 +137,8 @@ export default function StudentDashboard({
   const [startingSeatworkId, setStartingSeatworkId] = useState<string | null>(null)
   const [assignmentTab, setAssignmentTab] = useState<AssessmentKind>('assignment')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
+  const [redeemSessionId, setRedeemSessionId] = useState<string | null>(null)
   const [clock, setClock] = useState(() => Date.now())
   const expiredRefreshRef = useRef<Set<string>>(new Set())
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -428,6 +431,7 @@ export default function StudentDashboard({
               {(error || actionError) && (
                 <div className="professor-error student-notice">{actionError ?? error}</div>
               )}
+              {actionNotice && <div className="auth-info student-notice">{actionNotice}</div>}
 
               <section className="student-stat-grid" aria-label="Class summary">
                 <div className="student-stat">
@@ -979,7 +983,24 @@ export default function StudentDashboard({
           setDetailId(null)
           void startSeatwork(assignment)
         }}
+        onRedeemCode={(sessionId) => {
+          setDetailId(null)
+          setRedeemSessionId(sessionId)
+        }}
       />
+
+      {redeemSessionId && (
+        <RedeemOverrideCodeModal
+          sessionId={redeemSessionId}
+          onClose={() => setRedeemSessionId(null)}
+          onRedeemed={(message) => {
+            setRedeemSessionId(null)
+            setActionError(null)
+            setActionNotice(message)
+            reload()
+          }}
+        />
+      )}
 
       <IntegrityDemo open={demoOpen} onClose={() => setDemoOpen(false)} />
 

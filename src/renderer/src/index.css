@@ -8038,3 +8038,137 @@ input:focus-visible,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inline-field input {
+  flex: 1;
+}
+
+.class-exam-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-base) 55%, transparent);
+}
+
+.class-exam-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.class-exam-overview-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.class-exam-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.class-exam-totals > span {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.class-exam-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.class-exam-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: var(--hover);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.class-exam-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 180px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.assessment-monitor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.assessment-monitor-filters input[type='text'],
+.assessment-monitor-filters input:not([type]),
+.assessment-monitor-filters select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-base);
+  color: var(--text-main);
+  font-size: 10.5px;
+}
+
+.assessment-monitor-filters input:not([type]) {
+  min-width: 170px;
+}
+
+.assignment-attempts ul {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 6px 0 0;
+  padding: 0 0 0 16px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.override-code-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.override-code-result code {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-base);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.override-code-result .ics-note {
+  flex-basis: 100%;
+  margin: 0;
+}

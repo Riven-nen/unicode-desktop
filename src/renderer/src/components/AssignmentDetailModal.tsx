@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   FileText,
   FolderOpen,
+  KeyRound,
   PlayCircle,
   Send,
   Timer,
@@ -32,6 +33,7 @@ interface AssignmentDetailModalProps {
   onOpenFile: (assignment: StudentAssignment) => void
   onSubmit: (assignment: StudentAssignment) => void
   onStart: (assignment: StudentAssignment) => void
+  onRedeemCode: (sessionId: string) => void
 }
 
 const formatMoment = (iso: string): string =>
@@ -55,7 +57,8 @@ export default function AssignmentDetailModal({
   onClose,
   onOpenFile,
   onSubmit,
-  onStart
+  onStart,
+  onRedeemCode
 }: AssignmentDetailModalProps): React.ReactElement | null {
   useEffect(() => {
     if (!assignment) return
@@ -167,6 +170,26 @@ export default function AssignmentDetailModal({
           </div>
         )}
 
+        {assignment.attempts.length > 1 && (
+          <details className="assignment-starter assignment-attempts">
+            <summary>
+              Attempt history ({assignment.attempts.length}/{assignment.maxAttempts})
+            </summary>
+            <ul>
+              {assignment.attempts.map((attempt) => (
+                <li key={attempt.id}>
+                  Attempt {attempt.attemptNumber}: {sessionStatusLabel(attempt.status)}
+                  {attempt.submittedAt
+                    ? ` · ${formatMoment(attempt.submittedAt)}`
+                    : attempt.startedAt
+                      ? ` · started ${formatMoment(attempt.startedAt)}`
+                      : ''}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
         <div className="assignment-detail-body">
           {assignment.description ? (
             <p className="assignment-detail-description">{assignment.description}</p>
@@ -202,6 +225,11 @@ export default function AssignmentDetailModal({
           <button className="btn-secondary" onClick={() => onOpenFile(assignment)}>
             <FolderOpen size={13} /> Open file
           </button>
+          {timed && assignment.session && (
+            <button className="btn-secondary" onClick={() => onRedeemCode(assignment.session!.id)}>
+              <KeyRound size={13} /> Redeem code
+            </button>
+          )}
           {timed ? (
             sessionActive ? (
               <button

@@ -331,6 +331,28 @@ Expected:
 
 ---
 
+## 6C. Phase 5 product features
+
+- [ ] **P0** Set a seatwork to 2 attempts; submit attempt 1, then start attempt 2.
+- [ ] **P0** Attempt 3 is rejected with “You have used all 2 attempts…”.
+- [ ] **P0** Seatwork cards and assignment details show attempt number/history.
+- [ ] **P0** Professor monitor shows attempt number and reopen count.
+- [ ] **P0** Generate a one-time override code from the monitor.
+- [ ] **P0** Student redeems it from assignment details; the code applies.
+- [ ] **P0** Reusing the same code is rejected.
+- [ ] **P0** Expired codes are rejected.
+- [ ] **P0** Save an exam template and apply it to a new seatwork.
+- [ ] **P0** Bulk exam policy updates every seatwork in a class.
+- [ ] **P0** Monitor filters work for search, status, interruptions, and overrides.
+- [ ] **P0** Class exam overview shows attempts, active, auto-submitted,
+      interruptions, blocked pastes, and overrides.
+- [ ] **P0** WEB102 appears for student1–student6 with four CSS/JS assignments.
+- [ ] **P0** `WEB102C4S` joins the class.
+- [ ] **P1** Templates persist across app restarts.
+- [ ] **P1** Existing sessions keep their snapshotted policy after a bulk update.
+
+---
+
 ## 7. Editor and language intelligence
 
 - [ ] **P0** Monaco opens with syntax highlighting for Python/Java/C/C++.

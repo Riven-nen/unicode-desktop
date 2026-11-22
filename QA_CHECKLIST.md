@@ -142,6 +142,12 @@ should pass before the demo.
 - [ ] Reopening a submitted attempt gives a new deadline and allows another
       submission.
 - [ ] Seatwork ICS marks paste N/A.
+- [ ] A 2-attempt seatwork allows attempt 2 and rejects attempt 3.
+- [ ] Attempt history appears on student cards/details and professor monitor.
+- [ ] One-time override code can be generated, redeemed once, and expires.
+- [ ] Exam templates save/apply; bulk policy updates all class seatworks.
+- [ ] Monitor filters and class exam overview show correct totals.
+- [ ] WEB102 appears with four CSS/JS assignments and join code `WEB102C4S`.
 - [ ] The project opens `profile-project/index.html` and creates that folder.
 - [ ] New Folder creates nested project folders that persist after refresh.
 - [ ] Add Images copies images into the selected folder; duplicates get a

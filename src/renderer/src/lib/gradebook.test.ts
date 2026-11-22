@@ -27,7 +27,8 @@ const assignment = (id: string, title: string, dueAt: string | null): Assignment
   allowedTabOuts: 1,
   fullscreenRequired: false,
   blockPaste: false,
-  runOnlyTerminal: false
+  runOnlyTerminal: false,
+  maxAttempts: 1
 })
 
 const student = (studentId: string, name: string, email: string): RosterStudent => ({

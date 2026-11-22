@@ -81,6 +81,9 @@ export default function StudentSeatworkCard({
           </span>
         )}
         {assignment.language && <span className="assignment-language">{assignment.language}</span>}
+        <span className="assignment-language">
+          Attempt {session?.attemptNumber ?? 1}/{assignment.maxAttempts}
+        </span>
       </div>
 
       <p className="seatwork-timing">{timingSummary(assignment)}</p>

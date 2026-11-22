@@ -49,6 +49,7 @@ export interface AssignmentSummary {
   fullscreenRequired: boolean
   blockPaste: boolean
   runOnlyTerminal: boolean
+  maxAttempts: number
 }
 
 export interface RosterStudent {
