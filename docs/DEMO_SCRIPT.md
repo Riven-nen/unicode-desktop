@@ -21,7 +21,8 @@ Have these ready:
 - An **Exam Mode Demo** seatwork:
   - 5-minute duration
   - **2 allowed interruptions**
-  - fullscreen required
+  - fullscreen optional — turn it off for recording stability, then show the
+    checkbox in the professor segment
   - paste blocked
   - run-only terminal
   - one attempt
@@ -98,10 +99,10 @@ Have these ready:
 **MAU:**  
 “This is exam mode. The timer is server-owned. The client only displays it, so changing the system clock does not add time.”
 
-**SCREEN:** Point to the fullscreen requirement. If fullscreen opens, exit it after a second.
+**SCREEN:** Point to the exam controls in the bar or the assignment settings.
 
 **MAU:**  
-“The professor can require fullscreen, block paste, and restrict the terminal to running files only. Those settings are snapshotted when the attempt starts.”
+“The professor can require fullscreen, block paste, and restrict the terminal to running files only. I’ll keep fullscreen off for the recording and trigger a tab-out instead. These settings are snapshotted when the attempt starts.”
 
 ### 2:50 — Tab-out warning
 
