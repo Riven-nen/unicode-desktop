@@ -14,9 +14,11 @@ not part of the Electron app:
 - Generate professor invite codes with a lifespan and usage limit; copy or
   revoke them from the invite panel.
 - Review classes, professors, join codes, student counts, and assignment counts.
-- Adjust the global ICS v3 metric: base score, authored/negative weights, score
-  floor and ceiling, pass/review thresholds, pass minimum characters, and the
-  confidence gate. A live preview shows the effect on three evidence scenarios.
+- Adjust the global ICS v3 metric with grouped sliders: base score,
+  authored/negative weights, score floor and ceiling, pass/review thresholds,
+  pass minimum characters, and the confidence gate. Each slider explains its
+  practical effect as it moves, and a live band map plus three scenario previews
+  show the result.
 - Re-apply the metric to stored v3 evidence rows without re-reading snapshots.
 - Never reads submissions or code.
 

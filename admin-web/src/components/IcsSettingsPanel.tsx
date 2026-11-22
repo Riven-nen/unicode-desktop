@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Gauge, RotateCcw, Save, SlidersHorizontal } from 'lucide-react'
 import {
   ICS_METRIC_DEFAULTS,
@@ -9,6 +10,7 @@ import {
 import type { IcsMetricValues, IcsSettings } from '../lib/adminQueries'
 
 type Band = 'pass' | 'review' | 'flag'
+type SliderTone = 'positive' | 'negative' | 'threshold' | 'range' | 'confidence' | 'volume'
 
 type NumericKey = keyof IcsMetricValues
 type Draft = Record<NumericKey, string>
@@ -19,90 +21,41 @@ interface FieldSpec {
   min: number
   max: number
   step: number
-  hint: string
+  tone: SliderTone
 }
 
 const FIELD_GROUPS: Array<{ title: string; fields: FieldSpec[] }> = [
   {
     title: 'Score composition',
     fields: [
-      {
-        key: 'baseScore',
-        label: 'Base score',
-        min: 0,
-        max: 100,
-        step: 0.5,
-        hint: 'Starting point before evidence is applied.'
-      },
+      { key: 'baseScore', label: 'Base score', min: 0, max: 100, step: 0.5, tone: 'range' },
       {
         key: 'authoredWeight',
         label: 'Authored weight',
         min: 0,
         max: 100,
         step: 1,
-        hint: 'Points awarded at full authored evidence.'
+        tone: 'positive'
       },
-      {
-        key: 'minScore',
-        label: 'Score floor',
-        min: 0,
-        max: 100,
-        step: 0.5,
-        hint: 'Lowest score the metric can output.'
-      },
-      {
-        key: 'maxScore',
-        label: 'Score ceiling',
-        min: 0,
-        max: 100,
-        step: 0.5,
-        hint: 'Highest score the metric can output.'
-      }
+      { key: 'minScore', label: 'Score floor', min: 0, max: 100, step: 0.5, tone: 'range' },
+      { key: 'maxScore', label: 'Score ceiling', min: 0, max: 100, step: 0.5, tone: 'range' }
     ]
   },
   {
     title: 'Negative evidence weights',
     fields: [
-      {
-        key: 'pasteWeight',
-        label: 'Paste',
-        min: 0,
-        max: 2,
-        step: 0.05,
-        hint: 'Novel paste pressure.'
-      },
+      { key: 'pasteWeight', label: 'Paste', min: 0, max: 2, step: 0.05, tone: 'negative' },
       {
         key: 'transcriptionWeight',
         label: 'Transcription',
         min: 0,
         max: 2,
         step: 0.05,
-        hint: 'Line-chunk transcription shape.'
+        tone: 'negative'
       },
-      {
-        key: 'rhythmWeight',
-        label: 'Rhythm',
-        min: 0,
-        max: 2,
-        step: 0.05,
-        hint: 'Robotic or impossibly fast rhythm.'
-      },
-      {
-        key: 'awayWeight',
-        label: 'Away / refocus',
-        min: 0,
-        max: 2,
-        step: 0.05,
-        hint: 'Refocus followed by a line chunk.'
-      },
-      {
-        key: 'similarityWeight',
-        label: 'Similarity',
-        min: 0,
-        max: 2,
-        step: 0.05,
-        hint: 'Cross-submission similarity.'
-      }
+      { key: 'rhythmWeight', label: 'Rhythm', min: 0, max: 2, step: 0.05, tone: 'negative' },
+      { key: 'awayWeight', label: 'Away / refocus', min: 0, max: 2, step: 0.05, tone: 'negative' },
+      { key: 'similarityWeight', label: 'Similarity', min: 0, max: 2, step: 0.05, tone: 'negative' }
     ]
   },
   {
@@ -114,7 +67,7 @@ const FIELD_GROUPS: Array<{ title: string; fields: FieldSpec[] }> = [
         min: 0,
         max: 100,
         step: 0.5,
-        hint: 'Score needed for a Pass band.'
+        tone: 'threshold'
       },
       {
         key: 'reviewThreshold',
@@ -122,7 +75,7 @@ const FIELD_GROUPS: Array<{ title: string; fields: FieldSpec[] }> = [
         min: 0,
         max: 100,
         step: 0.5,
-        hint: 'Below this score the band is Flag.'
+        tone: 'threshold'
       },
       {
         key: 'passMinChars',
@@ -130,7 +83,7 @@ const FIELD_GROUPS: Array<{ title: string; fields: FieldSpec[] }> = [
         min: 0,
         max: 100000,
         step: 10,
-        hint: 'A short session cannot pass even with a high score.'
+        tone: 'volume'
       },
       {
         key: 'minConfidence',
@@ -138,7 +91,7 @@ const FIELD_GROUPS: Array<{ title: string; fields: FieldSpec[] }> = [
         min: 0,
         max: 1,
         step: 0.01,
-        hint: 'Below this, the band is held at Review.'
+        tone: 'confidence'
       }
     ]
   }
@@ -154,6 +107,129 @@ const toDraft = (values: IcsMetricValues): Draft =>
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value))
+
+const formatPoints = (value: number): string =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1)
+
+const formatValue = (key: NumericKey, value: number): string => {
+  switch (key) {
+    case 'authoredWeight':
+    case 'baseScore':
+    case 'minScore':
+    case 'maxScore':
+    case 'passThreshold':
+    case 'reviewThreshold':
+      return `${formatPoints(value)} pts`
+    case 'passMinChars':
+      return `${Math.round(value)} chars`
+    case 'minConfidence':
+      return `${Math.round(value * 100)}%`
+    default:
+      return `${value.toFixed(2)}×`
+  }
+}
+
+/**
+ * The hint under each slider is intentionally value-aware. Moving a slider
+ * should explain the practical consequence, not just repeat its label.
+ */
+const describeValue = (key: NumericKey, value: number, values: IcsMetricValues): string => {
+  switch (key) {
+    case 'baseScore':
+      if (value <= 20)
+        return 'A very low start. Most work needs strong authored evidence to reach Review.'
+      if (value <= 40) return 'A cautious starting point below the midpoint.'
+      if (value <= 55) return 'Neutral start: no evidence keeps the score near the middle.'
+      if (value <= 70) return 'A forgiving start above the midpoint.'
+      return 'A high start. Even weak evidence may land near Review.'
+    case 'authoredWeight':
+      if (value === 0) return 'Authored evidence is ignored. The score can only move down.'
+      if (value < 20) return 'Authored evidence has a small positive influence.'
+      if (value < 40) return 'Authored evidence has a moderate positive influence.'
+      if (value < 55)
+        return 'Balanced. Authored work can lift a score from the base into Review or Pass.'
+      if (value < 75) return 'Strong reward for corrections, reworks, and revisits.'
+      return 'Dominant. Authored evidence can overwhelm most negative signals.'
+    case 'minScore':
+      if (value <= 5)
+        return 'Very low floor. Strong negative evidence can push a score almost to zero.'
+      if (value <= 15) return 'Low floor. Flag bands can still reach very low scores.'
+      if (value <= 30) return 'Moderate floor. Even weak work keeps some points.'
+      return 'High floor. The final score can never fall below this value.'
+    case 'maxScore':
+      if (value < 80) return 'Ceiling below the pass threshold. A pass may be impossible.'
+      if (value < 95) return 'Capped ceiling. Perfect evidence cannot reach 95.'
+      if (value <= 95) return 'The shipped ceiling. Authored evidence can reach 95.'
+      return 'Above the shipped ceiling. Allows scores up to this value.'
+    case 'pasteWeight':
+      if (value === 0) return 'Paste is not penalized.'
+      if (value < 0.4) return 'Light paste penalty. A paste-heavy session still keeps most points.'
+      if (value < 0.8) return 'Moderate paste penalty.'
+      if (value <= 1) return 'Standard paste penalty.'
+      if (value < 1.5) return 'Strong paste penalty. Novel paste visibly drags a score down.'
+      return 'Very strong paste penalty. Novel paste can dominate the final score.'
+    case 'transcriptionWeight':
+      if (value === 0) return 'Line-chunk transcription is not penalized.'
+      if (value < 0.4)
+        return 'Light transcription penalty. A line-chunk pattern only slightly lowers the score.'
+      if (value < 0.8) return 'Moderate transcription penalty.'
+      if (value <= 1) return 'Standard transcription penalty.'
+      if (value < 1.5) return 'Strong transcription penalty. Hand-copied chunks weigh heavily.'
+      return 'Very strong transcription penalty.'
+    case 'rhythmWeight':
+      if (value === 0) return 'Robotic rhythm is ignored.'
+      if (value < 0.3) return 'Small rhythm penalty. Rhythm alone will barely move the score.'
+      if (value < 0.7) return 'Moderate rhythm penalty.'
+      if (value < 1.2) return 'Strong rhythm penalty.'
+      return 'Very strong rhythm penalty.'
+    case 'awayWeight':
+      if (value === 0) return 'Away/refocus patterns are ignored.'
+      if (value < 0.4) return 'Light refocus penalty.'
+      if (value < 0.8) return 'Moderate refocus penalty.'
+      if (value < 1.2) return 'Strong refocus penalty.'
+      return 'Very strong refocus penalty.'
+    case 'similarityWeight':
+      if (value === 0) return 'Cross-submission similarity is ignored.'
+      if (value < 0.4) return 'Light similarity penalty.'
+      if (value < 0.8) return 'Moderate similarity penalty.'
+      if (value <= 1) return 'Standard similarity penalty.'
+      return 'Strong similarity penalty.'
+    case 'passThreshold':
+      if (value < 60)
+        return `Low pass bar. Scores of ${formatPoints(value)}+ can pass with enough evidence.`
+      if (value < 75) return `Moderately low pass bar at ${formatPoints(value)}+.`
+      if (value <= 85)
+        return `The shipped pass bar. ${formatPoints(value)}+ can pass with sufficient evidence volume.`
+      if (value <= 95) return `Strict pass bar at ${formatPoints(value)}+.`
+      return 'Very strict pass bar. Only near-perfect scores can pass.'
+    case 'reviewThreshold':
+      if (values.reviewThreshold >= values.passThreshold) {
+        return 'Review sits above the pass threshold. Save will be blocked until the order is fixed.'
+      }
+      if (value < 20) return 'Only very low scores are Flag. Most work lands in Review or Pass.'
+      if (value < 40)
+        return `Flag below ${formatPoints(value)}. Scores from ${formatPoints(value)} to ${formatPoints(values.passThreshold)} are Review.`
+      if (value <= 50) return `The shipped review bar. Below ${formatPoints(value)} is Flag.`
+      if (value <= 65) return `A high review bar. Scores below ${formatPoints(value)} are Flag.`
+      return 'Very high review bar. Most non-passing work becomes Flag.'
+    case 'passMinChars':
+      if (value === 0) return 'No character floor. A short session can pass on a high score.'
+      if (value <= 100)
+        return `Very small floor. A ${Math.round(value)}-character snippet can still pass.`
+      if (value <= 300)
+        return `The shipped floor. Sessions under ${Math.round(value)} characters cannot pass.`
+      if (value <= 600) return `Stricter volume floor at ${Math.round(value)} characters.`
+      return `High volume floor. Only sessions above ${Math.round(value)} characters can pass.`
+    case 'minConfidence':
+      if (value === 0) return 'Confidence never blocks a band.'
+      if (value <= 0.2) return 'Very permissive. Almost any evidence volume can pass.'
+      if (value <= 0.35)
+        return `The shipped gate. Below ${Math.round(value * 100)}% confidence, the band is held at Review.`
+      if (value <= 0.6)
+        return `Stricter gate. Below ${Math.round(value * 100)}% confidence, the band is held at Review.`
+      return 'Very strict. Most sessions stay at Review until the evidence is dense.'
+  }
+}
 
 interface PreviewScenario {
   label: string
@@ -297,12 +373,42 @@ export default function IcsSettingsPanel(): React.ReactElement {
     return NUMERIC_KEYS.some((key) => Number(draft[key]) !== settings[key])
   }, [draft, settings])
 
+  const bandGraphic = useMemo(() => {
+    const min = previewValues.minScore
+    const max = previewValues.maxScore
+    const range = Math.max(max - min, 1)
+    const review = clamp(previewValues.reviewThreshold, Math.min(min, max), Math.max(min, max))
+    const pass = clamp(previewValues.passThreshold, Math.min(min, max), Math.max(min, max))
+    const low = Math.min(review, pass)
+    const high = Math.max(review, pass)
+
+    return {
+      min,
+      max,
+      range,
+      flag: clamp(((low - min) / range) * 100, 0, 100),
+      review: clamp(((high - low) / range) * 100, 0, 100),
+      pass: clamp(((max - high) / range) * 100, 0, 100),
+      orderError: previewValues.reviewThreshold >= previewValues.passThreshold,
+      rangeError: previewValues.minScore >= previewValues.maxScore
+    }
+  }, [previewValues])
+
+  const markers = useMemo(
+    () =>
+      PREVIEW_SCENARIOS.map((scenario) => ({
+        scenario,
+        result: preview(previewValues, scenario)
+      })),
+    [previewValues]
+  )
+
   const parseDraft = (): IcsMetricValues | null => {
     const values = {} as IcsMetricValues
     for (const key of NUMERIC_KEYS) {
       const parsed = Number(draft[key])
       if (!Number.isFinite(parsed)) {
-        setError(`Enter a number for ${FIELD_BY_KEY.get(key)?.label ?? key}.`)
+        setError(`Choose a value for ${FIELD_BY_KEY.get(key)?.label ?? key}.`)
         return null
       }
       values[key] = parsed
@@ -432,37 +538,103 @@ export default function IcsSettingsPanel(): React.ReactElement {
                 <h3>
                   <SlidersHorizontal size={12} /> {group.title}
                 </h3>
-                {group.fields.map((field) => (
-                  <label className="ics-settings-field" key={field.key}>
-                    <span>{field.label}</span>
-                    <input
-                      type="number"
-                      min={field.min}
-                      max={field.max}
-                      step={field.step}
-                      value={draft[field.key]}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, [field.key]: event.target.value }))
-                      }
-                    />
-                    <span className="ics-field-hint">{field.hint}</span>
-                  </label>
-                ))}
+                {group.fields.map((field) => {
+                  const numeric = Number(draft[field.key])
+                  const value = Number.isFinite(numeric)
+                    ? clamp(numeric, field.min, field.max)
+                    : field.min
+                  const fill = ((value - field.min) / Math.max(field.max - field.min, 1)) * 100
+                  const description = describeValue(field.key, value, previewValues)
+
+                  return (
+                    <div className="ics-slider-field" key={field.key}>
+                      <div className="ics-slider-head">
+                        <label htmlFor={`ics-field-${field.key}`}>{field.label}</label>
+                        <span className="ics-slider-value">{formatValue(field.key, value)}</span>
+                      </div>
+                      <input
+                        id={`ics-field-${field.key}`}
+                        className={`ics-slider is-${field.tone}`}
+                        type="range"
+                        min={field.min}
+                        max={field.max}
+                        step={field.step}
+                        value={value}
+                        aria-label={field.label}
+                        aria-valuetext={formatValue(field.key, value)}
+                        style={{ '--fill': `${fill}%` } as CSSProperties}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            [field.key]: event.target.value
+                          }))
+                        }
+                      />
+                      <p className="ics-slider-hint">{description}</p>
+                    </div>
+                  )
+                })}
               </section>
             ))}
           </div>
 
+          <div className="ics-band-graphic">
+            <div className="ics-band-graphic-head">
+              <span className="eyebrow">Band map</span>
+              <span className="muted">
+                Flag below {formatPoints(previewValues.reviewThreshold)} · Pass at{' '}
+                {formatPoints(previewValues.passThreshold)}+
+              </span>
+            </div>
+            <div className="ics-band-strip">
+              <span className="ics-band-zone is-flag" style={{ width: `${bandGraphic.flag}%` }}>
+                Flag
+              </span>
+              <span className="ics-band-zone is-review" style={{ width: `${bandGraphic.review}%` }}>
+                Review
+              </span>
+              <span className="ics-band-zone is-pass" style={{ width: `${bandGraphic.pass}%` }}>
+                Pass
+              </span>
+              {markers.map(({ scenario, result }) => (
+                <span
+                  key={scenario.label}
+                  className={`ics-band-marker is-${result.band}`}
+                  style={{
+                    left: `${clamp(
+                      ((result.score - bandGraphic.min) / bandGraphic.range) * 100,
+                      0,
+                      100
+                    )}%`
+                  }}
+                  title={`${scenario.label}: ${result.score.toFixed(1)} (${result.band})`}
+                />
+              ))}
+            </div>
+            <div className="ics-band-scale">
+              <span>{formatPoints(bandGraphic.min)}</span>
+              <span>{formatPoints(bandGraphic.max)}</span>
+            </div>
+            {bandGraphic.orderError && (
+              <p className="ics-band-warning">
+                Review must be below Pass. Fix the two thresholds before saving.
+              </p>
+            )}
+            {bandGraphic.rangeError && (
+              <p className="ics-band-warning">
+                Score floor must be below the ceiling. Fix the range before saving.
+              </p>
+            )}
+          </div>
+
           <div className="ics-preview">
-            {PREVIEW_SCENARIOS.map((scenario) => {
-              const result = preview(previewValues, scenario)
-              return (
-                <article className="ics-preview-card" key={scenario.label}>
-                  <span className="eyebrow">{scenario.label}</span>
-                  <strong>{result.score.toFixed(1)}</strong>
-                  <span className={`badge ics-band-${result.band}`}>{result.band}</span>
-                </article>
-              )
-            })}
+            {markers.map(({ scenario, result }) => (
+              <article className="ics-preview-card" key={scenario.label}>
+                <span className="eyebrow">{scenario.label}</span>
+                <strong>{result.score.toFixed(1)}</strong>
+                <span className={`badge ics-band-${result.band}`}>{result.band}</span>
+              </article>
+            ))}
           </div>
 
           <div className="ics-settings-footer">

@@ -37,9 +37,11 @@ admins through RLS; writes go through a guarded admin RPC.
 
 ## Admin console
 
-- New **ICS metric** panel with grouped fields for score composition, negative
-  weights, and band thresholds.
-- Live preview for authored, mixed, and paste-heavy scenarios.
+- New **ICS metric** panel with grouped sliders for score composition, negative
+  weights, and band thresholds. Each slider shows its current value and a small
+  explanation that changes as the value moves.
+- Live band map with Flag/Review/Pass zones and markers for authored, mixed, and
+  paste-heavy scenarios.
 - Save, reset-to-defaults, and re-apply-to-existing-v3-actions.
 - Version and last-editor display.
 
