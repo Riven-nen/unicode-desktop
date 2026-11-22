@@ -186,7 +186,8 @@ export default function AssignmentView({
             onClick={() => void recomputeAll()}
             disabled={recomputing}
           >
-            <RefreshCw size={13} /> {recomputing ? 'Recomputing…' : 'Recompute ICS'}
+            <RefreshCw size={13} className={recomputing ? 'is-spinning' : undefined} />{' '}
+            {recomputing ? 'Recomputing…' : 'Recompute ICS'}
           </button>
           <button className="btn-secondary" onClick={onEdit}>
             <Pencil size={13} /> Edit assignment

@@ -34,6 +34,10 @@ export default function StudentSeatworkCard({
   const session = assignment.session
   const availability = assessmentAvailability(assignment, localNow)
   const remaining = assessmentRemainingMs(session, localNow)
+  const opensInMs =
+    availability === 'upcoming' && assignment.opensAt
+      ? Date.parse(assignment.opensAt) - localNow
+      : null
   const active = session?.status === 'active'
   const submitted =
     session?.status === 'submitted' ||
@@ -135,8 +139,11 @@ export default function StudentSeatworkCard({
             <CheckCircle2 size={12} /> {session ? sessionStatusLabel(session.status) : 'Submitted'}
           </button>
         ) : availability === 'upcoming' ? (
-          <button className="btn-secondary" disabled>
-            Opens {assignment.opensAt ? formatMoment(assignment.opensAt) : 'soon'}
+          <button className="btn-secondary" onClick={() => onStart(assignment)} disabled={starting}>
+            <Timer size={12} />
+            {opensInMs !== null && opensInMs > 0
+              ? `Starts in ${formatCountdown(opensInMs)}`
+              : 'Starting soon'}
           </button>
         ) : availability === 'closed' ? (
           <button className="btn-secondary" disabled>
@@ -150,6 +157,11 @@ export default function StudentSeatworkCard({
       </div>
       {!active && !submitted && availability === 'open' && (
         <p className="seatwork-start-note">The server timer starts as soon as you begin.</p>
+      )}
+      {!active && !submitted && availability === 'upcoming' && (
+        <p className="seatwork-start-note">
+          Press the countdown for a live timer. The server opens the seatwork.
+        </p>
       )}
     </article>
   )

@@ -77,7 +77,8 @@ export default function IcsPanel({
         <div className="ics-empty">
           <p>Not computed yet.</p>
           <button className="btn-secondary" onClick={onRecompute} disabled={busy}>
-            <RefreshCw size={13} /> {busy ? 'Recomputing…' : 'Recompute'}
+            <RefreshCw size={13} className={busy ? 'is-spinning' : undefined} />{' '}
+            {busy ? 'Recomputing…' : 'Recompute'}
           </button>
           <p className="ics-note">
             Uses authored evidence (corrections, revisits), paste, typing shape, away/resume
@@ -138,7 +139,8 @@ export default function IcsPanel({
                   rhythm
                 </button>
                 <button className="icon-text-btn" onClick={onRecompute} disabled={busy}>
-                  <RefreshCw size={12} /> {busy ? 'Recomputing…' : 'Recompute'}
+                  <RefreshCw size={12} className={busy ? 'is-spinning' : undefined} />{' '}
+                  {busy ? 'Recomputing…' : 'Recompute'}
                 </button>
                 <span className="ics-note">
                   Quality only: {Math.round(score.compilationTerm * 5)}% tests (not counted in
@@ -165,7 +167,8 @@ export default function IcsPanel({
                   rhythm
                 </button>
                 <button className="icon-text-btn" onClick={onRecompute} disabled={busy}>
-                  <RefreshCw size={12} /> {busy ? 'Recomputing…' : 'Recompute'}
+                  <RefreshCw size={12} className={busy ? 'is-spinning' : undefined} />{' '}
+                  {busy ? 'Recomputing…' : 'Recompute'}
                 </button>
                 <span className="ics-note">
                   Quality only: {Math.round(score.compilationTerm * 5)}% tests (not counted in

@@ -162,7 +162,8 @@ export default function AssessmentMonitor({
           }}
           disabled={refreshing}
         >
-          <RefreshCw size={13} /> {refreshing ? 'Refreshing…' : 'Refresh'}
+          <RefreshCw size={13} className={refreshing ? 'is-spinning' : undefined} />{' '}
+          {refreshing ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
 

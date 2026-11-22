@@ -145,7 +145,7 @@ Expected:
 - [ ] **P0** Clicking a class opens its detail page, not the editor.
 - [ ] **P0** Class detail shows stats, progress, recent feedback, assignments.
 - [ ] **P0** Back returns to all classes.
-- [ ] **P1** Refresh reloads classes, assignments, feedback.
+- [ ] **P1** Refresh reloads classes, assignments, feedback; the icon spins while loading.
 - [ ] **P1** Join class accepts `CS102P8Q` for an eligible student.
 - [ ] **P1** Joining creates enrollment and class folder.
 - [ ] **P1** Invalid/archived/lowercase-with-spaces code errors are readable.
@@ -206,7 +206,7 @@ Expected:
 
 - [ ] **P0** Class detail shows Assignments and Seatworks tabs with correct
       counts.
-- [ ] **P0** A live seatwork before `opens_at` shows Scheduled and cannot start.
+- [ ] **P0** A live seatwork before `opens_at` shows Scheduled; its button is pressable, opens a live countdown modal, and Start unlocks at zero.
 - [ ] **P0** A past `closes_at` seatwork shows Closed and cannot start.
 - [ ] **P0** Start opens the workspace, seeds/restores the assignment file, and
       shows the countdown bar.
@@ -595,7 +595,7 @@ Expected:
 - [ ] **P0** Idle status is red after no input / non-workspace view.
 - [ ] **P0** Flagged status is yellow after a recent paste.
 - [ ] **P0** Heartbeats refresh automatically over Realtime.
-- [ ] **P0** Refresh button reloads.
+- [ ] **P0** Refresh button reloads and its icon spins while the reload is in flight.
 - [ ] **P1** After 90 seconds without heartbeat, student shows Offline.
 - [ ] **P1** Summary counts match cards.
 - [ ] **P1** No-heartbeat empty state is readable.

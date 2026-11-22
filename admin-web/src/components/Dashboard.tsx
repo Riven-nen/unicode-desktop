@@ -317,7 +317,8 @@ export default function Dashboard({ profile, onSignOut }: DashboardProps): React
               }}
               disabled={loading}
             >
-              <RefreshCw size={13} /> {loading ? 'Refreshing…' : 'Refresh'}
+              <RefreshCw size={13} className={loading ? 'is-spinning' : undefined} />{' '}
+              {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
         </div>

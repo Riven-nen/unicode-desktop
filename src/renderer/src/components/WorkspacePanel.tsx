@@ -88,6 +88,13 @@ export default function WorkspacePanel({
 }: WorkspacePanelProps): React.ReactElement {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set())
   const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const refreshWorkspace = (): void => {
+    setRefreshing(true)
+    onRefresh()
+    window.setTimeout(() => setRefreshing(false), 700)
+  }
   // Enter commits and removes the input, which can fire blur too; the refs
   // keep that from renaming twice or ignoring Escape.
   const renameBusyRef = useRef(false)
@@ -303,8 +310,12 @@ export default function WorkspacePanel({
             )}
           </span>
           <div className="workspace-actions">
-            <button className="workspace-icon-btn" title="Refresh Workspace" onClick={onRefresh}>
-              <RefreshCw size={13} />
+            <button
+              className="workspace-icon-btn"
+              title={refreshing ? 'Refreshing…' : 'Refresh Workspace'}
+              onClick={refreshWorkspace}
+            >
+              <RefreshCw size={13} className={refreshing ? 'is-spinning' : undefined} />
             </button>
           </div>
         </div>

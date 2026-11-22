@@ -66,7 +66,7 @@ should pass before the demo.
 - [ ] Class detail shows class stats, progress, recent feedback, and that
       class’s assignment list.
 - [ ] Back to All classes returns to the class grid.
-- [ ] Refresh button reloads classes/assignments/feedback.
+- [ ] Refresh button reloads classes/assignments/feedback and spins while loading.
 - [ ] Join class accepts a valid code (`CS102P8Q` for a student not already in
       CS102), shows the new class card, and creates its workspace folder.
 - [ ] Invalid, lowercase-with-spaces, and archived-class codes show a readable
@@ -109,6 +109,8 @@ should pass before the demo.
 - [ ] Professor session monitor shows each student's status, start, deadline,
       last save, revision, and Review link.
 - [ ] Student class page has Assignments and Seatworks tabs.
+- [ ] A scheduled seatwork stays pressable and opens a live start countdown;
+      Start unlocks at zero.
 - [ ] Starting a seatwork opens the workspace with the draft and a countdown
       bar; changing the system clock does not extend the deadline.
 - [ ] Edits autosave within 8 seconds; restarting the app and resuming returns
@@ -128,7 +130,7 @@ should pass before the demo.
 - [ ] The preview starts on a loopback port and updates after typing.
 - [ ] Preview and terminal toggle cleanly; closing the file stops the server.
 - [ ] A linked CSS file in the class folder loads in the preview.
-- [ ] Refresh and Browser actions work.
+- [ ] Refresh and Browser actions work; the refresh icon spins while loading.
 - [ ] HTML/CSS assignments show no Judge0 Test cases tab.
 - [ ] Seatwork settings expose allowed interruptions, fullscreen, paste block,
       and run-only terminal.

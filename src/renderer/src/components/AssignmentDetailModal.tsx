@@ -245,8 +245,12 @@ export default function AssignmentDetailModal({
                 {session ? sessionStatusLabel(session.status) : 'Submitted'}
               </button>
             ) : availability === 'upcoming' ? (
-              <button className="btn-secondary" disabled>
-                Opens {assignment.opensAt ? formatMoment(assignment.opensAt) : 'soon'}
+              <button
+                className="btn-secondary"
+                onClick={() => onStart(assignment)}
+                title="Show the live start countdown"
+              >
+                <Timer size={12} /> View countdown
               </button>
             ) : availability === 'closed' ? (
               <button className="btn-secondary" disabled>

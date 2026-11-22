@@ -51,6 +51,11 @@ All notable changes to Unicode Lab are recorded here. The format is based on
 - **ICS demo moved to admin:** the live Monaco playground now opens from the
   admin console, reads the current metric version, and is lazy-loaded with
   locally bundled Monaco workers. The student dashboard no longer exposes it.
+- **Refresh feedback:** refresh and recompute icons across the admin, student,
+  workspace, preview, and professor surfaces now spin while their action is in
+  flight.
+- **Seatwork countdown:** a scheduled seatwork stays pressable and opens a live
+  countdown modal; Start unlocks when the window opens.
 - **Timed assessments (Phase 1):** take-home assignments may carry a
   per-student timer, and seatworks are in-person work with a shared live window.
   Deadlines are server-owned; students get draft autosave, crash resume, a

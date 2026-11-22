@@ -22,6 +22,7 @@ import AppearancePanel from './AppearancePanel'
 import AssignmentDetailModal from './AssignmentDetailModal'
 import JoinClassModal from './JoinClassModal'
 import RedeemOverrideCodeModal from './RedeemOverrideCodeModal'
+import SeatworkCountdownModal from './SeatworkCountdownModal'
 import StudentSeatworkCard from './StudentSeatworkCard'
 import TitleBarControls from './TitleBarControls'
 import { useStudentFeedback } from '../hooks/useStudentFeedback'
@@ -127,6 +128,7 @@ export default function StudentDashboard({
   })
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [countdownAssignment, setCountdownAssignment] = useState<StudentAssignment | null>(null)
   const [joinOpen, setJoinOpen] = useState(false)
   // Re-renders after marking feedback or a class as seen.
   const [, bumpSeenVersion] = useState(0)
@@ -137,6 +139,7 @@ export default function StudentDashboard({
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [redeemSessionId, setRedeemSessionId] = useState<string | null>(null)
   const [clock, setClock] = useState(() => Date.now())
+  const [refreshing, setRefreshing] = useState(false)
   const expiredRefreshRef = useRef<Set<string>>(new Set())
   const rootRef = useRef<HTMLDivElement | null>(null)
   const hasBeenActive = useRef(false)
@@ -315,8 +318,11 @@ export default function StudentDashboard({
   ]
 
   const refreshAll = (): void => {
+    setRefreshing(true)
+    setClock(Date.now())
     reload()
     reloadFeedback()
+    window.setTimeout(() => setRefreshing(false), 800)
   }
 
   const openAssignmentFile = async (assignment: StudentAssignment): Promise<void> => {
@@ -353,6 +359,19 @@ export default function StudentDashboard({
     }
   }
 
+  /**
+   * An upcoming seatwork is pressable, but the press opens a live countdown
+   * instead of calling the start RPC. The server still owns the real window.
+   */
+  const startOrShowCountdown = (assignment: StudentAssignment): void => {
+    if (assessmentAvailability(assignment, Date.now()) === 'upcoming') {
+      setDetailId(null)
+      setCountdownAssignment(assignment)
+      return
+    }
+    void startSeatwork(assignment)
+  }
+
   return (
     <div
       ref={rootRef}
@@ -366,8 +385,12 @@ export default function StudentDashboard({
           <span className="nav-role-badge">Student</span>
         </div>
         <div className="nav-right">
-          <button className="nav-icon-btn" onClick={refreshAll} title="Refresh classes">
-            <RefreshCw size={14} />
+          <button
+            className="nav-icon-btn"
+            onClick={refreshAll}
+            title={refreshing ? 'Refreshing…' : 'Refresh classes'}
+          >
+            <RefreshCw size={14} className={refreshing ? 'is-spinning' : undefined} />
           </button>
           <span className="nav-user">{session.user.email}</span>
           <button className="nav-icon-btn" onClick={onSignOut} title="Sign out">
@@ -519,7 +542,7 @@ export default function StudentDashboard({
                             assignment={assignment}
                             localNow={clock}
                             starting={startingSeatworkId === assignment.id}
-                            onStart={(selected) => void startSeatwork(selected)}
+                            onStart={startOrShowCountdown}
                             onDetails={openAssignmentDetail}
                           />
                         ))}
@@ -972,13 +995,25 @@ export default function StudentDashboard({
         onSubmit={(assignment) => void submitAssignment(assignment)}
         onStart={(assignment) => {
           setDetailId(null)
-          void startSeatwork(assignment)
+          startOrShowCountdown(assignment)
         }}
         onRedeemCode={(sessionId) => {
           setDetailId(null)
           setRedeemSessionId(sessionId)
         }}
       />
+
+      {countdownAssignment && (
+        <SeatworkCountdownModal
+          assignment={countdownAssignment}
+          starting={startingSeatworkId === countdownAssignment.id}
+          onClose={() => setCountdownAssignment(null)}
+          onStart={(assignment) => {
+            setCountdownAssignment(null)
+            void startSeatwork(assignment)
+          }}
+        />
+      )}
 
       {redeemSessionId && (
         <RedeemOverrideCodeModal

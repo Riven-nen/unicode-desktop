@@ -52,6 +52,7 @@ const formatSeen = (iso: string, now: number): string => {
 export default function LiveLabView({ session, onBack }: LiveLabViewProps): React.ReactElement {
   const [rows, setRows] = useState<LiveLabStudent[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const [now, setNow] = useState(() => Date.now())
@@ -75,7 +76,10 @@ export default function LiveLabView({ session, onBack }: LiveLabViewProps): Reac
         setError(loadError instanceof Error ? loadError.message : 'Could not load Live Lab.')
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setRefreshing(false)
+        }
       })
     return () => {
       cancelled = true
@@ -132,12 +136,13 @@ export default function LiveLabView({ session, onBack }: LiveLabViewProps): Reac
         <button
           className="btn-secondary"
           onClick={() => {
-            setLoading(rows.length === 0)
+            setRefreshing(true)
             load()
           }}
-          disabled={loading}
+          disabled={refreshing}
         >
-          <RefreshCw size={13} /> {loading ? 'Refreshing…' : 'Refresh'}
+          <RefreshCw size={13} className={refreshing ? 'is-spinning' : undefined} />{' '}
+          {refreshing ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
 

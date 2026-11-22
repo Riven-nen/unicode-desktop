@@ -117,6 +117,7 @@ export default function ProfessorDashboard({
 
   const [classes, setClasses] = useState<ClassState | null>(null)
   const [classVersion, setClassVersion] = useState(0)
+  const [refreshingClasses, setRefreshingClasses] = useState(false)
   const [showArchivedClasses, setShowArchivedClasses] = useState(false)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [liveLabOpen, setLiveLabOpen] = useState(false)
@@ -645,10 +646,14 @@ export default function ProfessorDashboard({
           </button>
           <button
             className="nav-icon-btn"
-            title="Refresh classes"
-            onClick={() => setClassVersion((version) => version + 1)}
+            title={refreshingClasses ? 'Refreshing…' : 'Refresh classes'}
+            onClick={() => {
+              setRefreshingClasses(true)
+              setClassVersion((version) => version + 1)
+              window.setTimeout(() => setRefreshingClasses(false), 800)
+            }}
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} className={refreshingClasses ? 'is-spinning' : undefined} />
           </button>
           <span className="nav-user">{session.user.email}</span>
           <button className="nav-icon-btn" onClick={onSignOut} title="Sign out">

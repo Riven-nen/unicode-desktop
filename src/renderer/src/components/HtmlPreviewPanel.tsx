@@ -25,6 +25,7 @@ export default function HtmlPreviewPanel({
   const [version, setVersion] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const idRef = useRef<string | null>(null)
   const contentRef = useRef<string | null>(null)
   const epochRef = useRef(0)
@@ -127,11 +128,15 @@ export default function HtmlPreviewPanel({
         </span>
         <button
           className="icon-text-btn"
-          onClick={() => setVersion((current) => current + 1)}
+          onClick={() => {
+            setVersion((current) => current + 1)
+            setRefreshing(true)
+            window.setTimeout(() => setRefreshing(false), 600)
+          }}
           disabled={!url || busy}
           title="Reload the preview"
         >
-          <RefreshCw size={11} /> Refresh
+          <RefreshCw size={11} className={refreshing ? 'is-spinning' : undefined} /> Refresh
         </button>
         <button
           className="icon-text-btn"

@@ -106,7 +106,8 @@ export default function AssessmentEventLog({
             }}
             disabled={loading}
           >
-            <RefreshCw size={12} /> {loading ? 'Loading…' : 'Refresh'}
+            <RefreshCw size={12} className={loading ? 'is-spinning' : undefined} />{' '}
+            {loading ? 'Loading…' : 'Refresh'}
           </button>
           <button className="btn-secondary" onClick={exportCsv} disabled={!events?.length}>
             <Download size={12} /> Export CSV

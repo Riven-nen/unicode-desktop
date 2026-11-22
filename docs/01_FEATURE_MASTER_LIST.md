@@ -71,6 +71,7 @@ Unicode Lab is a desktop programming-course lab with three surfaces:
 | STU-14 | Scheduled assignments     | Future `publish_at` assignments are hidden until their publish time                  | Implemented |
 | STU-15 | Queued submission banner  | Shows offline submissions waiting to retry                                           | Implemented |
 | STU-17 | Empty states              | No classes, no assignments, no feedback, loading/error states                        | Implemented |
+| STU-18 | Seatwork countdown        | Upcoming Start opens a live countdown; Start unlocks when the window opens           | Implemented |
 
 ---
 
@@ -396,21 +397,22 @@ integrity.
 
 ## 15. Engineering, quality, and release
 
-| ID     | Feature              | Description                                     | Status           |
-| ------ | -------------------- | ----------------------------------------------- | ---------------- |
-| ENG-01 | TypeScript typecheck | Main/preload/renderer and admin web             | Implemented      |
-| ENG-02 | ESLint               | Desktop and admin source                        | Implemented      |
-| ENG-03 | Unit tests           | 121 Vitest tests                                | Implemented      |
-| ENG-04 | RLS regression       | 40 live checks against Supabase                 | Implemented      |
-| ENG-05 | CI workflow          | Lint, typecheck, unit tests, build              | Implemented      |
-| ENG-06 | Seed script          | Idempotent demo data                            | Implemented      |
-| ENG-07 | Error boundary       | Renderer crash surface                          | Implemented      |
-| ENG-08 | Windows installer    | NSIS per-user installer                         | Implemented      |
-| ENG-09 | Unpacked build       | `dist/win-unpacked`                             | Implemented      |
-| ENG-10 | Installer checksum   | `dist/SHA256SUMS.txt`                           | Implemented      |
-| ENG-11 | Release notes        | CHANGELOG and QA checklist                      | Implemented      |
-| ENG-12 | Admin build          | Static `admin-web/dist`                         | Implemented      |
-| ENG-13 | macOS/Linux packages | Scripts exist; not validated on those platforms | Known limitation |
+| ID     | Feature              | Description                                          | Status           |
+| ------ | -------------------- | ---------------------------------------------------- | ---------------- |
+| ENG-01 | TypeScript typecheck | Main/preload/renderer and admin web                  | Implemented      |
+| ENG-02 | ESLint               | Desktop and admin source                             | Implemented      |
+| ENG-03 | Unit tests           | 133 Vitest tests                                     | Implemented      |
+| ENG-04 | RLS regression       | 40 live checks against Supabase                      | Implemented      |
+| ENG-05 | CI workflow          | Lint, typecheck, unit tests, build                   | Implemented      |
+| ENG-06 | Seed script          | Idempotent demo data                                 | Implemented      |
+| ENG-07 | Error boundary       | Renderer crash surface                               | Implemented      |
+| ENG-08 | Windows installer    | NSIS per-user installer                              | Implemented      |
+| ENG-09 | Refresh feedback     | Refresh/recompute icons spin while work is in flight | Implemented      |
+| ENG-09 | Unpacked build       | `dist/win-unpacked`                                  | Implemented      |
+| ENG-10 | Installer checksum   | `dist/SHA256SUMS.txt`                                | Implemented      |
+| ENG-11 | Release notes        | CHANGELOG and QA checklist                           | Implemented      |
+| ENG-12 | Admin build          | Static `admin-web/dist`                              | Implemented      |
+| ENG-13 | macOS/Linux packages | Scripts exist; not validated on those platforms      | Known limitation |
 
 ---
 

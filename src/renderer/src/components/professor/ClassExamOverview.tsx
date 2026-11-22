@@ -16,6 +16,7 @@ export default function ClassExamOverview({
   const [rows, setRows] = useState<ClassExamOverviewRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +33,9 @@ export default function ClassExamOverview({
             loadError instanceof Error ? loadError.message : 'Could not load exam analytics.'
           )
         }
+      })
+      .finally(() => {
+        if (!cancelled) setRefreshing(false)
       })
     return () => {
       cancelled = true
@@ -64,10 +68,13 @@ export default function ClassExamOverview({
         </h3>
         <button
           className="icon-text-btn"
-          onClick={() => setVersion((current) => current + 1)}
-          title="Refresh exam overview"
+          onClick={() => {
+            setRefreshing(true)
+            setVersion((current) => current + 1)
+          }}
+          title={refreshing ? 'Refreshing…' : 'Refresh exam overview'}
         >
-          <RefreshCw size={11} /> Refresh
+          <RefreshCw size={11} className={refreshing ? 'is-spinning' : undefined} /> Refresh
         </button>
       </header>
       <div className="class-exam-totals">

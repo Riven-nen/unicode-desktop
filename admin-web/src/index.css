@@ -224,6 +224,10 @@ code {
   }
 }
 
+.is-spinning {
+  animation: spin 0.8s linear infinite;
+}
+
 /* Shell -------------------------------------------------------------------- */
 
 .admin-shell {
