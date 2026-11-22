@@ -20,6 +20,7 @@ Unicode Lab build.
 | [06_PAPER_SECTION_4_3.md](06_PAPER_SECTION_4_3.md)                                     | Revised paper section 4.3 with implemented features, telemetry limits, storage/RLS, professor dashboard, and cross-links |
 | [07_PRELIMINARY_SURVEY_RESULTS.md](07_PRELIMINARY_SURVEY_RESULTS.md)                   | Updated preliminary survey means, grouped results, distributions, and chart links                                        |
 | [08_ICS_EVIDENCE_MODEL.md](08_ICS_EVIDENCE_MODEL.md)                                   | Research proposal for the v3 ICS: evidence ledger, confidence gating, hard rules, and edge-case matrix                   |
+| [DEMO_SCRIPT.md](DEMO_SCRIPT.md)                                                       | Segmented 14-minute video script for student, professor, and admin demos with four narrators                             |
 | [SNAPSHOT_RETENTION.md](SNAPSHOT_RETENTION.md)                                         | Snapshot storage cost, what is safe to prune after evaluation, and the dry-run/apply retention workflow                  |
 | [changelog/](changelog/README.md)                                                      | Dated change log entries; each begins with an overall summary of the batch                                               |
 

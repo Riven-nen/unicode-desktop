@@ -213,7 +213,7 @@ Expected:
       shows the countdown bar.
 - [ ] **P0** The countdown uses server time; changing the Windows clock does not
       extend the displayed deadline.
-- [ ] **P0** Editing for at least 3 seconds then refreshing/restarting returns the
+- [ ] **P0** Editing for at least 11 seconds then refreshing/restarting returns the
       same draft and the same deadline.
 - [ ] **P0** Window hide triggers a draft save.
 - [ ] **P0** Submit asks for confirmation and creates one submission with the live

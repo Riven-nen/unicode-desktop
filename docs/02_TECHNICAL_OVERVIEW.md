@@ -585,7 +585,7 @@ start_assessment_session RPC
         ▼
 Workspace opens the draft in the assignment file
         │
-        ├─ every 2s / window hide → save_assessment_draft
+        ├─ every 10s / 5s before deadline / window hide → save_assessment_draft
         ├─ countdown uses server_now offset, never the local deadline
         └─ deadline / Submit → submit_assessment_session
                                   ├─ within 10s grace: submitted

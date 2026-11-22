@@ -41,9 +41,12 @@ export interface TimedAssessmentApi {
   reset: () => void
 }
 
-// Keep the draft close to the live editor. The server finalizes at the
-// deadline, so a long interval can lose the last several seconds of typing.
-const AUTOSAVE_INTERVAL_MS = 2_000
+// Drafts are one row per session updated in place, so this is write churn, not
+// row growth. Ten seconds keeps the draft useful without saving on every key.
+const AUTOSAVE_INTERVAL_MS = 10_000
+// Save once more near the deadline so a server-side finalize cannot miss the
+// student's last stretch of typing.
+const FINAL_SAVE_WINDOW_MS = 5_000
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : 'The assessment session could not be saved.'
@@ -69,6 +72,7 @@ export function useTimedAssessment({
   const savingRef = useRef(false)
   const finalizingRef = useRef(false)
   const expiredRef = useRef(false)
+  const finalSaveRef = useRef(false)
   const revisionRef = useRef(0)
   const readRef = useRef(readContent)
   const submittedRef = useRef(onSubmitted)
@@ -90,6 +94,7 @@ export function useTimedAssessment({
     revisionRef.current = next.draftRevision
     finalizingRef.current = false
     expiredRef.current = false
+    finalSaveRef.current = false
     sessionRef.current = next
     setSession(next)
     setRemainingMs(assessmentRemainingMs(next))
@@ -243,6 +248,7 @@ export function useTimedAssessment({
     sessionRef.current = null
     finalizingRef.current = false
     expiredRef.current = false
+    finalSaveRef.current = false
     revisionRef.current = 0
     exitFullscreen()
     setSession(null)
@@ -261,6 +267,15 @@ export function useTimedAssessment({
     const tick = (): void => {
       const remaining = assessmentRemainingMs(sessionRef.current)
       setRemainingMs(remaining)
+      if (
+        remaining !== null &&
+        remaining > 0 &&
+        remaining <= FINAL_SAVE_WINDOW_MS &&
+        !finalSaveRef.current
+      ) {
+        finalSaveRef.current = true
+        void saveNow()
+      }
       if (remaining !== null && remaining <= 0 && !expiredRef.current) {
         expiredRef.current = true
         void submit('auto').catch(() => {
@@ -271,7 +286,7 @@ export function useTimedAssessment({
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
-  }, [activeSessionId, expiresAt, submit])
+  }, [activeSessionId, expiresAt, saveNow, submit])
 
   // Autosave only while the session is active. The document-hidden save covers
   // tab switches and window minimize; the interval covers normal editing.

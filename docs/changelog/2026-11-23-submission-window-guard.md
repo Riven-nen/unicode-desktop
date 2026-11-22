@@ -30,10 +30,12 @@ realizing the work was already final.
 
 ## Draft capture
 
-- Timed-assessment draft autosave moved from 8 seconds to 2 seconds.
+- Timed-assessment draft autosave is 10 seconds, with one final save 5 seconds
+  before the deadline.
 - The deadline path still submits the live editor content when the client is
-  active; the shorter autosave window reduces the amount of work at risk when
-  the server finalizes first.
+  active. The final save reduces work at risk if the server finalizes first.
+- Drafts are one row per session updated in place, so the interval changes
+  write churn, not row growth.
 
 ## Review snapshot
 

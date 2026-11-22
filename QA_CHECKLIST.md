@@ -116,8 +116,8 @@ should pass before the demo.
 - [ ] Professor review opens a submission at its final snapshot.
 - [ ] Starting a seatwork opens the workspace with the draft and a countdown
       bar; changing the system clock does not extend the deadline.
-- [ ] Edits autosave within 2 seconds; restarting the app and resuming returns
-      the draft and the original deadline.
+- [ ] Edits autosave within 10 seconds and again 5 seconds before the deadline;
+      restarting the app and resuming returns the draft and original deadline.
 - [ ] Submit creates one submission with the live content and blocks a second
       attempt.
 - [ ] Leaving work past the deadline auto-submits the latest saved draft.

@@ -223,35 +223,35 @@ integrity.
 
 ## 9. Assignments, submissions, and student feedback
 
-| ID     | Feature                  | Description                                                                                                | Status      |
-| ------ | ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------- |
-| SUB-01 | Assignment brief         | Instructions, starter code, file name, language, due date                                                  | Implemented |
-| SUB-02 | Submission RPC           | Verifies enrollment, creates submission, attaches snapshots                                                | Implemented |
-| SUB-03 | Final snapshot           | Uses newest snapshot or captures live content                                                              | Implemented |
-| SUB-04 | Idempotent retry         | `client_token` returns the original submission                                                             | Implemented |
-| SUB-05 | Submission status        | Submitted/graded/queued/not submitted states                                                               | Implemented |
-| SUB-06 | Latest submission        | Student card shows latest submission only                                                                  | Implemented |
-| SUB-07 | Grade visibility         | Released grade appears; private grade stays hidden                                                         | Implemented |
-| SUB-08 | Feedback modal           | Comments grouped by submission, grade shown, threaded replies                                              | Implemented |
-| SUB-09 | Student replies          | Students may reply inside threads on their own submission                                                  | Implemented |
-| SUB-10 | Unread feedback badge    | Clears after opening Feedback                                                                              | Implemented |
-| SUB-11 | Comment counts           | Shown on assignment/submission cards                                                                       | Implemented |
-| SUB-12 | Read-only submission API | Students cannot update their own grade/status through the client                                           | Implemented |
-| SUB-13 | Online/offline submit    | Queue with automatic retry when connection returns                                                         | Implemented |
-| SUB-14 | Assessment tabs          | Student class page separates Assignments (take-home) from Seatworks (in-person)                            | Implemented |
-| SUB-15 | Server-owned timer       | Start/deadline come from the database; the client only displays a countdown                                | Implemented |
-| SUB-16 | Draft autosave           | Latest content is saved to `assessment_drafts` every 2 seconds and on window hide                          | Implemented |
-| SUB-17 | Crash resume             | Start/reopen returns the saved draft and the same deadline                                                 | Implemented |
-| SUB-18 | Deadline finalize        | Server auto-submits the latest draft after the deadline (10s grace)                                        | Implemented |
-| SUB-19 | Single attempt           | One active/submitted session per student per assessment in Phase 1                                         | Implemented |
-| SUB-20 | Timed workspace bar      | Countdown, autosave state, Open file, and Submit appear above the editor                                   | Implemented |
-| SUB-21 | HTML live preview        | HTML files open a loopback static preview that serves the class folder and overlays unsaved editor content | Implemented |
-| SUB-22 | HTML101 course           | Five HTML lessons and a profile-page project with teaching notes                                           | Implemented |
-| SUB-23 | Nested project folders   | Class tree supports project subfolders and assignment paths like `project/index.html`                      | Implemented |
-| SUB-24 | Image assets             | Add Images copies PNG/JPG/GIF/WebP/SVG/etc. into a class or project folder                                 | Implemented |
-| SUB-25 | Live-window guard        | Rejects a close time that cuts the configured seatwork duration short                                      | Implemented |
-| SUB-26 | Auto-submit notice       | A modal explains that the deadline submission is final and later edits are excluded                        | Implemented |
-| SUB-27 | Review final snapshot    | Submission review opens at the final snapshot when switching submissions                                   | Implemented |
+| ID     | Feature                  | Description                                                                                                        | Status      |
+| ------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------ | ----------- |
+| SUB-01 | Assignment brief         | Instructions, starter code, file name, language, due date                                                          | Implemented |
+| SUB-02 | Submission RPC           | Verifies enrollment, creates submission, attaches snapshots                                                        | Implemented |
+| SUB-03 | Final snapshot           | Uses newest snapshot or captures live content                                                                      | Implemented |
+| SUB-04 | Idempotent retry         | `client_token` returns the original submission                                                                     | Implemented |
+| SUB-05 | Submission status        | Submitted/graded/queued/not submitted states                                                                       | Implemented |
+| SUB-06 | Latest submission        | Student card shows latest submission only                                                                          | Implemented |
+| SUB-07 | Grade visibility         | Released grade appears; private grade stays hidden                                                                 | Implemented |
+| SUB-08 | Feedback modal           | Comments grouped by submission, grade shown, threaded replies                                                      | Implemented |
+| SUB-09 | Student replies          | Students may reply inside threads on their own submission                                                          | Implemented |
+| SUB-10 | Unread feedback badge    | Clears after opening Feedback                                                                                      | Implemented |
+| SUB-11 | Comment counts           | Shown on assignment/submission cards                                                                               | Implemented |
+| SUB-12 | Read-only submission API | Students cannot update their own grade/status through the client                                                   | Implemented |
+| SUB-13 | Online/offline submit    | Queue with automatic retry when connection returns                                                                 | Implemented |
+| SUB-14 | Assessment tabs          | Student class page separates Assignments (take-home) from Seatworks (in-person)                                    | Implemented |
+| SUB-15 | Server-owned timer       | Start/deadline come from the database; the client only displays a countdown                                        | Implemented |
+| SUB-16 | Draft autosave           | Latest content is saved to `assessment_drafts` every 10 seconds, 5 seconds before the deadline, and on window hide | Implemented |
+| SUB-17 | Crash resume             | Start/reopen returns the saved draft and the same deadline                                                         | Implemented |
+| SUB-18 | Deadline finalize        | Server auto-submits the latest draft after the deadline (10s grace)                                                | Implemented |
+| SUB-19 | Single attempt           | One active/submitted session per student per assessment in Phase 1                                                 | Implemented |
+| SUB-20 | Timed workspace bar      | Countdown, autosave state, Open file, and Submit appear above the editor                                           | Implemented |
+| SUB-21 | HTML live preview        | HTML files open a loopback static preview that serves the class folder and overlays unsaved editor content         | Implemented |
+| SUB-22 | HTML101 course           | Five HTML lessons and a profile-page project with teaching notes                                                   | Implemented |
+| SUB-23 | Nested project folders   | Class tree supports project subfolders and assignment paths like `project/index.html`                              | Implemented |
+| SUB-24 | Image assets             | Add Images copies PNG/JPG/GIF/WebP/SVG/etc. into a class or project folder                                         | Implemented |
+| SUB-25 | Live-window guard        | Rejects a close time that cuts the configured seatwork duration short                                              | Implemented |
+| SUB-26 | Auto-submit notice       | A modal explains that the deadline submission is final and later edits are excluded                                | Implemented |
+| SUB-27 | Review final snapshot    | Submission review opens at the final snapshot when switching submissions                                           | Implemented |
 
 ---
 
