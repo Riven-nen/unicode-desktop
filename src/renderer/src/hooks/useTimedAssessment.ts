@@ -77,6 +77,7 @@ export function useTimedAssessment({
   const expiredRef = useRef(false)
   const finalSaveRef = useRef(false)
   const guardPausedRef = useRef(false)
+  const fullscreenChangedAtRef = useRef(0)
   const revisionRef = useRef(0)
   const readRef = useRef(readContent)
   const submittedRef = useRef(onSubmitted)
@@ -339,15 +340,13 @@ export function useTimedAssessment({
       timer = window.setTimeout(() => {
         timer = null
         if (guardPausedRef.current) return
-        // A fullscreen exam is still the assessment surface even if the window
-        // reports a transient blur while entering/leaving fullscreen.
-        if (
-          !document.fullscreenElement &&
-          (document.visibilityState === 'hidden' || !document.hasFocus())
-        ) {
+        // Entering or leaving fullscreen briefly blurs the window. Ignore that
+        // transition, but do not ignore a real alt-tab while fullscreen.
+        if (Date.now() - fullscreenChangedAtRef.current < 1500) return
+        if (document.visibilityState === 'hidden' || !document.hasFocus()) {
           void recordEvent('tab_out', { source: 'window' })
         }
-      }, 2500)
+      }, 1500)
     }
     const handleVisibility = (): void => {
       if (document.visibilityState === 'hidden') schedule()
@@ -373,6 +372,7 @@ export function useTimedAssessment({
     if (!examActive || !examMode || !fullscreenRequired || !examSessionId) return
     let wasFullscreen = document.fullscreenElement !== null
     const handleFullscreenChange = (): void => {
+      fullscreenChangedAtRef.current = Date.now()
       const isFullscreen = document.fullscreenElement !== null
       if (wasFullscreen && !isFullscreen) {
         void recordEvent('fullscreen_exit')
