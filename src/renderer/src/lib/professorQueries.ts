@@ -1090,8 +1090,9 @@ export async function fetchLiveLabStatus(): Promise<LiveLabStudent[]> {
     .from('student_presence')
     .select(
       `student_id, current_file, status, idle_seconds, last_seen_at,
-       student:profiles!student_presence_student_id_fkey ( display_name, email )`
+       student:profiles!student_presence_student_id_fkey!inner ( display_name, email, role )`
     )
+    .eq('student.role', 'student')
     .order('last_seen_at', { ascending: false })
 
   if (error) throw new Error(error.message)
@@ -1105,8 +1106,8 @@ export async function fetchLiveLabStatus(): Promise<LiveLabStudent[]> {
       idle_seconds: number
       last_seen_at: string
       student:
-        | { display_name: string | null; email: string | null }
-        | Array<{ display_name: string | null; email: string | null }>
+        | { display_name: string | null; email: string | null; role: string }
+        | Array<{ display_name: string | null; email: string | null; role: string }>
         | null
     }>
   ).map((row) => {
