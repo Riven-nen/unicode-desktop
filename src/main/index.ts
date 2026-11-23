@@ -20,6 +20,8 @@ function createWindow(): void {
     minWidth: 720,
     minHeight: 480,
     show: false,
+    // Demo branch: open the desktop app fullscreen for recording.
+    fullscreen: true,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     ...(process.platform === 'linux' ? { icon } : {}),
