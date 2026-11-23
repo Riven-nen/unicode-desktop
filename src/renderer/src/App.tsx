@@ -461,6 +461,17 @@ export default function App(): React.ReactElement {
     )
   }, [activeFile, studentAssignments.assignments])
 
+  // "Open file" is redundant once the assessment's own file is the active tab.
+  const assessmentFileIsActive = useMemo(() => {
+    if (!activeAssessment) return false
+    const folder = (activeAssessment.classCode || activeAssessment.className).toLowerCase()
+    const fileName = fileNameForAssignment(activeAssessment).toLowerCase()
+    return (
+      activeFile.toLowerCase() === `${folder}/${fileName}` ||
+      fileDisplayName(activeFile).toLowerCase() === fileName
+    )
+  }, [activeAssessment, activeFile])
+
   const handleSelectFile = (name: string): void => {
     setActiveFile(name)
     setCursor(null)
@@ -1328,6 +1339,7 @@ export default function App(): React.ReactElement {
                       saving={timedAssessment.saving}
                       submitting={timedAssessment.submitting}
                       error={timedAssessment.error}
+                      fileIsActive={assessmentFileIsActive}
                       onOpenFile={() => void handleOpenAssignmentFile(activeAssessment)}
                       onSubmit={() => void handleSubmitTimedAssessment()}
                       onEnterFullscreen={() => void timedAssessment.enterFullscreen()}

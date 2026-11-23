@@ -11,6 +11,8 @@ interface AssessmentBarProps {
   saving: boolean
   submitting: boolean
   error: string | null
+  /** True when the assignment file is already the active editor tab. */
+  fileIsActive: boolean
   onOpenFile: () => void
   onSubmit: () => void
   onEnterFullscreen: () => void
@@ -23,6 +25,7 @@ export default function AssessmentBar({
   saving,
   submitting,
   error,
+  fileIsActive,
   onOpenFile,
   onSubmit,
   onEnterFullscreen
@@ -89,9 +92,11 @@ export default function AssessmentBar({
         )}
       </span>
       <div className="assessment-bar-actions">
-        <button className="btn-secondary" onClick={onOpenFile} disabled={submitting}>
-          <FileText size={12} /> Open file
-        </button>
+        {!fileIsActive && (
+          <button className="btn-secondary" onClick={onOpenFile} disabled={submitting}>
+            <FileText size={12} /> Open file
+          </button>
+        )}
         <button className="btn-primary" onClick={onSubmit} disabled={submitting}>
           <Send size={12} /> {submitting ? 'Submitting…' : 'Submit seatwork'}
         </button>

@@ -107,6 +107,7 @@ export default function EditorPane({
   // tab can release its listener.
   const disposersRef = useRef(new Map<string, () => void>())
   const activeFileRef = useRef(activeFile)
+  const editorHostRef = useRef<HTMLDivElement | null>(null)
   const onCursorChangeRef = useRef(onCursorChange)
   const onToggleWordWrapRef = useRef(onToggleWordWrap)
   const onAnalysisChangeRef = useRef(onAnalysisChange)
@@ -133,6 +134,26 @@ export default function EditorPane({
     blockPasteRef.current = blockPaste
     onBlockedPasteRef.current = onBlockedPaste
   }, [blockPaste, onBlockedPaste])
+
+  // Exam mode: reject paste and drag-drop before Monaco can insert anything.
+  // Bind to the stable host element, not Monaco's dom node: the editor can be
+  // recreated after mount, which would orphan a listener on the old node.
+  useEffect(() => {
+    const host = editorHostRef.current
+    if (!host) return
+    const rejectInsert = (event: Event): void => {
+      if (!blockPasteRef.current) return
+      event.preventDefault()
+      event.stopPropagation()
+      onBlockedPasteRef.current?.()
+    }
+    host.addEventListener('paste', rejectInsert, true)
+    host.addEventListener('drop', rejectInsert, true)
+    return () => {
+      host.removeEventListener('paste', rejectInsert, true)
+      host.removeEventListener('drop', rejectInsert, true)
+    }
+  }, [])
 
   /**
    * Monaco does not implement VS Code's HTML `autoClosingTags` option. When a
@@ -638,17 +659,7 @@ export default function EditorPane({
     })
 
     // Exam mode intercepts paste and drop before Monaco can insert anything.
-    const dom = editor.getDomNode()
-    if (dom) {
-      const rejectInsert = (event: Event): void => {
-        if (!blockPasteRef.current) return
-        event.preventDefault()
-        event.stopPropagation()
-        onBlockedPasteRef.current?.()
-      }
-      dom.addEventListener('paste', rejectInsert, true)
-      dom.addEventListener('drop', rejectInsert, true)
-    }
+    // The listener lives on the stable host element (see the effect above).
 
     editor.onDidChangeCursorPosition((event) => {
       onCursorChangeRef.current?.({
@@ -690,6 +701,12 @@ export default function EditorPane({
     }
 
     const pasteFromClipboard = async (): Promise<void> => {
+      // The menu item bypasses the DOM paste event, so honor the exam block
+      // here as well.
+      if (blockPasteRef.current) {
+        onBlockedPasteRef.current?.()
+        return
+      }
       const selection = editor.getSelection()
       if (!selection) return
       const text = await readClipboardText()
@@ -779,7 +796,7 @@ export default function EditorPane({
           </div>
         ))}
       </div>
-      <div className="editor-host">
+      <div className="editor-host" ref={editorHostRef}>
         <Editor
           height="100%"
           theme={monacoTheme}
