@@ -6725,6 +6725,104 @@ input:focus-visible,
   height: 100vh;
   overflow: hidden;
 }
+.signin-app .top-nav {
+  animation: signin-nav-in 600ms ease both;
+}
+.signin-glow {
+  animation: signin-glow-in 1.4s ease both;
+}
+.signin-card {
+  animation: signin-card-in 1.1s 60ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.signin-brand {
+  animation: signin-rise 700ms 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.signin-logo {
+  animation: signin-logo-pop 750ms 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.signin-mode {
+  animation: signin-rise 700ms 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.signin-card .auth-form {
+  animation: signin-rise 700ms 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.signin-card > .signin-note {
+  animation: signin-rise 700ms 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.signin-card > .signin-note + .signin-note {
+  animation-delay: 540ms;
+}
+@keyframes signin-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(70px) scale(0.92);
+    filter: blur(16px);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes signin-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes signin-logo-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.16) rotate(3deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes signin-glow-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes signin-nav-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signin-app .top-nav,
+  .signin-glow,
+  .signin-card,
+  .signin-brand,
+  .signin-logo,
+  .signin-mode,
+  .signin-card .auth-form,
+  .signin-card > .signin-note {
+    animation: none;
+  }
+}
 .signin-main {
   position: relative;
   flex: 1;
