@@ -9,6 +9,10 @@ describe('extensionForLanguage', (): void => {
   it('maps known languages and falls back to .txt', (): void => {
     expect(extensionForLanguage('python')).toBe('.py')
     expect(extensionForLanguage('Cpp')).toBe('.cpp')
+    expect(extensionForLanguage('javascript')).toBe('.js')
+    expect(extensionForLanguage('html')).toBe('.html')
+    expect(extensionForLanguage('css')).toBe('.css')
+    expect(extensionForLanguage('csharp')).toBe('.txt')
     expect(extensionForLanguage('brainfuck')).toBe('.txt')
     expect(extensionForLanguage(null)).toBe('.txt')
   })

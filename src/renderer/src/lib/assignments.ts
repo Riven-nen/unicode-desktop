@@ -9,18 +9,9 @@ const LANGUAGE_EXTENSIONS: Record<string, string> = {
   java: '.java',
   c: '.c',
   cpp: '.cpp',
-  csharp: '.cs',
   javascript: '.js',
-  typescript: '.ts',
-  go: '.go',
-  rust: '.rs',
-  ruby: '.rb',
-  php: '.php',
-  swift: '.swift',
-  kotlin: '.kt',
   html: '.html',
-  css: '.css',
-  plaintext: '.txt'
+  css: '.css'
 }
 
 export function extensionForLanguage(language: string | null | undefined): string {

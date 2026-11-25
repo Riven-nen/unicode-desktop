@@ -14,64 +14,24 @@ interface NewFileModalProps {
 }
 
 /** Languages Monaco tokenizes in the bundled build (main thread). */
-const LANGUAGE_OPTIONS = [
-  'plaintext',
-  'python',
-  'java',
-  'c',
-  'cpp',
-  'csharp',
-  'javascript',
-  'typescript',
-  'go',
-  'rust',
-  'php',
-  'ruby',
-  'swift',
-  'kotlin',
-  'markdown',
-  'json',
-  'html',
-  'css',
-  'scss',
-  'xml',
-  'yaml',
-  'sql',
-  'shell'
-]
+const LANGUAGE_OPTIONS = ['plaintext', 'python', 'java', 'c', 'cpp', 'javascript', 'html', 'css']
 
 /** Extension → language, mirroring VS Code's file associations. */
 const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   c: 'c',
   cc: 'cpp',
   cpp: 'cpp',
-  cs: 'csharp',
   css: 'css',
   cxx: 'cpp',
-  go: 'go',
   h: 'cpp',
+  hh: 'cpp',
   hpp: 'cpp',
+  hxx: 'cpp',
   html: 'html',
   java: 'java',
   js: 'javascript',
-  json: 'json',
-  jsx: 'javascript',
-  kt: 'kotlin',
-  md: 'markdown',
-  php: 'php',
   py: 'python',
-  rb: 'ruby',
-  rs: 'rust',
-  scss: 'scss',
-  sh: 'shell',
-  sql: 'sql',
-  swift: 'swift',
-  ts: 'typescript',
-  tsx: 'typescript',
-  txt: 'plaintext',
-  xml: 'xml',
-  yaml: 'yaml',
-  yml: 'yaml'
+  txt: 'plaintext'
 }
 
 const INVALID_NAME_CHARS = /[/\\:*?"<>|]/

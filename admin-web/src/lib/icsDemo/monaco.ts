@@ -21,8 +21,9 @@ import TsWorker from 'monaco-editor/language/typescript/ts.worker?worker'
 
 // Monaco runs diff computation and language services inside web workers. The
 // CSP only allows same-origin scripts, so each worker is a bundled chunk.
-// Languages used by the lab (Python, Java, C++, Markdown) are tokenized on
-// the main thread and only need the shared editor worker.
+// Languages used by the lab (Python, Java, C/C++, JavaScript, HTML, CSS,
+// Markdown) are tokenized on the main thread and only need the shared editor
+// worker.
 globalThis.MonacoEnvironment = {
   getWorker(_workerId: string, label: string): Worker {
     switch (label) {

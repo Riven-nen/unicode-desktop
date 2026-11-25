@@ -5,8 +5,8 @@ import type { CodeAnalysis } from './codeAnalysis'
 
 /**
  * Picks the local analyzer for a Monaco language id. Languages without a
- * bundled parser return null; Monaco's own tokenizer (and, for JS/TS, its
- * TypeScript worker) still handles highlighting and checks for those.
+ * bundled parser return null; Monaco's own tokenizer (and, for JavaScript,
+ * its TypeScript worker) still handles highlighting and checks for those.
  */
 export function analyzeSource(language: string, source: string): CodeAnalysis | null {
   switch (language) {

@@ -15,6 +15,21 @@ describe('toolchainSpecFor', (): void => {
     expect(toolchainSpecFor(null)).toBeNull()
   })
 
+  it('returns null for languages outside the supported set', (): void => {
+    for (const language of [
+      'csharp',
+      'typescript',
+      'go',
+      'rust',
+      'ruby',
+      'php',
+      'swift',
+      'kotlin'
+    ]) {
+      expect(toolchainSpecFor(language)).toBeNull()
+    }
+  })
+
   it('normalizes case and whitespace', (): void => {
     expect(toolchainSpecFor(' Java ')?.label).toBe('Java JDK')
   })

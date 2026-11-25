@@ -8,24 +8,7 @@ import type { ExamTemplate } from '../../lib/examTemplates'
 import type { AssessmentKind, AssessmentTimingMode } from '../../types/assessment'
 import type { AssignmentSummary } from '../../types/professor'
 
-const LANGUAGES = [
-  'python',
-  'java',
-  'c',
-  'cpp',
-  'csharp',
-  'javascript',
-  'typescript',
-  'go',
-  'rust',
-  'ruby',
-  'php',
-  'swift',
-  'kotlin',
-  'html',
-  'css',
-  'plaintext'
-]
+const LANGUAGES = ['python', 'java', 'c', 'cpp', 'javascript', 'html', 'css']
 
 interface AssignmentModalProps {
   classId: string

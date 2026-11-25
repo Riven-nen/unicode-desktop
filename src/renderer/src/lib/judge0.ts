@@ -18,15 +18,7 @@ export const LANGUAGE_IDS: Record<string, number> = {
   java: 62,
   c: 50,
   cpp: 54,
-  csharp: 51,
-  javascript: 63,
-  typescript: 74,
-  go: 60,
-  rust: 73,
-  ruby: 72,
-  php: 68,
-  swift: 83,
-  kotlin: 78
+  javascript: 63
 }
 
 export function languageIdFor(language: string | null): number | null {

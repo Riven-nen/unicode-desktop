@@ -13,27 +13,10 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   hpp: 'cpp',
   hh: 'cpp',
   hxx: 'cpp',
-  cs: 'csharp',
   js: 'javascript',
-  jsx: 'javascript',
-  ts: 'typescript',
-  tsx: 'typescript',
   json: 'json',
   css: 'css',
-  html: 'html',
-  xml: 'xml',
-  sql: 'sql',
-  sh: 'shell',
-  rb: 'ruby',
-  php: 'php',
-  go: 'go',
-  rs: 'rust',
-  kt: 'kotlin',
-  swift: 'swift',
-  yml: 'yaml',
-  yaml: 'yaml',
-  toml: 'ini',
-  ini: 'ini'
+  html: 'html'
 }
 
 /** Monaco language id for a file name or path; plaintext when unknown. */

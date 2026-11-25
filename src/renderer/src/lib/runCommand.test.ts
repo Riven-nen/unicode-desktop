@@ -28,27 +28,30 @@ describe('runCommandFor', (): void => {
     ).toBe("javac 'C:/work/Main.java'; if ($?) { java -cp 'C:/work' 'Main' }")
   })
 
-  it('compiles C/C++ and Rust to an executable', (): void => {
+  it('compiles C and C++ to an executable', (): void => {
     expect(runCommandFor('C:/work/main.c', 'c', status('c', ['gcc']), 'win32')).toBe(
       "gcc 'C:/work/main.c' -o 'C:/work/main.exe'; if ($?) { & 'C:/work/main.exe' }"
     )
-    expect(runCommandFor('/home/me/main.rs', 'rust', status('rust', ['rustc']), 'linux')).toBe(
-      "rustc '/home/me/main.rs' -o '/home/me/main' && '/home/me/main'"
+    expect(runCommandFor('/home/me/main.cpp', 'cpp', status('cpp', ['g++']), 'linux')).toBe(
+      "g++ '/home/me/main.cpp' -o '/home/me/main' && '/home/me/main'"
     )
   })
 
-  it('uses the interpreter for Go, Ruby, and PHP', (): void => {
-    expect(runCommandFor('/home/me/main.go', 'go', status('go', ['go']), 'linux')).toBe(
-      "go run '/home/me/main.go'"
-    )
-    expect(runCommandFor('C:/work/app.rb', 'ruby', null, 'win32')).toBe("ruby 'C:/work/app.rb'")
-    expect(runCommandFor('C:/work/index.php', 'php', null, 'win32')).toBe("php 'C:/work/index.php'")
-  })
-
-  it('runs PowerShell scripts directly', (): void => {
-    expect(runCommandFor('C:/work/setup.ps1', 'plaintext', null, 'win32')).toBe(
-      "& 'C:/work/setup.ps1'"
-    )
+  it('returns null for languages outside the supported set', (): void => {
+    for (const language of [
+      'csharp',
+      'typescript',
+      'go',
+      'rust',
+      'ruby',
+      'php',
+      'swift',
+      'kotlin',
+      'powershell',
+      'shell'
+    ]) {
+      expect(runCommandFor(`C:/work/main.${language}`, language, null, 'win32')).toBeNull()
+    }
   })
 
   it('returns null for editor-only files', (): void => {

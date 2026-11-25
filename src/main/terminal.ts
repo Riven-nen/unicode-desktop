@@ -29,17 +29,7 @@ const EXTENSION_BY_LANGUAGE: Record<string, string> = {
   java: '.java',
   c: '.c',
   cpp: '.cpp',
-  csharp: '.cs',
-  javascript: '.js',
-  typescript: '.ts',
-  go: '.go',
-  rust: '.rs',
-  ruby: '.rb',
-  php: '.php',
-  swift: '.swift',
-  kotlin: '.kt',
-  shell: '.sh',
-  powershell: '.ps1'
+  javascript: '.js'
 }
 
 function stopSession(id: number): void {

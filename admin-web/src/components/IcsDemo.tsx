@@ -50,17 +50,9 @@ const DEMO_LANGUAGES = [
   { id: 'java', label: 'Java' },
   { id: 'c', label: 'C' },
   { id: 'cpp', label: 'C++' },
-  { id: 'csharp', label: 'C#' },
-  { id: 'javascript', label: 'JavaScript' },
-  { id: 'typescript', label: 'TypeScript' },
-  { id: 'go', label: 'Go' },
-  { id: 'rust', label: 'Rust' },
-  { id: 'ruby', label: 'Ruby' },
-  { id: 'php', label: 'PHP' },
-  { id: 'swift', label: 'Swift' },
-  { id: 'kotlin', label: 'Kotlin' },
   { id: 'html', label: 'HTML' },
-  { id: 'plaintext', label: 'Plain text' }
+  { id: 'css', label: 'CSS' },
+  { id: 'javascript', label: 'JavaScript' }
 ] as const
 
 type DemoLanguage = (typeof DEMO_LANGUAGES)[number]['id']

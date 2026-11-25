@@ -33,28 +33,14 @@ const TEXT_EXTENSIONS = new Set([
   '.h',
   '.cpp',
   '.cc',
+  '.cxx',
   '.hpp',
-  '.cs',
+  '.hh',
+  '.hxx',
   '.js',
-  '.jsx',
-  '.ts',
-  '.tsx',
   '.json',
   '.css',
-  '.html',
-  '.xml',
-  '.sql',
-  '.sh',
-  '.rb',
-  '.php',
-  '.go',
-  '.rs',
-  '.kt',
-  '.swift',
-  '.yml',
-  '.yaml',
-  '.toml',
-  '.ini'
+  '.html'
 ])
 
 // Binary assets the file tree shows and the HTML preview can serve.
