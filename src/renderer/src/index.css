@@ -6830,11 +6830,12 @@ input:focus-visible,
   display: grid;
   place-items: center;
   padding: 32px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .signin-glow {
   position: absolute;
-  inset: -20% -10%;
+  inset: 0;
   background: radial-gradient(
     circle at 50% 32%,
     color-mix(in srgb, var(--accent) 18%, transparent),
