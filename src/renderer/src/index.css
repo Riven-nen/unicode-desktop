@@ -6726,6 +6726,8 @@ input:focus-visible,
   overflow: hidden;
 }
 .signin-app .top-nav {
+  position: relative;
+  z-index: 200;
   animation: signin-nav-in 600ms ease both;
 }
 .signin-glow {
